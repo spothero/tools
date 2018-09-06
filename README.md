@@ -29,7 +29,7 @@ In addition, all the above packages may automatically be integrated with Cobra/V
 
 ### Getting Setup
 
-Usage of this library simply requires you to specify this package in your [dep Gopk.toml](https://github.com/golang/dep/blob/master/docs/Gopkg.toml.md).
+Usage of this library simply requires you to specify this package in your [dep Gopkg.toml](https://github.com/golang/dep/blob/master/docs/Gopkg.toml.md).
 
 For example:
 
@@ -40,7 +40,7 @@ For example:
   name = "github.com/spothero/core"
 ```
 
-Then, in your application you can simple do the following:
+Then, in your application you can simply do the following:
 
 ```go
 package coolpkg
@@ -62,9 +62,5 @@ For production applications, we recommend separating the Cobra/Viper command por
 `cmd/` directory, and your application logic into a `pkg/` directory as is standard with most Go
 applications.
 
-Additionally, the Makefile for this project is an excellent example which you can (and should)
-borrow for your own projects. The only missing step is `build`, which you might define as follows:
-
-```
-
-```
+Additionally, the [Makefile][Makefile] for this project is an excellent example which you can (and should)
+borrow for your own projects.

@@ -6,7 +6,7 @@ GIT_SHA ?= $(shell git rev-parse HEAD)
 
 default_target: all
 
-all: bootstrap vendor test vendor
+all: bootstrap vendor test vendor build
 
 # Bootstrapping for base golang package deps
 BOOTSTRAP=\
@@ -27,3 +27,6 @@ test:
 
 clean:
 	rm -rf vendor
+
+build:
+	go build -ldflags="-X main.version=${VERSION} -X main.gitSha=${GIT_SHA}" examples/example_server.go
