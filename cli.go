@@ -125,6 +125,7 @@ func (rcc *RemoteCacheConfig) RegisterViperFlags(flags *pflag.FlagSet) {
 		"127.0.0.1:7005",
 	}
 	flags.StringSliceVar(&rcc.URLs, "cache-urls", defaultURLs, "Remote Clustered Redis Cache URLs as a comma-separated list")
+	flags.StringVar(&rcc.AuthToken, "cache-auth-token", "", "Redis Auth Token, If Any")
 	flags.DurationVar(&rcc.Timeout, "cache-timeout", time.Duration(time.Second*5), "Remote Redis Cache Connection Timeout")
 }
 

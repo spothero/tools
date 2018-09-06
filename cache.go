@@ -61,8 +61,9 @@ type RemoteCache struct {
 
 // RemoteCacheConfig is the necessary configuration for instantiating a RemoteCache struct
 type RemoteCacheConfig struct {
-	URLs    []string
-	Timeout time.Duration
+	URLs      []string
+	AuthToken string
+	Timeout   time.Duration
 }
 
 // TieredCache defines a combined local and remote-caching approach in which keys are stored
@@ -111,6 +112,15 @@ func (rcc RemoteCacheConfig) NewCache(encoder CacheEncoder, hashKey string, metr
 		Logger.Error("Unable to Refresh Redis Cluster Pool!", zap.Error(err))
 	} else {
 		Logger.Info("Remote Redis Cache Connection Initialized")
+	}
+	if err == nil && rcc.AuthToken != "" {
+		conn := sharedCluster.cluster.Get()
+		defer conn.Close()
+		if _, err = conn.Do("AUTH", rcc.AuthToken); err != nil {
+			Logger.Error("Unable to authenticate with the Redis Cluster!", zap.Error(err))
+		} else {
+			Logger.Info("Redis Cluster Successfully Authenticated")
+		}
 	}
 	return RemoteCache{
 		cluster: sharedCluster.cluster,

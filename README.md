@@ -1,5 +1,18 @@
 ### SpotHero Core Golang Library
 
+#### TLDR
+
+Impatient?
+
+1. Install Golang
+  a. `brew install golang`
+  a. [Set your `GOPATH` in your `.zshrc`/`.bashrc`/etc](https://github.com/golang/go/wiki/SettingGOPATH)
+  b. Add `GOPATH/bin` to your `PATH`
+    i. `export PATH=$GOPATH/bin:$PATH`
+2. `make`
+3. `./example_server`
+4. Open your browser to `http://localhost:8080`
+
 #### Overview
 This library contains common modules for use in all GoLang projects across SpotHero. To use this
 library simply add this as a dependency in your [dep Gopkg.toml](https://github.com/golang/dep/blob/master/docs/Gopkg.toml.md) using the latest release.
