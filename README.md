@@ -5,10 +5,10 @@
 Impatient?
 
 1. Install Golang
-  a. `brew install golang`
-  a. [Set your `GOPATH` in your `.zshrc`/`.bashrc`/etc](https://github.com/golang/go/wiki/SettingGOPATH)
-  b. Add `GOPATH/bin` to your `PATH`
-    i. `export PATH=$GOPATH/bin:$PATH`
+    1. `brew install golang`
+    2. [Set your `GOPATH` in your `.zshrc`/`.bashrc`/etc](https://github.com/golang/go/wiki/SettingGOPATH)
+    3. Add `GOPATH/bin` to your `PATH`
+        1. `export PATH=$GOPATH/bin:$PATH`
 2. `make`
 3. `./example_server`
 4. Open your browser to `http://localhost:8080`
@@ -75,5 +75,5 @@ For production applications, we recommend separating the Cobra/Viper command por
 `cmd/` directory, and your application logic into a `pkg/` directory as is standard with most Go
 applications.
 
-Additionally, the [Makefile][Makefile] for this project is an excellent example which you can (and should)
+Additionally, the [Makefile](Makefile) for this project is an excellent example which you can (and should)
 borrow for your own projects.
