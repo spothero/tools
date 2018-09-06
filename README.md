@@ -54,7 +54,7 @@ import (
 
 ### Usage
 
-A simple example is provided under [example_test.go](example_test.go) which shows usage of this
+A simple example is provided under [examples/example_server.go](examples/example_server.go) which shows usage of this
 library to create a simple 12-factor Go Web application which has tracing, logging, metrics,
 sentry, new relic, and local caching enabled.
 
