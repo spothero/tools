@@ -65,6 +65,53 @@ import (
 ...
 ```
 
+### Help! Dep is hanging and won't finish when I add this dependency!
+
+Dep is hanging because this is a private repository. It needs to be configured to access it
+properly.
+
+#### For Local Development
+On OSX you need to ensure that your git ssh credentials do not require a password. Add the
+following to `~/.ssh/config`:
+
+```
+Host *
+   UseKeychain yes
+```
+
+#### For building Docker containers
+In your Makefile you can add the following lines to use AWS CLI to fetch the Git pull github
+secret:
+
+```Makefile
+GITHUB_AUTH_USER ?= spotheropullonly
+GITHUB_TOKEN ?= $(shell aws secretsmanager get-secret-value --secret-id arn:aws:secretsmanager:us-west-2:913289439155:secret:github-larry-pull-only-auth-token-O9UM5J | jq -r .SecretString)
+
+...
+
+docker_build:
+  docker build --build-arg GITHUB_TOKEN='${GITHUB_TOKEN}' -t "spothero/<your-app>:<your-version>" .
+```
+
+In Dockerfiles add the following:
+
+```Dockerfile
+ARG GITHUB_TOKEN="not-set"
+ENV GITHUB_TOKEN $GITHUB_TOKEN
+RUN git config --global url."https://".insteadOf git://
+RUN echo "machine github.com login spotheropullonly password $GITHUB_TOKEN" > /root/.netrc
+
+# Note: this assumes you're using a Makefile
+RUN make
+
+RUN rm /root/.netrc
+```
+
+You should **always** use multistage builds for both performance and size reasons, as well as for
+security reasons. This is the best way to guarantee a secret is never left behind in a built docker
+image, private or not.
+
+
 ### Usage
 
 A simple example is provided under [examples/example_server.go](examples/example_server.go) which shows usage of this
