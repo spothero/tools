@@ -4,9 +4,11 @@ VERSION_PATCH ?= local
 VERSION ?= ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
 GIT_SHA ?= $(shell git rev-parse HEAD)
 
+.PHONY: vendor test bootstrap
+
 default_target: all
 
-all: bootstrap vendor test vendor build
+all: bootstrap vendor test build
 
 # Bootstrapping for base golang package deps
 BOOTSTRAP=\
@@ -19,14 +21,14 @@ $(BOOTSTRAP):
 bootstrap: $(BOOTSTRAP)
 	gometalinter --install
 
-vendor:
+vendor: bootstrap
 	dep ensure -v -vendor-only
 
-test:
+test: bootstrap vendor
 	go test -v ./... -cover
 
 clean:
 	rm -rf vendor
 
-build:
+build: vendor
 	go build -ldflags="-X main.version=${VERSION} -X main.gitSha=${GIT_SHA}" examples/example_server.go
