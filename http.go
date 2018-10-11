@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"os/signal"
 	"strconv"
@@ -103,7 +104,7 @@ func (c *HTTPServerConfig) RunHTTPServer(
 func makeHTTPCounter() *prometheus.CounterVec {
 	counter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "http_requests_count",
+			Name: "http_requests_total",
 			Help: "Total number of HTTP Requests received",
 		},
 		[]string{
@@ -264,6 +265,12 @@ func (c *HTTPServerConfig) RunWebServer(
 	}
 	mux.HandleFunc("/health", healthHandler)
 	mux.Handle("/metrics", promhttp.Handler())
+	// Profiling endpoints for use with go tool pprof
+	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	if registerMuxes != nil {
 		registerMuxes(mux)
 	}

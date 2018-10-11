@@ -127,6 +127,7 @@ func (rcc *RemoteCacheConfig) RegisterViperFlags(flags *pflag.FlagSet) {
 	flags.StringSliceVar(&rcc.URLs, "cache-urls", defaultURLs, "Remote Clustered Redis Cache URLs as a comma-separated list")
 	flags.StringVar(&rcc.AuthToken, "cache-auth-token", "", "Redis Auth Token, If Any")
 	flags.DurationVar(&rcc.Timeout, "cache-timeout", time.Duration(time.Second*5), "Remote Redis Cache Connection Timeout")
+	flags.BoolVar(&rcc.TracingEnabled, "remote-cache-tracing-enabled", true, "Enable tracing on remote cache")
 }
 
 // RegisterViperFlags registers LocalCache flags with Viper CLIs
@@ -134,10 +135,12 @@ func (lcc *LocalCacheConfig) RegisterViperFlags(flags *pflag.FlagSet) {
 	flags.DurationVar(&lcc.Eviction, "cache-eviction", time.Duration(time.Second*5), "How frequently to evict from cache")
 	flags.DurationVar(&lcc.TTL, "cache-ttl", time.Duration(time.Minute*60), "Cache Entry TTL for local cache")
 	flags.UintVar(&lcc.Shards, "cache-shards", 0, "Number of shards for local cluster. 0 means the program decides itself. Must be power of 2.")
+	flags.BoolVar(&lcc.TracingEnabled, "local-cache-tracing-enabled", true, "Enable tracing on local cache")
 }
 
 // RegisterViperFlags registers TieredCache flags with Viper CLIs
 func (tcc *TieredCacheConfig) RegisterViperFlags(flags *pflag.FlagSet) {
 	tcc.RemoteConfig.RegisterViperFlags(flags)
 	tcc.LocalConfig.RegisterViperFlags(flags)
+	flags.BoolVar(&tcc.TracingEnabled, "tiered-cache-tracing-enabled", true, "Enable tracing on tiered cache")
 }

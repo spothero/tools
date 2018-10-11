@@ -24,7 +24,7 @@ type KafkaMessageUnmarshaler interface {
 
 // KafkaMessageHandler defines an interface for handling new messages received by the Kafka consumer
 type KafkaMessageHandler interface {
-	HandleMessage(ctx context.Context, msg *sarama.ConsumerMessage, unmarshaler KafkaMessageUnmarshaler, caughtUpOffset int64) error
+	HandleMessage(ctx context.Context, msg *sarama.ConsumerMessage, unmarshaler KafkaMessageUnmarshaler) error
 }
 
 // KafkaConfig contains connection settings and configuration for communicating with a Kafka cluster
@@ -122,7 +122,6 @@ func (kc *KafkaConfig) InitKafkaClient(ctx context.Context) (sarama.Client, erro
 func (kc *KafkaConfig) InitKafkaConsumer(
 	client sarama.Client,
 	schemaRegistryConfig *SchemaRegistryConfig,
-	initialOffset int64,
 ) (*KafkaConsumer, error) {
 	consumer, err := sarama.NewConsumerFromClient(client)
 	if err != nil {
@@ -131,7 +130,6 @@ func (kc *KafkaConfig) InitKafkaConsumer(
 		}
 		return nil, err
 	}
-	client.Config().Consumer.Offsets.Initial = initialOffset
 
 	kafkaConsumer := &KafkaConsumer{
 		kafkaClient: kafkaClient{
@@ -277,42 +275,55 @@ func (kc *KafkaConfig) initKafkaMetrics(registry prometheus.Registerer) {
 
 // Close Sarama consumer and client
 func (kc *KafkaConsumer) Close() {
-	kc.consumer.Close()
+	err := kc.consumer.Close()
+	if err != nil {
+		Logger.Error("Error closing Kafka consumer", zap.Error(err))
+	}
 	if !kc.client.Closed() {
-		kc.client.Close()
+		err = kc.client.Close()
+		if err != nil {
+			Logger.Error("Error closing Kafka client", zap.Error(err))
+		}
 	}
 }
+
+// PartitionOffsets is a mapping of partition ID to an offset to which a consumer read on that partition
+type PartitionOffsets map[int32]int64
 
 // ConsumeTopic consumes a particular Kafka topic from startOffset to endOffset or
 // from startOffset to forever
 //
 // This function will create consumers for all partitions in a topic and read
-// from startOffset to caughtUpOffset then notify the caller via catchupWg. When
-// all partition consumers are closed, it will notify the caller on wg.
+// from startOffset to caughtUpOffset then notify the caller via catchupWg. If exitAfterCaughtUp is true,
+// the consumer will exit after it reads message at the latest offset when it started up. When
+// all partition consumers are closed, it will send the last offset read on each partition
+// through the readResult channel. If exitAfterCaughtUp is true, the consumer will exit
+// after reading to the latest offset.
 func (kc *KafkaConsumer) ConsumeTopic(
 	ctx context.Context,
-	handlers map[string]KafkaMessageHandler,
+	handler KafkaMessageHandler,
 	topic string,
 	startOffset int64,
-	wg *sync.WaitGroup,
+	readResult chan PartitionOffsets,
 	catchupWg *sync.WaitGroup,
+	exitAfterCaughtUp bool,
 ) {
-	Logger.Info("Starting Kafka consumer", zap.String("topic", topic))
-
-	var partitionsWg sync.WaitGroup
-	var partitionsCatchupWg sync.WaitGroup
-
-	// Create a partition consumer for each partition in the topic
-	handler, ok := handlers[topic]
-	if !ok {
-		Logger.Panic("No handler defined for topic, messages cannot be processed!", zap.String("topic", topic))
+	if kc == nil {
+		catchupWg.Done()
+		readResult <- nil
+		return
 	}
+
+	Logger.Info("Starting Kafka consumer", zap.String("topic", topic))
+	var partitionsCatchupWg sync.WaitGroup
 	partitions, err := kc.consumer.Partitions(topic)
 	if err != nil {
 		Logger.Panic("Couldn't get Kafka partitions", zap.String("topic", topic), zap.Error(err))
 	}
+
+	readToChan := make(chan consumerLastStatus)
+
 	for _, partition := range partitions {
-		partitionsWg.Add(1)
 		partitionsCatchupWg.Add(1)
 		newestOffset, err := kc.client.GetOffset(topic, partition, sarama.OffsetNewest)
 		if err != nil {
@@ -327,16 +338,30 @@ func (kc *KafkaConsumer) ConsumeTopic(
 		newestOffset--
 		go kc.consumePartition(
 			ctx, handler, topic, partition, startOffset, newestOffset,
-			&partitionsWg, &partitionsCatchupWg)
+			readToChan, &partitionsCatchupWg, exitAfterCaughtUp)
 	}
 	partitionsCatchupWg.Wait()
 	if catchupWg != nil {
 		catchupWg.Done()
 	}
 	Logger.Info("All partitions caught up", zap.String("topic", topic))
-	partitionsWg.Wait()
-	Logger.Info("All partition consumers closed", zap.String("topic", topic))
-	wg.Done()
+
+	readToOffsets := make(PartitionOffsets)
+	defer func() {
+		Logger.Info("All partition consumers closed", zap.String("topic", topic))
+		readResult <- readToOffsets
+	}()
+
+	for messagesAwaiting := len(partitions); messagesAwaiting > 0; {
+		read := <-readToChan
+		readToOffsets[read.partition] = read.offset
+		messagesAwaiting--
+	}
+}
+
+type consumerLastStatus struct {
+	offset    int64
+	partition int32
 }
 
 // Consume a particular topic and partition
@@ -347,7 +372,8 @@ func (kc *KafkaConsumer) ConsumeTopic(
 // then notify the caller via catchupWg. While reading from startOffset to
 // caughtUpOffset, messages will be handled synchronously to ensure that
 // all messages are processed before notifying the caller that the consumer
-// is caught up.
+// is caught up. When the consumer shuts down, it returns the last offset to
+// which it read through the readResult channel.
 func (kc *KafkaConsumer) consumePartition(
 	ctx context.Context,
 	handler KafkaMessageHandler,
@@ -355,8 +381,9 @@ func (kc *KafkaConsumer) consumePartition(
 	partition int32,
 	startOffset int64,
 	caughtUpOffset int64,
-	wg *sync.WaitGroup,
+	readResult chan consumerLastStatus,
 	catchupWg *sync.WaitGroup,
+	exitAfterCaughtUp bool,
 ) {
 	partitionConsumer, err := kc.consumer.ConsumePartition(topic, partition, startOffset)
 	if err != nil {
@@ -365,13 +392,30 @@ func (kc *KafkaConsumer) consumePartition(
 			zap.String("topic", topic), zap.Int32("partition", partition),
 			zap.Int64("start_offset", startOffset), zap.Error(err))
 	}
-	defer partitionConsumer.Close()
 
+	curOffset := startOffset
+
+	defer func() {
+		err := partitionConsumer.Close()
+		if err != nil {
+			Logger.Error(
+				"Error closing Kafka partition consumer",
+				zap.Error(err), zap.String("topic", topic), zap.Int32("partition", partition))
+		} else {
+			Logger.Debug(
+				"Kafka partition consumer closed", zap.String("topic", topic),
+				zap.Int32("partition", partition))
+		}
+		readResult <- consumerLastStatus{offset: curOffset, partition: partition}
+	}()
+
+	caughtUp := false
 	if caughtUpOffset == -1 {
 		Logger.Debug(
 			"No messages on partition for topic, consumer is caught up", zap.String("topic", topic),
 			zap.Int32("partition", partition))
 		catchupWg.Done()
+		caughtUp = true
 	}
 
 	promLabels := prometheus.Labels{
@@ -392,7 +436,7 @@ func (kc *KafkaConsumer) consumePartition(
 				continue
 			}
 			timer := prometheus.NewTimer(kc.kafkaConfig.messageProcessingTime.With(promLabels))
-			if err := handler.HandleMessage(ctx, msg, kc.messageUnmarshaler, caughtUpOffset); err != nil {
+			if err := handler.HandleMessage(ctx, msg, kc.messageUnmarshaler); err != nil {
 				Logger.Error(
 					"Error handling message",
 					zap.String("topic", topic),
@@ -404,31 +448,45 @@ func (kc *KafkaConsumer) consumePartition(
 			}
 			timer.ObserveDuration()
 			kc.kafkaConfig.messagesProcessed.With(promLabels).Add(1)
+			curOffset = msg.Offset
 			if msg.Offset == caughtUpOffset {
+				caughtUp = true
 				catchupWg.Done()
 				Logger.Debug(
 					"Successfully read to target Kafka offset",
 					zap.String("topic", topic), zap.Int32("partition", partition),
 					zap.Int64("offset", msg.Offset))
+				if exitAfterCaughtUp {
+					return
+				}
 			}
 		case err := <-partitionConsumer.Errors():
 			kc.kafkaConfig.errorsProcessed.With(promLabels).Add(1)
 			Logger.Error("Encountered an error from Kafka", zap.Error(err))
 		case <-ctx.Done():
-			wg.Done()
-			Logger.Debug(
-				"Kafka partition consumer closed", zap.String("topic", topic),
-				zap.Int32("partition", partition))
+			if !caughtUp {
+				// signal to the catchup wg that we're done if there's been a cancellation request
+				// so that the caller can exit if canceled before being caught up
+				catchupWg.Done()
+			}
 			return
 		}
 	}
 }
 
-// Close Kafka producer and client
-func (kp *KafkaProducer) Close() {
-	kp.producer.Close()
+// close Kafka producer and client
+func (kp *KafkaProducer) close() {
+	err := kp.producer.Close()
+	if err != nil {
+		Logger.Error("Error closing Kafka producer", zap.Error(err))
+	} else {
+		Logger.Debug("Kafka producer closed")
+	}
 	if !kp.client.Closed() {
-		kp.client.Close()
+		err = kp.client.Close()
+		if err != nil {
+			Logger.Error("Error closing Kafka client", zap.Error(err))
+		}
 	}
 }
 
@@ -437,11 +495,11 @@ func (kp *KafkaProducer) Close() {
 func (kp *KafkaProducer) RunProducer(
 	ctx context.Context,
 	messages <-chan *sarama.ProducerMessage,
-	wg *sync.WaitGroup,
 ) {
 	promLabels := prometheus.Labels{
 		"client": kp.kafkaConfig.ClientID,
 	}
+	defer kp.close()
 	for {
 		select {
 		case message := <-messages:
@@ -463,8 +521,6 @@ func (kp *KafkaProducer) RunProducer(
 			promLabels["topic"] = msg.Topic
 			kp.kafkaConfig.messagesProduced.With(promLabels).Add(1)
 		case <-ctx.Done():
-			wg.Done()
-			Logger.Debug("Kafka producer closed")
 			return
 		}
 	}

@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"context"
 	"encoding/gob"
 	"fmt"
 	"sync"
@@ -10,6 +11,7 @@ import (
 	"github.com/allegro/bigcache"
 	"github.com/gomodule/redigo/redis"
 	"github.com/mna/redisc"
+	opentracing "github.com/opentracing/opentracing-go"
 	"go.uber.org/zap"
 )
 
@@ -27,58 +29,73 @@ var sharedCluster = struct {
 // Cache defines the interface for interacting with caching utilities. All derived caches
 // must implement this interface
 type Cache interface {
-	GetBytes(key string) ([]byte, error)
-	Get(key string, target interface{}) error
-	SetBytes(key string, value []byte) error
-	Set(key string, value interface{}) error
-	Delete(key string) error
-	Purge() error
+	GetBytes(ctx context.Context, key string) ([]byte, error)
+	Get(ctx context.Context, key string, target interface{}) error
+	SetBytes(ctx context.Context, key string, value []byte) error
+	Set(ctx context.Context, key string, value interface{}) error
+	Delete(ctx context.Context, key string) error
+	Purge(ctx context.Context) error
 }
 
 // LocalCache defines a remote-caching approach in which keys are stored remotely in a separate
 // process.
 type LocalCache struct {
-	Cache   *bigcache.BigCache
-	Encoder CacheEncoder
-	Metrics CacheMetrics
+	Cache          *bigcache.BigCache
+	Encoder        CacheEncoder
+	Metrics        CacheMetrics
+	TracingEnabled bool
 }
 
 // LocalCacheConfig is the necessary configuration for instantiating a LocalCache struct
 type LocalCacheConfig struct {
-	Eviction time.Duration
-	TTL      time.Duration
-	Shards   uint // Must be power of 2
+	Eviction       time.Duration
+	TTL            time.Duration
+	Shards         uint // Must be power of 2
+	TracingEnabled bool
 }
 
 // RemoteCache defines a remote-caching approach in which keys are stored remotely in a separate
-// process. RemoteCache utilizes Redis hash to group items together.
+// process.
 type RemoteCache struct {
-	cluster *redisc.Cluster
-	Encoder CacheEncoder
-	HashKey string
-	Metrics CacheMetrics
+	cluster        *redisc.Cluster
+	Encoder        CacheEncoder
+	Metrics        CacheMetrics
+	TracingEnabled bool
 }
 
 // RemoteCacheConfig is the necessary configuration for instantiating a RemoteCache struct
 type RemoteCacheConfig struct {
-	URLs      []string
-	AuthToken string
-	Timeout   time.Duration
+	URLs           []string
+	AuthToken      string
+	Timeout        time.Duration
+	TracingEnabled bool
 }
 
 // TieredCache defines a combined local and remote-caching approach in which keys are stored
 // remotely in a separate process as well as cached locally. Local cache is preferred.
 type TieredCache struct {
-	Remote  Cache
-	Local   Cache
-	Metrics CacheMetrics
+	Remote         Cache
+	Local          Cache
+	Metrics        CacheMetrics
+	TracingEnabled bool
 }
 
 // TieredCacheConfig is the necessary configuration for instantiating a TieredCache struct
 type TieredCacheConfig struct {
-	RemoteConfig RemoteCacheConfig
-	LocalConfig  LocalCacheConfig
-	Encoder      CacheEncoder
+	RemoteConfig   RemoteCacheConfig
+	LocalConfig    LocalCacheConfig
+	Encoder        CacheEncoder
+	TracingEnabled bool
+}
+
+// TieredCacheCreator defines an interface to create and return a Tiered Cache
+type TieredCacheCreator interface {
+	NewCache(
+		encoder CacheEncoder,
+		metrics CacheMetrics,
+		localMetrics CacheMetrics,
+		remoteMetrics CacheMetrics,
+	) (Cache, error)
 }
 
 // createPool creates and returns a Redis connection pool
@@ -99,7 +116,10 @@ func (rcc RemoteCacheConfig) createPool(addr string, opts ...redis.DialOption) (
 }
 
 // NewCache constructs and returns a RemoteCache given configuration
-func (rcc RemoteCacheConfig) NewCache(encoder CacheEncoder, hashKey string, metrics CacheMetrics) (RemoteCache, error) {
+func (rcc RemoteCacheConfig) NewCache(
+	encoder CacheEncoder,
+	metrics CacheMetrics,
+) (RemoteCache, error) {
 	sharedCluster.onceCreate.Do(func() {
 		sharedCluster.cluster = &redisc.Cluster{
 			StartupNodes: rcc.URLs,
@@ -123,10 +143,10 @@ func (rcc RemoteCacheConfig) NewCache(encoder CacheEncoder, hashKey string, metr
 		}
 	}
 	return RemoteCache{
-		cluster: sharedCluster.cluster,
-		Encoder: encoder,
-		HashKey: hashKey,
-		Metrics: metrics,
+		cluster:        sharedCluster.cluster,
+		Encoder:        encoder,
+		Metrics:        metrics,
+		TracingEnabled: rcc.TracingEnabled,
 	}, err
 }
 
@@ -138,8 +158,11 @@ func (rc RemoteCache) Close() {
 }
 
 // NewCache constructs and returns a LocalCache given configuration
-func (lcc LocalCacheConfig) NewCache(encoder CacheEncoder, metrics CacheMetrics) (LocalCache, error) {
-	cache := LocalCache{Encoder: encoder}
+func (lcc LocalCacheConfig) NewCache(
+	encoder CacheEncoder,
+	metrics CacheMetrics,
+) (LocalCache, error) {
+	cache := LocalCache{Encoder: encoder, TracingEnabled: lcc.TracingEnabled}
 	if lcc.Shards != 0 && lcc.Shards%2 != 0 {
 		err := fmt.Errorf("shards must be power of 2 - %v is invalid", lcc.Shards)
 		Logger.Error("Shards must be power of 2", zap.Uint("shards", lcc.Shards), zap.Error(err))
@@ -168,12 +191,11 @@ func (lcc LocalCacheConfig) NewCache(encoder CacheEncoder, metrics CacheMetrics)
 // NewCache constructs and returns a TieredCache given configuration
 func (tcc TieredCacheConfig) NewCache(
 	encoder CacheEncoder,
-	remoteHashKey string,
 	metrics CacheMetrics,
 	localMetrics CacheMetrics,
 	remoteMetrics CacheMetrics,
-) (TieredCache, error) {
-	remote, err := tcc.RemoteConfig.NewCache(encoder, remoteHashKey, remoteMetrics)
+) (Cache, error) {
+	remote, err := tcc.RemoteConfig.NewCache(encoder, remoteMetrics)
 	if err != nil {
 		return TieredCache{}, err
 	}
@@ -181,7 +203,12 @@ func (tcc TieredCacheConfig) NewCache(
 	if err != nil {
 		return TieredCache{}, err
 	}
-	return TieredCache{Remote: remote, Local: local, Metrics: metrics}, nil
+	return TieredCache{
+		Remote:         remote,
+		Local:          local,
+		Metrics:        metrics,
+		TracingEnabled: tcc.TracingEnabled,
+	}, nil
 }
 
 // Close cleans up cache and removes any open connections
@@ -190,20 +217,34 @@ func (tc TieredCache) Close() {
 }
 
 // GetBytes gets the requested bytes from remote cache
-func (rc RemoteCache) GetBytes(key string) ([]byte, error) {
+func (rc RemoteCache) GetBytes(ctx context.Context, key string) ([]byte, error) {
+	var span opentracing.Span
+	if rc.TracingEnabled {
+		span, _ = opentracing.StartSpanFromContext(ctx, "remote-cache-get-bytes")
+		span.SetTag("command", "GET")
+		span.SetTag("key", key)
+	}
 	conn := rc.cluster.Get()
 	defer conn.Close()
-	data, err := redis.Bytes(conn.Do("HGET", rc.HashKey, key))
+	data, err := redis.Bytes(conn.Do("GET", key))
 	if err != nil {
 		Logger.Debug("Redis does not contain key", zap.String("key", key))
+	}
+	if rc.TracingEnabled {
+		if err != nil {
+			span.SetTag("result", "miss")
+		} else {
+			span.SetTag("result", "hit")
+		}
+		span.Finish()
 	}
 	return data, err
 }
 
 // Get retrieves the value from cache, decodes it, and sets the result in target. target must be a
 // pointer.
-func (rc RemoteCache) Get(key string, target interface{}) error {
-	data, err := rc.GetBytes(key)
+func (rc RemoteCache) Get(ctx context.Context, key string, target interface{}) error {
+	data, err := rc.GetBytes(ctx, key)
 	if rc.Metrics != nil {
 		if err != nil {
 			rc.Metrics.Miss()
@@ -218,18 +259,32 @@ func (rc RemoteCache) Get(key string, target interface{}) error {
 }
 
 // SetBytes sets the provided bytes in the remote cache on the provided key
-func (rc RemoteCache) SetBytes(key string, value []byte) error {
+func (rc RemoteCache) SetBytes(ctx context.Context, key string, value []byte) error {
+	var span opentracing.Span
+	if rc.TracingEnabled {
+		span, _ = opentracing.StartSpanFromContext(ctx, "remote-cache-set-bytes")
+		span.SetTag("command", "SET")
+		span.SetTag("key", key)
+	}
 	conn := rc.cluster.Get()
 	defer conn.Close()
-	_, err := conn.Do("HSET", rc.HashKey, key, value)
+	_, err := conn.Do("SET", key, value)
 	if err != nil {
-		Logger.Debug("Unable to set key on Redis", zap.String("key", key), zap.String("hash_key", rc.HashKey))
+		Logger.Debug("Unable to set key on Redis", zap.String("key", key))
+	}
+	if rc.TracingEnabled {
+		if err != nil {
+			span.SetTag("result", "fail")
+		} else {
+			span.SetTag("result", "set")
+		}
+		span.Finish()
 	}
 	return err
 }
 
 // Set encodes the provided value and sets it in the remote cache
-func (rc RemoteCache) Set(key string, value interface{}) error {
+func (rc RemoteCache) Set(ctx context.Context, key string, value interface{}) error {
 	encodedData, err := rc.Encoder.Encode(value)
 	if rc.Metrics != nil {
 		if err != nil {
@@ -241,34 +296,74 @@ func (rc RemoteCache) Set(key string, value interface{}) error {
 	if err != nil {
 		return err
 	}
-	return rc.SetBytes(key, encodedData)
+	return rc.SetBytes(ctx, key, encodedData)
 }
 
-// Delete removes the value from remote cache
-func (rc RemoteCache) Delete(key string) error {
+// Delete removes the value from remote cache. Because Redis doesnt support Fuzzy matches for
+// delete, this function first gets all matching keys, and then proceeds to pipeline deletion of
+// those keys
+func (rc RemoteCache) Delete(ctx context.Context, key string) error {
+	var span opentracing.Span
+	if rc.TracingEnabled {
+		span, _ = opentracing.StartSpanFromContext(ctx, "remote-cache-delete")
+		span.SetTag("command", "Pipeline:KEYS:MULTI:DEL:EXEC")
+		span.SetTag("key", key)
+	}
 	conn := rc.cluster.Get()
 	defer conn.Close()
-	_, err := conn.Do("HDEL", rc.HashKey, key)
+	keysToDelete, err := redis.Strings(conn.Do("KEYS", key))
 	if err != nil {
-		Logger.Debug("Unable to delete key on Redis", zap.String("key", key), zap.String("hash_key", rc.HashKey))
+		Logger.Error("Unable to retrieve Keys to delete from Redis", zap.String("key", key))
+	}
+
+	// Execute a Redis Pipeline which bulk delets all matching keys
+	err = conn.Send("MULTI")
+	if err != nil {
+		Logger.Error("Failed to start Redis deletion transaction", zap.String("key", key))
+	}
+	if rc.TracingEnabled {
+		span.SetTag("num_keys", len(keysToDelete))
 	}
 	if rc.Metrics != nil {
-		if err != nil {
+		if err != nil || len(keysToDelete) <= 0 {
 			rc.Metrics.DeleteMiss()
 		} else {
 			rc.Metrics.DeleteHit()
 		}
 	}
+	for _, keyToDelete := range keysToDelete {
+		err = conn.Send("DEL", keyToDelete)
+		if err != nil {
+			Logger.Debug("Failed to send Deletion command for key", zap.String("key", key))
+		}
+	}
+	_, err = conn.Do("EXEC")
+	if err != nil {
+		Logger.Error("Unable to delete keys on Redis via pipeline", zap.String("key", key))
+	}
+	if rc.TracingEnabled {
+		if err != nil {
+			span.SetTag("result", "fail")
+		} else {
+			span.SetTag("result", "delete")
+		}
+		span.Finish()
+	}
 	return err
 }
 
 // Purge wipes out all items under control of this cache in Redis
-func (rc RemoteCache) Purge() error {
+func (rc RemoteCache) Purge(ctx context.Context) error {
+	var span opentracing.Span
+	if rc.TracingEnabled {
+		span, _ = opentracing.StartSpanFromContext(ctx, "remote-cache-delete")
+		span.SetTag("command", "FLUSHALL")
+	}
 	conn := rc.cluster.Get()
 	defer conn.Close()
-	_, err := conn.Do("DEL", rc.HashKey)
+	_, err := conn.Do("FLUSHALL")
 	if err != nil {
-		Logger.Debug("Unable to purge keys in Redis", zap.String("hash_key", rc.HashKey))
+		Logger.Debug("Unable to purge keys in Redis")
 	}
 	if rc.Metrics != nil {
 		if err != nil {
@@ -277,18 +372,26 @@ func (rc RemoteCache) Purge() error {
 			rc.Metrics.PurgeHit()
 		}
 	}
+	if rc.TracingEnabled {
+		if err != nil {
+			span.SetTag("result", "fail")
+		} else {
+			span.SetTag("result", "purge")
+		}
+		span.Finish()
+	}
 	return err
 }
 
 // GetBytes gets the requested bytes from local cache
-func (lc LocalCache) GetBytes(key string) ([]byte, error) {
+func (lc LocalCache) GetBytes(ctx context.Context, key string) ([]byte, error) {
 	return lc.Cache.Get(key)
 }
 
 // Get retrieves the value from cache, decodes it, and sets the result in target. target must be a
 // pointer.
-func (lc LocalCache) Get(key string, target interface{}) error {
-	data, err := lc.GetBytes(key)
+func (lc LocalCache) Get(ctx context.Context, key string, target interface{}) error {
+	data, err := lc.GetBytes(ctx, key)
 	if lc.Metrics != nil {
 		if err != nil {
 			lc.Metrics.Miss()
@@ -303,12 +406,12 @@ func (lc LocalCache) Get(key string, target interface{}) error {
 }
 
 // SetBytes sets the provided bytes in the local cache on the provided key
-func (lc LocalCache) SetBytes(key string, value []byte) error {
+func (lc LocalCache) SetBytes(ctx context.Context, key string, value []byte) error {
 	return lc.Cache.Set(key, value)
 }
 
 // Set encodes the provided value and sets it in the local cache
-func (lc LocalCache) Set(key string, value interface{}) error {
+func (lc LocalCache) Set(ctx context.Context, key string, value interface{}) error {
 	encodedData, err := lc.Encoder.Encode(value)
 	if lc.Metrics != nil {
 		if err != nil {
@@ -320,11 +423,11 @@ func (lc LocalCache) Set(key string, value interface{}) error {
 	if err != nil {
 		return err
 	}
-	return lc.SetBytes(key, encodedData)
+	return lc.SetBytes(ctx, key, encodedData)
 }
 
 // Delete removes the value from local cache
-func (lc LocalCache) Delete(key string) error {
+func (lc LocalCache) Delete(ctx context.Context, key string) error {
 	err := lc.Cache.Delete(key)
 	if lc.Metrics != nil {
 		if err != nil {
@@ -337,7 +440,7 @@ func (lc LocalCache) Delete(key string) error {
 }
 
 // Purge wipes out all items in local cache
-func (lc LocalCache) Purge() error {
+func (lc LocalCache) Purge(ctx context.Context) error {
 	err := lc.Cache.Reset()
 	if lc.Metrics != nil {
 		if err != nil {
@@ -350,20 +453,20 @@ func (lc LocalCache) Purge() error {
 }
 
 // GetBytes gets the requested bytes from from tiered cache. Local first, then remote.
-func (tc TieredCache) GetBytes(key string) ([]byte, error) {
-	data, err := tc.Local.GetBytes(key)
+func (tc TieredCache) GetBytes(ctx context.Context, key string) ([]byte, error) {
+	data, err := tc.Local.GetBytes(ctx, key)
 	if err != nil {
-		data, err = tc.Remote.GetBytes(key)
+		data, err = tc.Remote.GetBytes(ctx, key)
 	}
 	return data, err
 }
 
 // Get retrieves the value from the tiered cache, cache, decodes it, and sets the result in target.
 // Local cache first, then remote. target must be a pointer.
-func (tc TieredCache) Get(key string, target interface{}) error {
-	err := tc.Local.Get(key, target)
+func (tc TieredCache) Get(ctx context.Context, key string, target interface{}) error {
+	err := tc.Local.Get(ctx, key, target)
 	if err != nil {
-		err = tc.Remote.Get(key, target)
+		err = tc.Remote.Get(ctx, key, target)
 	}
 	if tc.Metrics != nil {
 		if err != nil {
@@ -376,19 +479,19 @@ func (tc TieredCache) Get(key string, target interface{}) error {
 }
 
 // SetBytes sets the provided bytes in the local and remote caches on the provided key
-func (tc TieredCache) SetBytes(key string, value []byte) error {
-	err := tc.Local.SetBytes(key, value)
+func (tc TieredCache) SetBytes(ctx context.Context, key string, value []byte) error {
+	err := tc.Local.SetBytes(ctx, key, value)
 	if err == nil {
-		err = tc.Remote.SetBytes(key, value)
+		err = tc.Remote.SetBytes(ctx, key, value)
 	}
 	return err
 }
 
 // Set encodes the provided value and sets it in the local and remote cache
-func (tc TieredCache) Set(key string, value interface{}) error {
-	err := tc.Local.Set(key, value)
+func (tc TieredCache) Set(ctx context.Context, key string, value interface{}) error {
+	err := tc.Local.Set(ctx, key, value)
 	if err == nil {
-		err = tc.Remote.Set(key, value)
+		err = tc.Remote.Set(ctx, key, value)
 	}
 	if tc.Metrics != nil {
 		if err != nil {
@@ -401,10 +504,10 @@ func (tc TieredCache) Set(key string, value interface{}) error {
 }
 
 // Delete removes the value from local cache and remote cache
-func (tc TieredCache) Delete(key string) error {
-	err := tc.Local.Delete(key)
+func (tc TieredCache) Delete(ctx context.Context, key string) error {
+	err := tc.Local.Delete(ctx, key)
 	if err == nil {
-		err = tc.Remote.Delete(key)
+		err = tc.Remote.Delete(ctx, key)
 	}
 	if tc.Metrics != nil {
 		if err != nil {
@@ -417,10 +520,10 @@ func (tc TieredCache) Delete(key string) error {
 }
 
 // Purge wipes out all items locally, and all items under control of this cache in Redis
-func (tc TieredCache) Purge() error {
-	err := tc.Local.Purge()
+func (tc TieredCache) Purge(ctx context.Context) error {
+	err := tc.Local.Purge(ctx)
 	if err == nil {
-		err = tc.Remote.Purge()
+		err = tc.Remote.Purge(ctx)
 	}
 	if tc.Metrics != nil {
 		if err != nil {

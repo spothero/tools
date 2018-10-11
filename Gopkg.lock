@@ -133,6 +133,20 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:d22845779d6e7e44216773e6b3c4d9386a1c0bef11d9477a81e02b2d09980de8"
+  name = "github.com/golang/geo"
+  packages = [
+    "r1",
+    "r2",
+    "r3",
+    "s1",
+    "s2",
+  ]
+  pruneopts = "UT"
+  revision = "476085157cff9aaeef4d4f124649436542d4114a"
+
+[[projects]]
+  branch = "master"
   digest = "1:1ba1d79f2810270045c328ae5d674321db34e3aae468eb4233883b473c5c0467"
   name = "github.com/golang/glog"
   packages = ["."]
@@ -947,6 +961,8 @@
     "github.com/alicebob/miniredis",
     "github.com/allegro/bigcache",
     "github.com/getsentry/raven-go",
+    "github.com/golang/geo/s1",
+    "github.com/golang/geo/s2",
     "github.com/gomodule/redigo/redis",
     "github.com/linkedin/goavro",
     "github.com/mna/redisc",

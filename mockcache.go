@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/stretchr/testify/mock"
@@ -28,7 +29,7 @@ func NewMockCache(encoder CacheEncoder) *MockCache {
 }
 
 // GetBytes is a mock GetBytes implementation for cache
-func (mc *MockCache) GetBytes(key string) ([]byte, error) {
+func (mc *MockCache) GetBytes(ctx context.Context, key string) ([]byte, error) {
 	value, ok := mc.Cache[key]
 	if !ok {
 		return nil, fmt.Errorf("key not found")
@@ -37,8 +38,8 @@ func (mc *MockCache) GetBytes(key string) ([]byte, error) {
 }
 
 // Get is a mock GetBytes implementation for cache
-func (mc *MockCache) Get(key string, target interface{}) error {
-	data, err := mc.GetBytes(key)
+func (mc *MockCache) Get(ctx context.Context, key string, target interface{}) error {
+	data, err := mc.GetBytes(ctx, key)
 	if err != nil {
 		return err
 	}
@@ -46,22 +47,22 @@ func (mc *MockCache) Get(key string, target interface{}) error {
 }
 
 // SetBytes is a mock SetBytes implementation for cache
-func (mc *MockCache) SetBytes(key string, value []byte) error {
+func (mc *MockCache) SetBytes(ctx context.Context, key string, value []byte) error {
 	mc.Cache[key] = value
 	return nil
 }
 
 // Set is a mock Set implementation for cache
-func (mc *MockCache) Set(key string, value interface{}) error {
+func (mc *MockCache) Set(ctx context.Context, key string, value interface{}) error {
 	cacheBytes, err := mc.Encoder.Encode(value)
 	if err != nil {
 		return err
 	}
-	return mc.SetBytes(key, cacheBytes)
+	return mc.SetBytes(ctx, key, cacheBytes)
 }
 
 // Delete is a mock Delete implementation for cache
-func (mc *MockCache) Delete(key string) error {
+func (mc *MockCache) Delete(ctx context.Context, key string) error {
 	if _, ok := mc.Cache[key]; !ok {
 		return fmt.Errorf("key not found for deletion")
 	}
@@ -70,7 +71,7 @@ func (mc *MockCache) Delete(key string) error {
 }
 
 // Purge is a mock Purge implementation for cache
-func (mc *MockCache) Purge() error {
+func (mc *MockCache) Purge(ctx context.Context) error {
 	mc.Cache = make(map[string][]byte)
 	return nil
 }
@@ -126,4 +127,20 @@ func (mcc *MockCacheMetrics) PurgeHit() {
 // PurgeMiss is a mock metrics PurgeMiss implementation
 func (mcc *MockCacheMetrics) PurgeMiss() {
 	mcc.Called()
+}
+
+// MockTieredCacheCreator provides a mock tiered cache config implementation
+type MockTieredCacheCreator struct {
+	mock.Mock
+}
+
+// NewCache returns a mocked tiered cache
+func (m *MockTieredCacheCreator) NewCache(
+	encoder CacheEncoder,
+	metrics CacheMetrics,
+	localMetrics CacheMetrics,
+	remoteMetrics CacheMetrics,
+) (Cache, error) {
+	args := m.Called(encoder, metrics, localMetrics, remoteMetrics)
+	return args.Get(0).(Cache), args.Error(1)
 }

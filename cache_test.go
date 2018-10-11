@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -38,11 +39,11 @@ func TestRemoteSetBytes(t *testing.T) {
 	s, err := miniredis.Run()
 	assert.NoError(t, err)
 	defer s.Close()
-	s.HSet("hash", "test-key", "test-value")
+	s.Set("test-key", "test-value")
 	mockCluster := &redisc.Cluster{StartupNodes: []string{s.Addr()}}
 
-	rc := RemoteCache{cluster: mockCluster, HashKey: "hash"}
-	err = rc.SetBytes("test-key", []byte("test-value"))
+	rc := RemoteCache{cluster: mockCluster}
+	err = rc.SetBytes(context.Background(), "test-key", []byte("test-value"))
 	assert.NoError(t, err)
 }
 
@@ -50,7 +51,7 @@ func TestRemoteSet(t *testing.T) {
 	s, err := miniredis.Run()
 	assert.NoError(t, err)
 	defer s.Close()
-	s.HSet("hash", "test-key", "test-value")
+	s.Set("test-key", "test-value")
 	mockCluster := &redisc.Cluster{StartupNodes: []string{s.Addr()}}
 
 	encoder := &MockedCacheEncoder{}
@@ -58,8 +59,8 @@ func TestRemoteSet(t *testing.T) {
 	encoder.On("Encode", value).Return([]byte("test-value"), nil)
 	mcm := &MockCacheMetrics{}
 	mcm.On("Set")
-	rc := RemoteCache{cluster: mockCluster, Encoder: encoder, HashKey: "hash", Metrics: mcm}
-	err = rc.Set("test-key", value)
+	rc := RemoteCache{cluster: mockCluster, Encoder: encoder, Metrics: mcm}
+	err = rc.Set(context.Background(), "test-key", value)
 	assert.NoError(t, err)
 	mcm.AssertCalled(t, "Set")
 }
@@ -71,33 +72,20 @@ func TestRemoteSetError(t *testing.T) {
 	mcm := &MockCacheMetrics{}
 	mcm.On("SetCollision")
 	rc := RemoteCache{cluster: &redisc.Cluster{}, Encoder: encoder, Metrics: mcm}
-	err := rc.Set("test-key", value)
+	err := rc.Set(context.Background(), "test-key", value)
 	assert.Error(t, err)
 	mcm.AssertCalled(t, "SetCollision")
-}
-
-func TestRemoteSetBytesError(t *testing.T) {
-	s, err := miniredis.Run()
-	assert.NoError(t, err)
-	defer s.Close()
-	// Use a normal Set for the hashed key to force a conflict which in turn causes a SET failure
-	s.Set("hash", "test-value")
-	mockCluster := &redisc.Cluster{StartupNodes: []string{s.Addr()}}
-
-	rc := RemoteCache{cluster: mockCluster, HashKey: "hash"}
-	err = rc.SetBytes("test-key", []byte("test-value"))
-	assert.Error(t, err)
 }
 
 func TestRemoteGetBytes(t *testing.T) {
 	s, err := miniredis.Run()
 	assert.NoError(t, err)
 	defer s.Close()
-	s.HSet("hash", "test-key", "test-value")
+	s.Set("test-key", "test-value")
 	mockCluster := &redisc.Cluster{StartupNodes: []string{s.Addr()}}
 
-	rc := RemoteCache{cluster: mockCluster, HashKey: "hash"}
-	value, err := rc.GetBytes("test-key")
+	rc := RemoteCache{cluster: mockCluster}
+	value, err := rc.GetBytes(context.Background(), "test-key")
 	assert.NoError(t, err)
 	assert.Equal(t, value, []byte("test-value"))
 }
@@ -106,7 +94,7 @@ func TestRemoteGet(t *testing.T) {
 	s, err := miniredis.Run()
 	assert.NoError(t, err)
 	defer s.Close()
-	s.HSet("hash", "test-key", "test-value")
+	s.Set("test-key", "test-value")
 	mockCluster := &redisc.Cluster{StartupNodes: []string{s.Addr()}}
 
 	encoder := &MockedCacheEncoder{}
@@ -114,8 +102,8 @@ func TestRemoteGet(t *testing.T) {
 	encoder.On("Decode", []byte("test-value"), target).Return(nil)
 	mcm := &MockCacheMetrics{}
 	mcm.On("Hit")
-	rc := RemoteCache{cluster: mockCluster, Encoder: encoder, HashKey: "hash", Metrics: mcm}
-	err = rc.Get("test-key", target)
+	rc := RemoteCache{cluster: mockCluster, Encoder: encoder, Metrics: mcm}
+	err = rc.Get(context.Background(), "test-key", target)
 	assert.NoError(t, err)
 	mcm.AssertCalled(t, "Hit")
 }
@@ -124,15 +112,13 @@ func TestRemoteGetError(t *testing.T) {
 	s, err := miniredis.Run()
 	assert.NoError(t, err)
 	defer s.Close()
-	// Use a normal Set for the hashed key to force a conflict which in turn causes a SET failure
-	s.Set("hash", "test-value")
 	mockCluster := &redisc.Cluster{StartupNodes: []string{s.Addr()}}
 
 	target := struct{}{}
 	mcm := &MockCacheMetrics{}
 	mcm.On("Miss")
-	rc := RemoteCache{cluster: mockCluster, HashKey: "hash", Metrics: mcm}
-	err = rc.Get("test-key", target)
+	rc := RemoteCache{cluster: mockCluster, Metrics: mcm}
+	err = rc.Get(context.Background(), "test-key", target)
 	assert.Error(t, err)
 	mcm.AssertCalled(t, "Miss")
 }
@@ -141,12 +127,11 @@ func TestRemoteGetBytesError(t *testing.T) {
 	s, err := miniredis.Run()
 	assert.NoError(t, err)
 	defer s.Close()
-	// Use a normal Set for the hashed key to force a conflict which in turn causes a SET failure
-	s.Set("hash", "test-value")
+	s.Set("test-key-miss", "test-value")
 	mockCluster := &redisc.Cluster{StartupNodes: []string{s.Addr()}}
 
-	rc := RemoteCache{cluster: mockCluster, HashKey: "hash"}
-	value, err := rc.GetBytes("test-key")
+	rc := RemoteCache{cluster: mockCluster}
+	value, err := rc.GetBytes(context.Background(), "test-key")
 	assert.Error(t, err)
 	assert.Nil(t, value)
 }
@@ -155,13 +140,13 @@ func TestRemoteDelete(t *testing.T) {
 	s, err := miniredis.Run()
 	assert.NoError(t, err)
 	defer s.Close()
-	s.HSet("hash", "test-key", "test-value")
+	s.Set("test-key", "test-value")
 	mockCluster := &redisc.Cluster{StartupNodes: []string{s.Addr()}}
 
 	mcm := &MockCacheMetrics{}
 	mcm.On("DeleteHit")
-	rc := RemoteCache{cluster: mockCluster, HashKey: "hash", Metrics: mcm}
-	err = rc.Delete("test-key")
+	rc := RemoteCache{cluster: mockCluster, Metrics: mcm}
+	err = rc.Delete(context.Background(), "test-key")
 	assert.NoError(t, err)
 	mcm.AssertCalled(t, "DeleteHit")
 }
@@ -170,14 +155,13 @@ func TestRemoteDeleteError(t *testing.T) {
 	s, err := miniredis.Run()
 	assert.NoError(t, err)
 	defer s.Close()
-	s.Set("hash", "test-key")
 	mockCluster := &redisc.Cluster{StartupNodes: []string{s.Addr()}}
 
 	mcm := &MockCacheMetrics{}
 	mcm.On("DeleteMiss")
-	rc := RemoteCache{cluster: mockCluster, HashKey: "hash", Metrics: mcm}
-	err = rc.Delete("test-key")
-	assert.Error(t, err)
+	rc := RemoteCache{cluster: mockCluster, Metrics: mcm}
+	err = rc.Delete(context.Background(), "test-key")
+	assert.NoError(t, err)
 	mcm.AssertCalled(t, "DeleteMiss")
 }
 
@@ -189,8 +173,8 @@ func TestRemotePurge(t *testing.T) {
 
 	mcm := &MockCacheMetrics{}
 	mcm.On("PurgeHit")
-	rc := RemoteCache{cluster: mockCluster, HashKey: "hash", Metrics: mcm}
-	err = rc.Purge()
+	rc := RemoteCache{cluster: mockCluster, Metrics: mcm}
+	err = rc.Purge(context.Background())
 	assert.NoError(t, err)
 	mcm.AssertCalled(t, "PurgeHit")
 }
@@ -202,8 +186,8 @@ func TestRemotePurgeError(t *testing.T) {
 
 	mcm := &MockCacheMetrics{}
 	mcm.On("PurgeMiss")
-	rc := RemoteCache{cluster: mockCluster, HashKey: "hash", Metrics: mcm}
-	err := rc.Purge()
+	rc := RemoteCache{cluster: mockCluster, Metrics: mcm}
+	err := rc.Purge(context.Background())
 	assert.Error(t, err)
 	mcm.AssertCalled(t, "PurgeMiss")
 }
@@ -232,7 +216,7 @@ func TestLocalInvalidShards(t *testing.T) {
 
 func TestLocalSetBytes(t *testing.T) {
 	lc := newLocalCache(t, 0, 0)
-	err := lc.SetBytes("test-key", []byte("test-value"))
+	err := lc.SetBytes(context.Background(), "test-key", []byte("test-value"))
 	assert.Nil(t, err)
 }
 
@@ -241,7 +225,7 @@ func TestLocalSet(t *testing.T) {
 	lc.Metrics.(*MockCacheMetrics).On("Set")
 	value := "don't care"
 	lc.Encoder.(*MockedCacheEncoder).On("Encode", value).Return([]byte("test-value"), nil)
-	err := lc.Set("test-key", value)
+	err := lc.Set(context.Background(), "test-key", value)
 	assert.Nil(t, err)
 	lc.Metrics.(*MockCacheMetrics).AssertCalled(t, "Set")
 }
@@ -251,7 +235,7 @@ func TestLocalSetError(t *testing.T) {
 	lc.Metrics.(*MockCacheMetrics).On("SetCollision")
 	value := "don't care"
 	lc.Encoder.(*MockedCacheEncoder).On("Encode", value).Return(nil, fmt.Errorf("error"))
-	err := lc.Set("test-key", value)
+	err := lc.Set(context.Background(), "test-key", value)
 	assert.Error(t, err)
 	lc.Metrics.(*MockCacheMetrics).AssertCalled(t, "SetCollision")
 }
@@ -262,7 +246,7 @@ func TestLocalGetBytes(t *testing.T) {
 	// Use underlying cache to avoid testing two functions in one test
 	err := lc.Cache.Set("test-key", []byte("test-value"))
 	require.Nil(t, err)
-	value, err := lc.GetBytes("test-key")
+	value, err := lc.GetBytes(context.Background(), "test-key")
 	assert.Nil(t, err)
 	assert.Equal(t, value, []byte("test-value"))
 }
@@ -276,7 +260,7 @@ func TestLocalGet(t *testing.T) {
 	require.Nil(t, err)
 	target := struct{}{}
 	lc.Encoder.(*MockedCacheEncoder).On("Decode", []byte("test-value"), target).Return(nil)
-	err = lc.Get("test-key", target)
+	err = lc.Get(context.Background(), "test-key", target)
 	assert.Nil(t, err)
 	lc.Metrics.(*MockCacheMetrics).AssertCalled(t, "Hit")
 }
@@ -287,14 +271,14 @@ func TestLocalGetError(t *testing.T) {
 
 	target := struct{}{}
 	lc.Encoder.(*MockedCacheEncoder).On("Decode", []byte("test-value"), target).Return(fmt.Errorf("error"))
-	err := lc.Get("test-key", target)
+	err := lc.Get(context.Background(), "test-key", target)
 	assert.Error(t, err)
 	lc.Metrics.(*MockCacheMetrics).AssertCalled(t, "Miss")
 }
 
 func TestLocalGetBytesError(t *testing.T) {
 	lc := newLocalCache(t, 0, 0)
-	value, err := lc.GetBytes("test-key")
+	value, err := lc.GetBytes(context.Background(), "test-key")
 	assert.Error(t, err)
 	assert.Nil(t, value)
 }
@@ -306,7 +290,7 @@ func TestLocalDelete(t *testing.T) {
 	// Use underlying cache to avoid testing two functions in one test
 	err := lc.Cache.Set("test-key", []byte("test-value"))
 	assert.Nil(t, err)
-	err = lc.Delete("test-key")
+	err = lc.Delete(context.Background(), "test-key")
 	assert.Nil(t, err)
 	lc.Metrics.(*MockCacheMetrics).AssertCalled(t, "DeleteHit")
 }
@@ -314,7 +298,7 @@ func TestLocalDelete(t *testing.T) {
 func TestLocalDeleteError(t *testing.T) {
 	lc := newLocalCache(t, 0, 0)
 	lc.Metrics.(*MockCacheMetrics).On("DeleteMiss")
-	err := lc.Delete("test-key")
+	err := lc.Delete(context.Background(), "test-key")
 	assert.Error(t, err)
 	lc.Metrics.(*MockCacheMetrics).AssertCalled(t, "DeleteMiss")
 }
@@ -322,7 +306,7 @@ func TestLocalDeleteError(t *testing.T) {
 func TestLocalPurge(t *testing.T) {
 	lc := newLocalCache(t, 0, 0)
 	lc.Metrics.(*MockCacheMetrics).On("PurgeHit")
-	err := lc.Purge()
+	err := lc.Purge(context.Background())
 	assert.Nil(t, err)
 	lc.Metrics.(*MockCacheMetrics).AssertCalled(t, "PurgeHit")
 }
@@ -334,7 +318,7 @@ func TestTieredSetBytes(t *testing.T) {
 		Local:  NewMockCache(nil),
 		Remote: NewMockCache(nil),
 	}
-	err := mtc.SetBytes("test-key", []byte("test-value"))
+	err := mtc.SetBytes(context.Background(), "test-key", []byte("test-value"))
 	assert.Nil(t, err)
 	localValue, ok := mtc.Local.(*MockCache).Cache["test-key"]
 	assert.True(t, ok)
@@ -355,7 +339,7 @@ func TestTieredSet(t *testing.T) {
 		Remote:  NewMockCache(encoder),
 		Metrics: mcm,
 	}
-	err := mtc.Set("test-key", value)
+	err := mtc.Set(context.Background(), "test-key", value)
 	assert.Nil(t, err)
 	localValue, ok := mtc.Local.(*MockCache).Cache["test-key"]
 	assert.True(t, ok)
@@ -372,7 +356,7 @@ func TestTieredGetBytesLocal(t *testing.T) {
 		Remote: NewMockCache(nil),
 	}
 	mtc.Local.(*MockCache).Cache["test-key"] = []byte("test-value")
-	value, err := mtc.GetBytes("test-key")
+	value, err := mtc.GetBytes(context.Background(), "test-key")
 	assert.Nil(t, err)
 	assert.Equal(t, "test-value", string(value))
 }
@@ -389,7 +373,7 @@ func TestTieredGetLocal(t *testing.T) {
 		Metrics: mcm,
 	}
 	mtc.Local.(*MockCache).Cache["test-key"] = []byte("test-value")
-	err := mtc.Get("test-key", target)
+	err := mtc.Get(context.Background(), "test-key", target)
 	assert.Nil(t, err)
 	mcm.AssertCalled(t, "Hit")
 }
@@ -400,7 +384,7 @@ func TestTieredGetBytesRemote(t *testing.T) {
 		Remote: NewMockCache(nil),
 	}
 	mtc.Remote.(*MockCache).Cache["test-key"] = []byte("test-value")
-	value, err := mtc.GetBytes("test-key")
+	value, err := mtc.GetBytes(context.Background(), "test-key")
 	assert.Nil(t, err)
 	assert.Equal(t, "test-value", string(value))
 }
@@ -417,7 +401,7 @@ func TestTieredGetRemote(t *testing.T) {
 		Metrics: mcm,
 	}
 	mtc.Remote.(*MockCache).Cache["test-key"] = []byte("test-value")
-	err := mtc.Get("test-key", target)
+	err := mtc.Get(context.Background(), "test-key", target)
 	assert.Nil(t, err)
 	mcm.AssertCalled(t, "Hit")
 }
@@ -434,7 +418,7 @@ func TestTieredGetError(t *testing.T) {
 		Remote:  NewMockCache(encoder),
 		Metrics: mcm,
 	}
-	err := mtc.Get("test-key", target)
+	err := mtc.Get(context.Background(), "test-key", target)
 	assert.Error(t, err)
 	mcm.AssertCalled(t, "Miss")
 }
@@ -444,7 +428,7 @@ func TestTieredGetBytesError(t *testing.T) {
 		Local:  NewMockCache(nil),
 		Remote: NewMockCache(nil),
 	}
-	value, err := mtc.GetBytes("test-key")
+	value, err := mtc.GetBytes(context.Background(), "test-key")
 	assert.Error(t, err)
 	assert.Nil(t, value)
 }
@@ -459,7 +443,7 @@ func TestTieredDelete(t *testing.T) {
 	}
 	mtc.Local.(*MockCache).Cache["test-key"] = []byte("test-value")
 	mtc.Remote.(*MockCache).Cache["test-key"] = []byte("test-value")
-	err := mtc.Delete("test-key")
+	err := mtc.Delete(context.Background(), "test-key")
 	assert.Nil(t, err)
 	localValue, localOk := mtc.Local.(*MockCache).Cache["test-key"]
 	assert.False(t, localOk)
@@ -478,7 +462,7 @@ func TestTieredDeleteError(t *testing.T) {
 		Remote:  NewMockCache(nil),
 		Metrics: mcm,
 	}
-	err := mtc.Delete("test-key")
+	err := mtc.Delete(context.Background(), "test-key")
 	assert.NotNil(t, err)
 	mcm.AssertCalled(t, "DeleteMiss")
 }
@@ -493,7 +477,7 @@ func TestTieredPurge(t *testing.T) {
 	}
 	mtc.Local.(*MockCache).Cache["test-key"] = []byte("test-value")
 	mtc.Remote.(*MockCache).Cache["test-key"] = []byte("test-value")
-	err := mtc.Purge()
+	err := mtc.Purge(context.Background())
 	assert.Nil(t, err)
 	localValue, localOk := mtc.Local.(*MockCache).Cache["test-key"]
 	assert.False(t, localOk)
@@ -513,10 +497,10 @@ func TestTieredPurgeError(t *testing.T) {
 	mcm.On("PurgeMiss")
 	mtc := TieredCache{
 		Local:   NewMockCache(nil),
-		Remote:  RemoteCache{cluster: mockCluster, HashKey: "hash"},
+		Remote:  RemoteCache{cluster: mockCluster},
 		Metrics: mcm,
 	}
-	err := mtc.Purge()
+	err := mtc.Purge(context.Background())
 	assert.Error(t, err)
 	mcm.AssertCalled(t, "PurgeMiss")
 }
