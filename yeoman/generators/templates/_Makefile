@@ -1,0 +1,73 @@
+APP_NAME="<%=appName%>"
+VERSION_MAJOR ?= local
+VERSION_MINOR ?= local
+VERSION_PATCH ?= local
+VERSION ?= ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
+GIT_SHA ?= $(shell git rev-parse HEAD)
+GITHUB_TOKEN ?= $(shell aws secretsmanager get-secret-value --secret-id arn:aws:secretsmanager:us-west-2:913289439155:secret:github-larry-pull-only-auth-token-O9UM5J | jq -r .SecretString)
+
+DOCKER_NETWORK="<%=appName%>_default"
+
+default_target: all
+
+.PHONY: bootstrap build debug vendor clean clean_vendor test lint docker docker_build docker_run docker_push
+
+all: bootstrap vendor lint build
+production: bootstrap vendor lint build_production
+
+# Bootstrapping for base golang package deps
+BOOTSTRAP=\
+	github.com/golang/dep/cmd/dep \
+	github.com/alecthomas/gometalinter
+
+$(BOOTSTRAP):
+	go get -u $@
+
+bootstrap: $(BOOTSTRAP)
+	gometalinter --install
+
+build:
+	go build -ldflags="-X main.version=${VERSION} -X main.gitSha=${GIT_SHA}" -o <%=appName%> cmd/cmd.go
+
+debug:
+	go build -ldflags="-X main.version=${VERSION} -X main.gitSha=${GIT_SHA}" -gcflags '-N -l' -o <%=appName%> cmd/cmd.go
+
+build_production:
+	go build -ldflags="-X main.version=${VERSION} -X main.gitSha=${GIT_SHA} -s -w" -o <%=appName%> cmd/cmd.go
+
+vendor:
+	dep ensure -v -vendor-only
+
+clean:
+	rm -rf ${APP_NAME} vendor
+
+test:
+	go test -v -coverprofile=coverage.out ./... -cover
+
+coverage: test
+	go tool cover -html=coverage.out
+
+# Linting
+LINTERS=gofmt golint gosimple vet misspell ineffassign deadcode
+METALINT=gometalinter --tests --disable-all --vendor --deadline=5m -e "zz_.*\.go" ./...
+
+lint:
+	$(METALINT) $(addprefix --enable=,$(LINTERS))
+
+$(LINTERS):
+	$(METALINT) --enable=$@
+
+#################################################
+# Docker Commands
+#################################################
+
+docker: docker_push
+
+docker_build:
+	docker build --build-arg GITHUB_TOKEN='${GITHUB_TOKEN}' -t "spothero/${APP_NAME}:${VERSION}" .
+
+docker_run: docker_build
+	docker run -p "2018:2018" --network "${DOCKER_NETWORK}" "spothero/${APP_NAME}:${VERSION}"
+
+docker_push: docker_build
+	docker push spothero/${APP_NAME}:${VERSION}

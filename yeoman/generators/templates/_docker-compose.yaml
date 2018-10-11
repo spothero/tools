@@ -1,0 +1,26 @@
+version: '3'
+services:
+  jaeger:
+    hostname: jaeger
+    image: jaegertracing/all-in-one:latest
+    environment:
+      COLLECTOR_ZIPKIN_HTTP_PORT: 9411
+    ports:
+      - 5775:5775/udp
+      - 16686:16686
+  redis-cluster:
+    image: grokzen/redis-cluster:latest
+    hostname: redis-cluster
+    ports:
+    - 7000:7000
+    - 7001:7001
+    - 7002:7002
+    - 7003:7003
+    - 7004:7004
+    - 7005:7005
+    # These two nodes are not clustered, they are for testing unclustered
+    - 7006:7006
+    - 7007:7007
+    environment:
+      CLUSTER_ONLY: "true"
+      IP: "0.0.0.0"
