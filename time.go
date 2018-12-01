@@ -205,10 +205,7 @@ func (ad ApplicableDays) TimeApplicable(t time.Time, location *time.Location) bo
 
 // NewApplicableDaysMonStart translates continuous days of week to a struct with bools representing each
 // day of the week. Note that this implementation is dependent on the ordering
-// of days of the week in the applicableDaysOfWeek struct. It *must* match
-// the way Django handles days of the week i.e. Monday=0, Sunday=6, otherwise
-// the days of the week will be wrong.
-// See https://github.com/django/django/blob/e4e44b92ddf717e34401c0bd1a0ad203a6b3e132/django/utils/dates.py#L5
+// of days of the week in the applicableDaysOfWeek struct. Monday is 0, Sunday is 6.
 func NewApplicableDaysMonStart(startDay int, endDay int) ApplicableDays {
 	applicableDays := &ApplicableDays{}
 	v := reflect.ValueOf(applicableDays).Elem()
