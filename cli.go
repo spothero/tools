@@ -73,7 +73,7 @@ func (lc *LoggingConfig) RegisterViperFlags(flags *pflag.FlagSet) {
 	flags.IntVar(&lc.SamplingThereafter, "log-sampling-thereafter", 100, "Keep every Nth log with a given message and threshold after log-sampling-initial is exceeded. Only valid when not using the development logger.")
 }
 
-// RegisterViperFlags registers Sentry flags with Viper CLIs
+// RegisterViperFlags registers New Relic flags with Viper CLIs
 func (nc *NewRelicConfig) RegisterViperFlags(flags *pflag.FlagSet, appName, environment string) {
 	flags.BoolVar(&nc.Enabled, "new-relic-enabled", false, "Enable New Relic metrics")
 	flags.StringVar(&nc.LicenseKey, "new-relic-license-key", "", "New Relic license key")
@@ -143,4 +143,10 @@ func (tcc *TieredCacheConfig) RegisterViperFlags(flags *pflag.FlagSet) {
 	tcc.RemoteConfig.RegisterViperFlags(flags)
 	tcc.LocalConfig.RegisterViperFlags(flags)
 	flags.BoolVar(&tcc.TracingEnabled, "tiered-cache-tracing-enabled", true, "Enable tracing on tiered cache")
+}
+
+// RegisterViperFlags registers AWS config flags with Viper CLIs
+func (a *AWSConfig) RegisterViperFlags(flags *pflag.FlagSet, defaultRegion string) {
+	flags.StringVar(&a.Region, "aws-region", defaultRegion, "AWS region to connect to, if any")
+	flags.StringVar(&a.Profile, "aws-profile", "", "AWS profile to assume, if any")
 }

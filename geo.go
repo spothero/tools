@@ -1,6 +1,8 @@
 package core
 
 import (
+	"bytes"
+	"encoding/gob"
 	"sync"
 
 	"github.com/golang/geo/s1"
@@ -38,6 +40,10 @@ type GeoLocationCollection interface {
 	Set(id int, latitude, longitude float64)
 	Delete(id int)
 	ItemsWithinDistance(latitude, longitude, distanceMeters float64, params SearchCoveringParameters) ([]int, SearchCoveringResult)
+}
+
+func init() {
+	gob.Register(&GeoLocationCache{})
 }
 
 // NewGeoLocationCache constructs a new GeoLocationCache object
@@ -162,6 +168,50 @@ func (glc *GeoLocationCache) ItemsWithinDistance(
 	}
 
 	return foundIds, SearchCoveringResult(cellBounds)
+}
+
+// GobEncode allows GeoLocationCache to be gob encoded
+func (glc *GeoLocationCache) GobEncode() ([]byte, error) {
+	buf := bytes.Buffer{}
+	enc := gob.NewEncoder(&buf)
+	if err := enc.Encode(glc.cells); err != nil {
+		return nil, err
+	}
+	if err := enc.Encode(glc.items); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// GobDecode allows GeoLocationCache to be gob decoded
+func (glc *GeoLocationCache) GobDecode(buf []byte) error {
+	dec := gob.NewDecoder(bytes.NewBuffer(buf))
+	if err := dec.Decode(&glc.cells); err != nil {
+		return err
+	}
+	return dec.Decode(&glc.items)
+}
+
+// GobEncode allows itemIndex to be gob encoded
+func (ii *itemIndex) GobEncode() ([]byte, error) {
+	buf := bytes.Buffer{}
+	enc := gob.NewEncoder(&buf)
+	if err := enc.Encode(ii.cellPosition); err != nil {
+		return nil, err
+	}
+	if err := enc.Encode(ii.cellLevel); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// GobDecode allows itemIndex to be gob decoded
+func (ii *itemIndex) GobDecode(buf []byte) error {
+	dec := gob.NewDecoder(bytes.NewBuffer(buf))
+	if err := dec.Decode(&ii.cellPosition); err != nil {
+		return err
+	}
+	return dec.Decode(&ii.cellLevel)
 }
 
 // NewPointFromLatLng constructs an s2 point from a lat/lon ordered pair

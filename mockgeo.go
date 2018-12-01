@@ -1,12 +1,18 @@
 package core
 
 import (
+	"encoding/gob"
+
 	"github.com/stretchr/testify/mock"
 )
 
 // MockGeoLocationCache mocks the GeoLocationCache implementation for use in tests
 type MockGeoLocationCache struct {
 	mock.Mock
+}
+
+func init() {
+	gob.Register(&MockGeoLocationCache{})
 }
 
 // ItemsWithinDistance is a mocked version of ItemsWithinDistance

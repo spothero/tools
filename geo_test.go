@@ -1,6 +1,8 @@
 package core
 
 import (
+	"bytes"
+	"encoding/gob"
 	"testing"
 
 	"github.com/golang/geo/s2"
@@ -194,9 +196,38 @@ func TestGeoLocationCache_ItemsWithinDistance(t *testing.T) {
 	}
 }
 
+func TestGobEncodeDecode_geoLocationCache(t *testing.T) {
+	glc := NewGeoLocationCache()
+	glc.cells[0] = map[uint64]map[int]bool{1: {1: true}}
+	glc.items[0] = []itemIndex{{cellPosition: 1, cellLevel: 1}}
+	buf := bytes.Buffer{}
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(glc)
+	require.NoError(t, err)
+	dec := gob.NewDecoder(bytes.NewBuffer(buf.Bytes()))
+	decodedGLC := &GeoLocationCache{}
+	err = dec.Decode(decodedGLC)
+	require.NoError(t, err)
+	assert.Equal(t, decodedGLC.items, glc.items)
+	assert.Equal(t, decodedGLC.cells, glc.cells)
+}
+
 func TestEarthDistanceMeters(t *testing.T) {
 	// pick 2 points off a map that are roughly 105 meters of each other
 	p1 := NewPointFromLatLng(41.883170, -87.632278)
 	p2 := NewPointFromLatLng(41.883178, -87.630916)
 	assert.InDelta(t, 105, EarthDistanceMeters(p1, p2), 10)
+}
+
+func TestGobEncodeDecode_itemIndex(t *testing.T) {
+	ii := itemIndex{cellPosition: 1234, cellLevel: 9876}
+	buf := bytes.Buffer{}
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(&ii)
+	require.NoError(t, err)
+	dec := gob.NewDecoder(bytes.NewBuffer(buf.Bytes()))
+	decodedII := itemIndex{}
+	err = dec.Decode(&decodedII)
+	require.NoError(t, err)
+	assert.Equal(t, ii, decodedII)
 }

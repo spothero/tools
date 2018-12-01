@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/Shopify/sarama"
 	"github.com/Shopify/sarama/mocks"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 // Create a mock message handler
@@ -40,12 +42,12 @@ func (msc *mockSaramaClient) GetOffset(topic string, partitionID int32, time int
 }
 
 func setupTestConsumer(t *testing.T) (*testHandler, *KafkaConsumer, *mocks.Consumer, context.Context, context.CancelFunc) {
-	mockConsumer := mocks.NewConsumer(t, nil)
 	ctx, cancel := context.WithCancel(context.Background())
-	kafkaConfig := &KafkaConfig{ClientID: "test"}
-	kafkaConfig.initKafkaMetrics(prometheus.NewRegistry())
-	kc := &KafkaConsumer{consumer: mockConsumer, kafkaClient: kafkaClient{kafkaConfig: kafkaConfig}}
-	return &testHandler{}, kc, mockConsumer, ctx, cancel
+	mockConsumer := mocks.NewConsumer(t, nil)
+	config := &KafkaConfig{ClientID: "test"}
+	config.initKafkaMetrics(prometheus.NewRegistry())
+	consumer := &KafkaConsumer{consumer: mockConsumer, kafkaClient: kafkaClient{kafkaConfig: config}}
+	return &testHandler{}, consumer, consumer.consumer.(*mocks.Consumer), ctx, cancel
 }
 
 func setupTestClient(getOffsetReturn int, getOffsetError error, kc *KafkaConsumer) {
@@ -73,7 +75,11 @@ func TestConsumeTopic(t *testing.T) {
 	var catchupWg sync.WaitGroup
 	catchupWg.Add(1)
 	readStatus := make(chan PartitionOffsets)
-	go consumer.ConsumeTopic(ctx, handler, "test-topic", sarama.OffsetOldest, readStatus, &catchupWg, false)
+	offsets := PartitionOffsets{
+		0: sarama.OffsetOldest, 1: sarama.OffsetOldest, 2: sarama.OffsetOldest,
+		3: sarama.OffsetOldest, 4: sarama.OffsetOldest}
+	err := consumer.ConsumeTopic(ctx, handler, "test-topic", offsets, readStatus, &catchupWg, false)
+	require.NoError(t, err)
 
 	// Yield a message from each partition
 	for i := range partitionConsumers {
@@ -96,20 +102,15 @@ func TestConsumeTopic(t *testing.T) {
 	}
 }
 
-// Make sure there's a panic if we try to read a topic with no handler defined
 func TestConsumeTopic_noTopics(t *testing.T) {
 	handler, consumer, mockConsumer, _, _ := setupTestConsumer(t)
 	defer mockConsumer.Close()
 	setupTestClient(2, nil, consumer)
-	defer func() {
-		if r := recover(); r != nil {
-			assert.Contains(t, "Couldn't get Kafka partitions", r)
-		}
-	}()
 	mockConsumer.SetTopicMetadata(map[string][]int32{
 		"test-topic": nil,
 	})
-	consumer.ConsumeTopic(nil, handler, "test-topic", sarama.OffsetOldest, nil, nil, false)
+	err := consumer.ConsumeTopic(nil, handler, "test-topic", PartitionOffsets{0: sarama.OffsetOldest}, nil, nil, false)
+	assert.Error(t, err)
 }
 
 // Make sure there's a panic trying to get the newest offset from a topic & partition
@@ -118,16 +119,76 @@ func TestConsumeTopic_errorGettingOffset(t *testing.T) {
 	defer mockSaramaConsumer.Close()
 	setupTestClient(2, fmt.Errorf("some kafka error"), consumer)
 
-	defer func() {
-		if r := recover(); r != nil {
-			assert.Contains(t, "Failed to get the newest offset from Kafka", r)
-			handler.AssertNumberOfCalls(t, "HandleMessage", 0)
-		}
-	}()
 	mockSaramaConsumer.SetTopicMetadata(map[string][]int32{
 		"test-topic": {0},
 	})
-	consumer.ConsumeTopic(nil, handler, "test-topic", sarama.OffsetOldest, nil, nil, false)
+	err := consumer.ConsumeTopic(nil, handler, "test-topic", PartitionOffsets{0: sarama.OffsetOldest}, nil, nil, false)
+	assert.Error(t, err)
+}
+
+func TestConsumeTopicFromBeginning(t *testing.T) {
+	handler, consumer, mockSaramaConsumer, ctx, cancel := setupTestConsumer(t)
+	defer mockSaramaConsumer.Close()
+	setupTestClient(2, nil, consumer)
+
+	numPartitions := 2
+	mockSaramaConsumer.SetTopicMetadata(map[string][]int32{
+		"test-topic": {0, 1},
+	})
+	partitionConsumers := make([]mocks.PartitionConsumer, numPartitions)
+	for i := 0; i < numPartitions; i++ {
+		partitionConsumers[i] = *mockSaramaConsumer.ExpectConsumePartition("test-topic", int32(i), sarama.OffsetOldest)
+	}
+
+	var catchupWg sync.WaitGroup
+	catchupWg.Add(1)
+	readStatus := make(chan PartitionOffsets)
+	err := consumer.ConsumeTopicFromBeginning(ctx, handler, "test-topic", readStatus, &catchupWg, false)
+	require.NoError(t, err)
+
+	// Yield a message from each partition
+	for i := range partitionConsumers {
+		message := &sarama.ConsumerMessage{
+			Value:     []byte{0, 1, 2, 3, 4},
+			Offset:    1,
+			Partition: int32(i),
+		}
+		handler.On("HandleMessage", mock.Anything, message, nil)
+		partitionConsumers[i].YieldMessage(message)
+	}
+	catchupWg.Wait()
+
+	handler.AssertNumberOfCalls(t, "HandleMessage", numPartitions)
+	cancel()
+	status := <-readStatus
+	assert.Equal(t, PartitionOffsets{0: 1, 1: 1}, status)
+	for i := range partitionConsumers {
+		partitionConsumers[i].ExpectMessagesDrainedOnClose()
+	}
+}
+
+func TestConsumeTopicFromLatest(t *testing.T) {
+	handler, consumer, mockSaramaConsumer, ctx, cancel := setupTestConsumer(t)
+	defer mockSaramaConsumer.Close()
+	setupTestClient(0, nil, consumer)
+	mockSaramaConsumer.SetTopicMetadata(map[string][]int32{
+		"test-topic": {0},
+	})
+	pc := mockSaramaConsumer.ExpectConsumePartition("test-topic", int32(0), sarama.OffsetNewest)
+	message := &sarama.ConsumerMessage{
+		Value:     []byte{1, 2, 3, 4},
+		Offset:    1,
+		Partition: int32(0),
+	}
+	handler.On("HandleMessage", mock.Anything, message, nil)
+	pc.YieldMessage(message)
+	readStatus := make(chan PartitionOffsets)
+	err := consumer.ConsumeTopicFromLatest(ctx, handler, "test-topic", readStatus)
+	require.NoError(t, err)
+	time.Sleep(1 * time.Millisecond)
+	cancel()
+	status := <-readStatus
+	assert.Equal(t, PartitionOffsets{0: 1}, status)
 }
 
 // Test that processing messages from a partition works
@@ -201,22 +262,10 @@ func TestConsumePartition_exitAfterCaughtUp(t *testing.T) {
 	readStatus := make(chan consumerLastStatus)
 	var catchupWg sync.WaitGroup
 	catchupWg.Add(1)
-
-	// Start partition consumer
 	go consumer.consumePartition(ctx, handler, "test-topic", 0, 0, 1, readStatus, &catchupWg, true)
-	// Send a message to the consumer
 	partitionConsumer.YieldMessage(message)
-	// Make sure read to offset 1 before being "caught up"
-	catchupWg.Wait()
+	<-readStatus
 	handler.AssertNumberOfCalls(t, "HandleMessage", 1)
-
-	defer func() {
-		r := recover()
-		assert.NotNil(t, r)
-	}()
-
-	// this should panic because the channel is closed if the consumer exited
-	partitionConsumer.YieldMessage(message)
 }
 
 // Test that the consumer handles errors from Kafka

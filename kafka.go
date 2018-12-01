@@ -68,9 +68,17 @@ type kafkaMetrics struct {
 	errorsProduced        *prometheus.GaugeVec
 }
 
-// InitKafkaClient creates a Kafka client with metrics exporting and optional
+// KafkaConsumerIface is an interface for consuming messages from a Kafka topic
+type KafkaConsumerIface interface {
+	ConsumeTopic(ctx context.Context, handler KafkaMessageHandler, topic string, offsets PartitionOffsets, readResult chan PartitionOffsets, catchupWg *sync.WaitGroup, exitAfterCaughtUp bool) error
+	ConsumeTopicFromBeginning(ctx context.Context, handler KafkaMessageHandler, topic string, readResult chan PartitionOffsets, catchupWg *sync.WaitGroup, exitAfterCaughtUp bool) error
+	ConsumeTopicFromLatest(ctx context.Context, handler KafkaMessageHandler, topic string, readResult chan PartitionOffsets) error
+	Close()
+}
+
+// NewKafkaClient creates a Kafka client with metrics exporting and optional
 // TLS that can be used to create consumers or producers
-func (kc *KafkaConfig) InitKafkaClient(ctx context.Context) (sarama.Client, error) {
+func (kc *KafkaConfig) NewKafkaClient(ctx context.Context) (sarama.Client, error) {
 	if kc.Verbose {
 		saramaLogger, err := CreateStdLogger(Logger.Named("sarama"), "info")
 		if err != nil {
@@ -82,6 +90,9 @@ func (kc *KafkaConfig) InitKafkaClient(ctx context.Context) (sarama.Client, erro
 	kafkaConfig.Consumer.Return.Errors = true
 	kafkaConfig.Version = sarama.V1_0_0_0
 	kafkaConfig.ClientID = kc.ClientID
+	kafkaConfig.Producer.RequiredAcks = sarama.WaitForAll
+	kafkaConfig.Producer.Return.Successes = true
+	kafkaConfig.Producer.Return.Errors = true
 
 	kc.initKafkaMetrics(prometheus.DefaultRegisterer)
 
@@ -118,8 +129,8 @@ func (kc *KafkaConfig) InitKafkaClient(ctx context.Context) (sarama.Client, erro
 	return sarama.NewClient([]string{kc.Broker}, kafkaConfig)
 }
 
-// InitKafkaConsumer sets up Kafka client and consumer
-func (kc *KafkaConfig) InitKafkaConsumer(
+// NewKafkaConsumer sets up a Kafka consumer
+func (kc *KafkaConfig) NewKafkaConsumer(
 	client sarama.Client,
 	schemaRegistryConfig *SchemaRegistryConfig,
 ) (*KafkaConsumer, error) {
@@ -149,8 +160,8 @@ func (kc *KafkaConfig) InitKafkaConsumer(
 	return kafkaConsumer, nil
 }
 
-// InitKafkaProducer creates a sarama producer from a client
-func (kc *KafkaConfig) InitKafkaProducer(client sarama.Client) (*KafkaProducer, error) {
+// NewKafkaProducer creates a sarama producer from a client
+func (kc *KafkaConfig) NewKafkaProducer(client sarama.Client) (*KafkaProducer, error) {
 	producer, err := sarama.NewAsyncProducerFromClient(client)
 	if err != nil {
 		if closeErr := producer.Close(); closeErr != nil {
@@ -279,12 +290,6 @@ func (kc *KafkaConsumer) Close() {
 	if err != nil {
 		Logger.Error("Error closing Kafka consumer", zap.Error(err))
 	}
-	if !kc.client.Closed() {
-		err = kc.client.Close()
-		if err != nil {
-			Logger.Error("Error closing Kafka client", zap.Error(err))
-		}
-	}
 }
 
 // PartitionOffsets is a mapping of partition ID to an offset to which a consumer read on that partition
@@ -294,43 +299,37 @@ type PartitionOffsets map[int32]int64
 // from startOffset to forever
 //
 // This function will create consumers for all partitions in a topic and read
-// from startOffset to caughtUpOffset then notify the caller via catchupWg. If exitAfterCaughtUp is true,
-// the consumer will exit after it reads message at the latest offset when it started up. When
-// all partition consumers are closed, it will send the last offset read on each partition
+// from the given offset on each partition to the latest offset when the consumer was started, then notify the caller
+// via catchupWg. If exitAfterCaughtUp is true, the consumer will exit after it reads message at the latest offset
+// when it started up. When all partition consumers are closed, it will send the last offset read on each partition
 // through the readResult channel. If exitAfterCaughtUp is true, the consumer will exit
 // after reading to the latest offset.
 func (kc *KafkaConsumer) ConsumeTopic(
 	ctx context.Context,
 	handler KafkaMessageHandler,
 	topic string,
-	startOffset int64,
+	offsets PartitionOffsets,
 	readResult chan PartitionOffsets,
 	catchupWg *sync.WaitGroup,
 	exitAfterCaughtUp bool,
-) {
-	if kc == nil {
-		catchupWg.Done()
-		readResult <- nil
-		return
-	}
-
+) error {
 	Logger.Info("Starting Kafka consumer", zap.String("topic", topic))
 	var partitionsCatchupWg sync.WaitGroup
 	partitions, err := kc.consumer.Partitions(topic)
 	if err != nil {
-		Logger.Panic("Couldn't get Kafka partitions", zap.String("topic", topic), zap.Error(err))
+		return err
 	}
-
 	readToChan := make(chan consumerLastStatus)
 
 	for _, partition := range partitions {
+		startOffset, ok := offsets[partition]
+		if !ok {
+			return fmt.Errorf("start offset not found for partition %d, topic %s", partition, topic)
+		}
 		partitionsCatchupWg.Add(1)
 		newestOffset, err := kc.client.GetOffset(topic, partition, sarama.OffsetNewest)
 		if err != nil {
-			Logger.Panic(
-				"Failed to get the newest offset from Kafka",
-				zap.String("topic", topic), zap.Int32("partition", partition),
-				zap.Error(err))
+			return err
 		}
 		// client.GetOffset returns the offset of the next message to be processed
 		// so subtract 1 here because if there are no new messages after boot up,
@@ -340,23 +339,76 @@ func (kc *KafkaConsumer) ConsumeTopic(
 			ctx, handler, topic, partition, startOffset, newestOffset,
 			readToChan, &partitionsCatchupWg, exitAfterCaughtUp)
 	}
-	partitionsCatchupWg.Wait()
-	if catchupWg != nil {
-		catchupWg.Done()
-	}
-	Logger.Info("All partitions caught up", zap.String("topic", topic))
 
-	readToOffsets := make(PartitionOffsets)
-	defer func() {
-		Logger.Info("All partition consumers closed", zap.String("topic", topic))
-		readResult <- readToOffsets
+	go func() {
+		partitionsCatchupWg.Wait()
+		if catchupWg != nil {
+			catchupWg.Done()
+			Logger.Info("All partitions caught up", zap.String("topic", topic))
+		}
+
+		readToOffsets := make(PartitionOffsets)
+		defer func() {
+			Logger.Info("All partition consumers closed", zap.String("topic", topic))
+			if readResult != nil {
+				readResult <- readToOffsets
+			}
+		}()
+
+		for messagesAwaiting := len(partitions); messagesAwaiting > 0; {
+			read := <-readToChan
+			readToOffsets[read.partition] = read.offset
+			messagesAwaiting--
+		}
 	}()
 
-	for messagesAwaiting := len(partitions); messagesAwaiting > 0; {
-		read := <-readToChan
-		readToOffsets[read.partition] = read.offset
-		messagesAwaiting--
+	return nil
+}
+
+// ConsumeTopicFromBeginning starts Kafka consumers on all partitions
+// in a given topic from the message with the oldest offset.
+func (kc *KafkaConsumer) ConsumeTopicFromBeginning(
+	ctx context.Context,
+	handler KafkaMessageHandler,
+	topic string,
+	readResult chan PartitionOffsets,
+	catchupWg *sync.WaitGroup,
+	exitAfterCaughtUp bool,
+) error {
+	if kc == nil {
+		return fmt.Errorf("kafka consumer is nil")
 	}
+	partitions, err := kc.consumer.Partitions(topic)
+	if err != nil {
+		return err
+	}
+	startOffsets := make(PartitionOffsets, len(partitions))
+	for _, partition := range partitions {
+		startOffsets[partition] = sarama.OffsetOldest
+	}
+	return kc.ConsumeTopic(ctx, handler, topic, startOffsets, readResult, catchupWg, exitAfterCaughtUp)
+}
+
+// ConsumeTopicFromLatest starts Kafka consumers on all partitions
+// in a given topic from the message with the latest offset.
+func (kc *KafkaConsumer) ConsumeTopicFromLatest(
+	ctx context.Context,
+	handler KafkaMessageHandler,
+	topic string,
+	readResult chan PartitionOffsets,
+) error {
+	if kc == nil {
+		return fmt.Errorf("kafka consumer is nil")
+	}
+	partitions, err := kc.consumer.Partitions(topic)
+	if err != nil {
+		return err
+	}
+	startOffsets := make(PartitionOffsets, len(partitions))
+	for _, partition := range partitions {
+		startOffsets[partition] = sarama.OffsetNewest
+	}
+	return kc.ConsumeTopic(ctx, handler, topic, startOffsets, readResult, nil, false)
 }
 
 type consumerLastStatus struct {
@@ -426,6 +478,7 @@ func (kc *KafkaConsumer) consumePartition(
 	for {
 		select {
 		case msg, ok := <-partitionConsumer.Messages():
+			curOffset = msg.Offset
 			if !ok {
 				kc.kafkaConfig.messageErrors.With(promLabels).Add(1)
 				Logger.Error(
@@ -448,7 +501,6 @@ func (kc *KafkaConsumer) consumePartition(
 			}
 			timer.ObserveDuration()
 			kc.kafkaConfig.messagesProcessed.With(promLabels).Add(1)
-			curOffset = msg.Offset
 			if msg.Offset == caughtUpOffset {
 				caughtUp = true
 				catchupWg.Done()
