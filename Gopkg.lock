@@ -12,34 +12,32 @@
   revision = "e7238b119b7daab993720f0153eafb88e2b0ac1f"
 
 [[projects]]
-  branch = "master"
-  digest = "1:7afff364b8e5e9f1085fe77ae5630b8e0f7482338a50535881aa0b433e48fb0b"
-  name = "github.com/alicebob/gopher-json"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "5a6b3ba71ee69b77cf64febf8b5a7526ca5eaef0"
-
-[[projects]]
-  digest = "1:82df807c12721df81914d7cbb4885218ec21d38f7744b11ec28b521f15e1edb4"
-  name = "github.com/alicebob/miniredis"
+  digest = "1:93d386478f65decfcd20a4793d96bf81b10425deca1293910151922087abe477"
+  name = "github.com/aws/aws-sdk-go-v2"
   packages = [
-    ".",
-    "server",
+    "aws",
+    "aws/awserr",
+    "aws/defaults",
+    "aws/ec2metadata",
+    "aws/ec2rolecreds",
+    "aws/endpointcreds",
+    "aws/endpoints",
+    "aws/external",
+    "aws/signer/v4",
+    "aws/stscreds",
+    "internal/awsutil",
+    "internal/ini",
+    "internal/sdk",
+    "private/protocol",
+    "private/protocol/query",
+    "private/protocol/query/queryutil",
+    "private/protocol/rest",
+    "private/protocol/xml/xmlutil",
+    "service/sts",
   ]
   pruneopts = "UT"
-  revision = "8890fdcfa933258e09a5b9b897270118064d70fd"
-  version = "2.4.4"
-
-[[projects]]
-  digest = "1:1156cfea0ff969858f6027df95c15ca5e802556b466aebeedaf53dde3b301db3"
-  name = "github.com/allegro/bigcache"
-  packages = [
-    ".",
-    "queue",
-  ]
-  pruneopts = "UT"
-  revision = "f31987a23e44c5121ef8c8b2f2ea2e8ffa37b068"
-  version = "v1.1.0"
+  revision = "d52522b5f4b95591ff6528d7c54923951aadf099"
+  version = "v2.0.0-preview.5"
 
 [[projects]]
   branch = "master"
@@ -133,20 +131,6 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:d22845779d6e7e44216773e6b3c4d9386a1c0bef11d9477a81e02b2d09980de8"
-  name = "github.com/golang/geo"
-  packages = [
-    "r1",
-    "r2",
-    "r3",
-    "s1",
-    "s2",
-  ]
-  pruneopts = "UT"
-  revision = "476085157cff9aaeef4d4f124649436542d4114a"
-
-[[projects]]
-  branch = "master"
   digest = "1:1ba1d79f2810270045c328ae5d674321db34e3aae468eb4233883b473c5c0467"
   name = "github.com/golang/glog"
   packages = ["."]
@@ -174,17 +158,6 @@
   packages = ["."]
   pruneopts = "UT"
   revision = "2e65f85255dbc3072edf28d6b5b8efc472979f5a"
-
-[[projects]]
-  digest = "1:38ec74012390146c45af1f92d46e5382b50531247929ff3a685d2b2be65155ac"
-  name = "github.com/gomodule/redigo"
-  packages = [
-    "internal",
-    "redis",
-  ]
-  pruneopts = "UT"
-  revision = "9c11da706d9b7902c6da69c592f75637793fe121"
-  version = "v2.0.0"
 
 [[projects]]
   branch = "master"
@@ -272,6 +245,13 @@
   version = "v1.0"
 
 [[projects]]
+  digest = "1:e22af8c7518e1eab6f2eab2b7d7558927f816262586cd6ed9f349c97a6c285c4"
+  name = "github.com/jmespath/go-jmespath"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "0b12d6b5"
+
+[[projects]]
   digest = "1:3e551bbb3a7c0ab2a2bf4660e7fcad16db089fdcfbb44b0199e62838038623ea"
   name = "github.com/json-iterator/go"
   packages = ["."]
@@ -310,14 +290,6 @@
   pruneopts = "UT"
   revision = "fa473d140ef3c6adf42d6b391fe76707f1f243c8"
   version = "v1.0.0"
-
-[[projects]]
-  digest = "1:48f8c49c19894ab6b66ff93b622afe654993834e81cabbf347deef1f7e2f2f89"
-  name = "github.com/mna/redisc"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "1d42445fe2abe34af11aa88bc438225d98aee7b6"
-  version = "v1.1.2"
 
 [[projects]]
   digest = "1:33422d238f147d247752996a26574ac48dcf472976eda7f5134015f06bf16563"
@@ -568,19 +540,6 @@
   pruneopts = "UT"
   revision = "ed3a127ec5fef7ae9ea95b01b542c47fbd999ce5"
   version = "v1.5.0"
-
-[[projects]]
-  branch = "master"
-  digest = "1:5b95084facc4be1ee2c86c40ba1a735e44ecd93be718dd5efecda89793dbd2d1"
-  name = "github.com/yuin/gopher-lua"
-  packages = [
-    ".",
-    "ast",
-    "parse",
-    "pm",
-  ]
-  pruneopts = "UT"
-  revision = "b942cacc89fe49895d145e8b360612a9a51d0423"
 
 [[projects]]
   digest = "1:3c1a69cdae3501bf75e76d0d86dc6f2b0a7421bc205c0cb7b96b19eed464a34d"
@@ -958,20 +917,15 @@
   input-imports = [
     "github.com/Shopify/sarama",
     "github.com/Shopify/sarama/mocks",
-    "github.com/alicebob/miniredis",
-    "github.com/allegro/bigcache",
+    "github.com/aws/aws-sdk-go-v2/aws",
+    "github.com/aws/aws-sdk-go-v2/aws/external",
     "github.com/getsentry/raven-go",
-    "github.com/golang/geo/s1",
-    "github.com/golang/geo/s2",
-    "github.com/gomodule/redigo/redis",
     "github.com/linkedin/goavro",
-    "github.com/mna/redisc",
     "github.com/newrelic/go-agent",
     "github.com/opentracing/opentracing-go",
     "github.com/opentracing/opentracing-go/ext",
     "github.com/prometheus/client_golang/prometheus",
     "github.com/prometheus/client_golang/prometheus/promhttp",
-    "github.com/prometheus/client_model/go",
     "github.com/rcrowley/go-metrics",
     "github.com/spf13/cobra",
     "github.com/spf13/pflag",

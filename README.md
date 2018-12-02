@@ -1,17 +1,31 @@
-### SpotHero Core Golang Library
+# SpotHero Core Library for Go
 
-#### TLDR
+[![GoDoc](https://godoc.org/github.com/spothero/core?status.svg)](https://godoc.org/github.com/spothero/core)
+[![Build Status](https://travis-ci.org/spothero/core.png?branch=master)](https://travis-ci.org/spothero/core)
+[![codecov](https://codecov.io/gh/spothero/core/branch/master/graph/badge.svg)](https://codecov.io/gh/spothero/core)
+[![Go Report Card](https://goreportcard.com/badge/github.com/spothero/core)](https://goreportcard.com/report/github.com/spothero/core)
 
-Impatient?
+
+The SpotHero Core Library is used internally at SpotHero across our Go programs. This library is a
+collection of common utilities and functions that don't yet stand on their own as individual
+libraries.
+
+Additionally, an example server, template Makefile, and yeoman project generator are provided as a
+convenience for users.
+
+We welcome community usage and collaboration.
+
+#### Running the Example Server
 
 1. Install Golang
     1. `brew install golang`
     2. [Set your `GOPATH` in your `.zshrc`/`.bashrc`/etc](https://github.com/golang/go/wiki/SettingGOPATH)
     3. Add `GOPATH/bin` to your `PATH`
         1. `export PATH=$GOPATH/bin:$PATH`
-2. `make`
-3. `./example_server`
-4. Open your browser to `http://localhost:8080`
+2. Clone this repository
+3. `make`
+4. `./example_server`
+5. Open your browser to `http://localhost:8080`
 
 #### Overview
 This library contains common modules for use in all GoLang projects across SpotHero. To use this
@@ -19,21 +33,18 @@ library simply add this as a dependency in your [dep Gopkg.toml](https://github.
 
 Currently, this library supports the following features:
 
-* Caching
-  * Local In-Memory Caching
-  * Remote Redis Caching
-  * Tiered Caching (First layer cache: Local In-Memory, Second-Layer cache: Remote Redis)
+* AWS Utilities
+* CLI Utilities
 * Kafka
   * Support for consuming and producing metrics
   * Support for goroutine-based callback functions where types are automatically deduced and
     unpacked
-* Schema Registry
+  * Schema Registry
 * Avro Decoding
 * HTTP Server with instrumentation
 * Prometheus Metrics
 * Kubernetes API Listeners
 * High-Performance Logging
-* New Relic Integration
 * Sentry Integration
 * OpenTracing/Jaeger Tracing Support
 
@@ -77,3 +88,6 @@ applications.
 
 Additionally, the [Makefile](Makefile) for this project is an excellent example which you can (and should)
 borrow for your own projects.
+
+### License
+Apache 2.0

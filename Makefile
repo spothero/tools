@@ -6,7 +6,7 @@ GIT_SHA ?= $(shell git rev-parse HEAD)
 
 default_target: all
 
-all: bootstrap vendor test vendor build
+all: bootstrap vendor test build
 
 # Bootstrapping for base golang package deps
 BOOTSTRAP=\
@@ -23,7 +23,7 @@ vendor:
 	dep ensure -v -vendor-only
 
 test:
-	go test -v ./... -cover
+	go test -race -v ./... -coverprofile=coverage.txt -covermode=atomic
 
 clean:
 	rm -rf vendor
