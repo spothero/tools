@@ -1,12 +1,12 @@
-# SpotHero Core Library for Go
+# SpotHero Tools Library for Go
 
-[![GoDoc](https://godoc.org/github.com/spothero/core?status.svg)](https://godoc.org/github.com/spothero/core)
-[![Build Status](https://travis-ci.org/spothero/core.png?branch=master)](https://travis-ci.org/spothero/core)
-[![codecov](https://codecov.io/gh/spothero/core/branch/master/graph/badge.svg)](https://codecov.io/gh/spothero/core)
-[![Go Report Card](https://goreportcard.com/badge/github.com/spothero/core)](https://goreportcard.com/report/github.com/spothero/core)
+[![GoDoc](https://godoc.org/github.com/spothero/tools?status.svg)](https://godoc.org/github.com/spothero/tools)
+[![Build Status](https://travis-ci.org/spothero/tools.png?branch=master)](https://travis-ci.org/spothero/tools)
+[![codecov](https://codecov.io/gh/spothero/tools/branch/master/graph/badge.svg)](https://codecov.io/gh/spothero/tools)
+[![Go Report Card](https://goreportcard.com/badge/github.com/spothero/tools)](https://goreportcard.com/report/github.com/spothero/tools)
 
 
-The SpotHero Core Library is used internally at SpotHero across our Go programs. This library is a
+The SpotHero Tools Library is used internally at SpotHero across our Go programs. This library is a
 collection of common utilities and functions that don't yet stand on their own as individual
 libraries.
 
@@ -61,7 +61,7 @@ For example:
 ...
 [[constraint]]
   branch = "master"
-  name = "github.com/spothero/core"
+  name = "github.com/spothero/tools"
 ```
 
 Then, in your application you can simply do the following:
@@ -70,7 +70,7 @@ Then, in your application you can simply do the following:
 package coolpkg
 
 import (
-  "github.com/spothero/core"
+  "github.com/spothero/tools"
   ...
 )
 ...

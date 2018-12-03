@@ -19,9 +19,9 @@ import (
 	"net/http"
 	"os"
 
-	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go"
 	"github.com/spf13/cobra"
-	"github.com/spothero/core"
+	"github.com/spothero/tools"
 )
 
 // These variables should be set during build with the Go link tool
@@ -34,7 +34,7 @@ var appPackage = "github.com/spothero/core"
 // of this file, this is how you create and expose your CLI and Environment variables. We're
 // building on the excellent open-source tool Cobra and Viper from spf13
 func newRootCmd(args []string) *cobra.Command {
-	config := &core.HTTPServerConfig{
+	config := &tools.HTTPServerConfig{
 		Name:       "example_server",
 		Version:    version,
 		AppPackage: appPackage,
@@ -45,7 +45,7 @@ func newRootCmd(args []string) *cobra.Command {
 		Short:            "SpotHero Example Golang Microservice",
 		Long:             `The SpotHero Example Golang Microservice shows off the capabilities of our Core library`,
 		Version:          fmt.Sprintf("%s (%s)", version, gitSHA),
-		PersistentPreRun: core.CobraBindEnvironmentVariables("example_server"),
+		PersistentPreRun: tools.CobraBindEnvironmentVariables("example_server"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			config.RunHTTPServer(nil, nil, registerMuxes)
 			return nil
