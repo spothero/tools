@@ -1,6 +1,6 @@
 [[constraint]]
   name = "github.com/Shopify/sarama"
-  revision = "e7238b119b7daab993720f0153eafb88e2b0ac1f"
+  version = "~1.19.0"
 
 [[constraint]]
   name = "github.com/linkedin/goavro"
@@ -40,11 +40,11 @@
 
 [[constraint]]
   name = "github.com/getsentry/raven-go"
-  revision = "ed7bcb39ff10f39ab08e317ce16df282845852fa"
+  version = "~0.2.0"
 
 [[constraint]]
   name = "github.com/prometheus/client_golang"
-  revision = "5b23715facdef1452016bae512489c3cdf82458c"
+  version = "~0.9.1"
 
 [[constraint]]
   name = "github.com/rcrowley/go-metrics"
