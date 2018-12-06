@@ -178,6 +178,14 @@
   revision = "24818f796faf91cd76ec7bddd72458fbced7a6c1"
 
 [[projects]]
+  digest = "1:236d7e1bdb50d8f68559af37dbcf9d142d56b431c9b2176d41e2a009b664cda8"
+  name = "github.com/google/uuid"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "9b3b1e0f5f99ae461456d768e7d301a7acdaa2d8"
+  version = "v1.1.0"
+
+[[projects]]
   digest = "1:65c4414eeb350c47b8de71110150d0ea8a281835b1f386eacaa3ad7325929c21"
   name = "github.com/googleapis/gnostic"
   packages = [
@@ -490,6 +498,14 @@
   pruneopts = "UT"
   revision = "b5e8006cbee93ec955a89ab31e0e3ce3204f3736"
   version = "v1.0.2"
+
+[[projects]]
+  branch = "master"
+  digest = "1:47a615e830afd402d7bae9fe2c98cf85ac2aa15703f21873565d3fa586d40d21"
+  name = "github.com/spothero/tools"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "7cad6dd0168c29bc882aed1bc7d3561d3a5486be"
 
 [[projects]]
   digest = "1:ac83cf90d08b63ad5f7e020ef480d319ae890c208f8524622a2f3136e2686b02"
@@ -924,6 +940,7 @@
     "github.com/aws/aws-sdk-go-v2/aws",
     "github.com/aws/aws-sdk-go-v2/aws/external",
     "github.com/getsentry/raven-go",
+    "github.com/google/uuid",
     "github.com/linkedin/goavro",
     "github.com/newrelic/go-agent",
     "github.com/opentracing/opentracing-go",
@@ -934,6 +951,7 @@
     "github.com/spf13/cobra",
     "github.com/spf13/pflag",
     "github.com/spf13/viper",
+    "github.com/spothero/tools",
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/mock",
     "github.com/stretchr/testify/require",
