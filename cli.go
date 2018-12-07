@@ -15,8 +15,6 @@
 package tools
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -106,17 +104,6 @@ func (tc *TracingConfig) RegisterViperFlags(flags *pflag.FlagSet, defaultTracerN
 	flags.StringVar(&tc.AgentHost, "tracer-agent-host", "localhost", "Tracer Agent Host")
 	flags.IntVar(&tc.AgentPort, "tracer-agent-port", 5775, "Tracer Agent Port")
 	flags.StringVar(&tc.ServiceName, "tracer-service-name", defaultTracerName, "Determines the service name for the Tracer UI")
-}
-
-// RegisterViperFlags registers Kubernetes flags with Viper CLIs
-func (kc *KubernetesConfig) RegisterViperFlags(flags *pflag.FlagSet) {
-	homePath := ""
-	home := os.Getenv("HOME")
-	if home != "" {
-		homePath = filepath.Join(home, ".kube", "config")
-	}
-
-	flags.StringVar(&kc.ConfigPath, "kube-config-path", homePath, "Absolute path to the kubeconfig file. Leave blank in cluster.")
 }
 
 // RegisterViperFlags registers AWS config flags with Viper CLIs
