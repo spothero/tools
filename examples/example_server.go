@@ -48,7 +48,7 @@ func newRootCmd(args []string) *cobra.Command {
 	}
 	// Register default http server flags
 	flags := cmd.Flags()
-	config.RegisterViperFlags(flags, 8080, "example_server", version, appPackage, gitSHA)
+	config.RegisterFlags(flags, 8080, "example_server", version, appPackage, gitSHA)
 	return cmd
 }
 
