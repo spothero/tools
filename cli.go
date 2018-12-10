@@ -54,20 +54,20 @@ func CobraBindEnvironmentVariables(prefix string) func(cmd *cobra.Command, _ []s
 	}
 }
 
-// RegisterViperFlags registers HTTP flags with Viper CLIs
-func (c *HTTPServerConfig) RegisterViperFlags(flags *pflag.FlagSet, defaultPort int, defaultName, version, appPackage, gitSHA string) {
+// RegisterFlags registers HTTP flags with pflags
+func (c *HTTPServerConfig) RegisterFlags(flags *pflag.FlagSet, defaultPort int, defaultName, version, appPackage, gitSHA string) {
 	c.Version = version
 	c.AppPackage = appPackage
 	c.GitSHA = gitSHA
-	c.Logging.RegisterViperFlags(flags)
-	c.Tracer.RegisterViperFlags(flags, defaultName)
+	c.Logging.RegisterFlags(flags)
+	c.Tracer.RegisterFlags(flags, defaultName)
 	flags.StringVarP(&c.Address, "address", "a", "localhost", "Address for server")
 	flags.IntVarP(&c.Port, "port", "p", defaultPort, "Port for server")
 	flags.StringVar(&c.Name, "server-name", defaultName, "Server Name")
 }
 
-// RegisterViperFlags registers Kafka flags with Viper CLIs
-func (kc *KafkaConfig) RegisterViperFlags(flags *pflag.FlagSet) {
+// RegisterFlags registers Kafka flags with pflags
+func (kc *KafkaConfig) RegisterFlags(flags *pflag.FlagSet) {
 	flags.StringVarP(&kc.Broker, "kafka-broker", "b", "kafka:29092", "Kafka Broker Address")
 	flags.StringVar(&kc.ClientID, "kafka-client-id", "availability", "Kafka consumer Client ID")
 	flags.StringVar(&kc.TLSCaCrtPath, "kafka-server-ca-crt-path", "", "Kafka Server TLS CA Certificate Path")
@@ -77,8 +77,8 @@ func (kc *KafkaConfig) RegisterViperFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&kc.JSONEnabled, "enable-json", true, "When this flag is set, messages from Kafka will be consumed as JSON instead of Avro")
 }
 
-// RegisterViperFlags register Logging flags with Viper CLIs
-func (lc *LoggingConfig) RegisterViperFlags(flags *pflag.FlagSet) {
+// RegisterFlags register Logging flags with pflags
+func (lc *LoggingConfig) RegisterFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&lc.SentryLoggingEnabled, "sentry-logger-enabled", false, "Send error logs to Sentry")
 	flags.BoolVar(&lc.UseDevelopmentLogger, "use-development-logger", true, "Whether to use the development logger")
 	flags.StringArrayVar(&lc.OutputPaths, "log-output-paths", []string{}, "Log file path for standard logging. Logs always output to stdout.")
@@ -88,18 +88,18 @@ func (lc *LoggingConfig) RegisterViperFlags(flags *pflag.FlagSet) {
 	flags.IntVar(&lc.SamplingThereafter, "log-sampling-thereafter", 100, "Keep every Nth log with a given message and threshold after log-sampling-initial is exceeded. Only valid when not using the development logger.")
 }
 
-// RegisterViperFlags registers Kafka flags with Viper CLIs
-func (src *SchemaRegistryConfig) RegisterViperFlags(flags *pflag.FlagSet) {
+// RegisterFlags registers Kafka flags with pflags
+func (src *SchemaRegistryConfig) RegisterFlags(flags *pflag.FlagSet) {
 	flags.StringVarP(&src.SchemaRegistryURL, "kafka-schema-registry", "r", "http://localhost:8081", "Kafka Schema Registry Address")
 }
 
-// RegisterViperFlags registers Sentry flags with Viper CLIs
-func (sc *SentryConfig) RegisterViperFlags(flags *pflag.FlagSet) {
+// RegisterFlags registers Sentry flags with pflags
+func (sc *SentryConfig) RegisterFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&sc.DSN, "sentry-dsn", "", "Sentry DSN")
 }
 
-// RegisterViperFlags registers Tracer flags with Viper CLIs
-func (tc *TracingConfig) RegisterViperFlags(flags *pflag.FlagSet, defaultTracerName string) {
+// RegisterFlags registers Tracer flags with pflags
+func (tc *TracingConfig) RegisterFlags(flags *pflag.FlagSet, defaultTracerName string) {
 	flags.BoolVarP(&tc.Enabled, "tracer-enabled", "t", true, "Enable tracing")
 	flags.StringVar(&tc.SamplerType, "tracer-sampler-type", "", "Tracer sampler type")
 	flags.Float64Var(&tc.SamplerParam, "tracer-sampler-param", 1.0, "Tracer sampler param")
@@ -111,8 +111,8 @@ func (tc *TracingConfig) RegisterViperFlags(flags *pflag.FlagSet, defaultTracerN
 	flags.StringVar(&tc.ServiceName, "tracer-service-name", defaultTracerName, "Determines the service name for the Tracer UI")
 }
 
-// RegisterViperFlags registers AWS config flags with Viper CLIs
-func (a *AWSConfig) RegisterViperFlags(flags *pflag.FlagSet, defaultRegion string) {
+// RegisterFlags registers AWS config flags with pflags
+func (a *AWSConfig) RegisterFlags(flags *pflag.FlagSet, defaultRegion string) {
 	flags.StringVar(&a.Region, "aws-region", defaultRegion, "AWS region to connect to, if any")
 	flags.StringVar(&a.Profile, "aws-profile", "", "AWS profile to assume, if any")
 }
