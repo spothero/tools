@@ -34,12 +34,7 @@ var appPackage = "github.com/spothero/core"
 // of this file, this is how you create and expose your CLI and Environment variables. We're
 // building on the excellent open-source tool Cobra and Viper from spf13
 func newRootCmd(args []string) *cobra.Command {
-	config := &tools.HTTPServerConfig{
-		Name:       "example_server",
-		Version:    version,
-		AppPackage: appPackage,
-		GitSHA:     gitSHA,
-	}
+	config := &tools.HTTPServerConfig{}
 	cmd := &cobra.Command{
 		Use:              "example_server",
 		Short:            "SpotHero Example Golang Microservice",
@@ -53,7 +48,7 @@ func newRootCmd(args []string) *cobra.Command {
 	}
 	// Register default http server flags
 	flags := cmd.Flags()
-	config.CLIRegistration(flags, 8080)
+	config.RegisterViperFlags(flags, 8080, "example_server", version, appPackage, gitSHA)
 	return cmd
 }
 

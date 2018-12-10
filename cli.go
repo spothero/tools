@@ -55,10 +55,15 @@ func CobraBindEnvironmentVariables(prefix string) func(cmd *cobra.Command, _ []s
 }
 
 // RegisterViperFlags registers HTTP flags with Viper CLIs
-func (c *HTTPServerConfig) RegisterViperFlags(flags *pflag.FlagSet, defaultPort int) {
+func (c *HTTPServerConfig) RegisterViperFlags(flags *pflag.FlagSet, defaultPort int, defaultName, version, appPackage, gitSHA string) {
+	c.Version = version
+	c.AppPackage = appPackage
+	c.GitSHA = gitSHA
+	c.Logging.RegisterViperFlags(flags)
+	c.Tracer.RegisterViperFlags(flags, defaultName)
 	flags.StringVarP(&c.Address, "address", "a", "localhost", "Address for server")
 	flags.IntVarP(&c.Port, "port", "p", defaultPort, "Port for server")
-	flags.StringVar(&c.Name, "server-name", c.Name, "Server Name")
+	flags.StringVar(&c.Name, "server-name", defaultName, "Server Name")
 }
 
 // RegisterViperFlags registers Kafka flags with Viper CLIs

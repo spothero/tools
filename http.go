@@ -31,7 +31,6 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/spf13/pflag"
 	"go.uber.org/zap"
 )
 
@@ -66,19 +65,6 @@ type httpMetrics struct {
 // HTTPMetricsRecorder defines an interface for recording prometheus metrics on HTTP requests
 type HTTPMetricsRecorder interface {
 	RecordHttpMetrics(w http.ResponseWriter, r *http.Request) *prometheus.Timer
-}
-
-// CLIRegistration registers required components for all HTTP Servers: Versioning, Logging, Tracing
-func (c *HTTPServerConfig) CLIRegistration(flags *pflag.FlagSet, defaultPort int) {
-	c.RegisterViperFlags(flags, defaultPort)
-
-	// Logging Config
-	c.Logging.AppVersion = c.Version
-	c.Logging.GitSha = c.GitSHA
-	c.Logging.RegisterViperFlags(flags)
-
-	// Tracing Config
-	c.Tracer.RegisterViperFlags(flags, c.Name)
 }
 
 // RunHTTPServer starts and runs a web server, waiting for a cancellation signal to exit
