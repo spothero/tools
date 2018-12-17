@@ -259,6 +259,10 @@ func (c *HTTPServerConfig) RunWebServer(
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 30 * time.Second,
 	}
+	// Call any existing pre-start callback
+	if preStart != nil {
+		preStart(ctx, mux, server)
+	}
 	mux.HandleFunc("/health", healthHandler)
 	mux.Handle("/metrics", promhttp.Handler())
 	// Profiling endpoints for use with go tool pprof
@@ -269,10 +273,6 @@ func (c *HTTPServerConfig) RunWebServer(
 	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	if registerMuxes != nil {
 		registerMuxes(mux)
-	}
-	// Call any existing pre-start callback
-	if preStart != nil {
-		preStart(ctx, mux, server)
 	}
 	go func() {
 		Logger.Info(fmt.Sprintf("HTTP server started on %s", server.Addr))
