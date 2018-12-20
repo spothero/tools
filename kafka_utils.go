@@ -27,6 +27,23 @@ type kafkaMessageUnmarshaler interface {
 }
 type kafkaMessageDecoder struct{}
 
+// Given a reflected interface value, recursively identify all fields and their related kafka tag
+func extractFieldsTags(value reflect.Value) ([]reflect.Value, []string) {
+	fields := make([]reflect.Value, 0)
+	tags := make([]string, 0)
+	for i := 0; i < value.NumField(); i++ {
+		if value.Field(i).Type().Kind() == reflect.Struct && value.Field(i).Type().String() != "time.Time" {
+			newFields, newTags := extractFieldsTags(value.Field(i))
+			fields = append(fields, newFields...)
+			tags = append(tags, newTags...)
+			continue
+		}
+		fields = append(fields, value.Field(i))
+		tags = append(tags, value.Type().Field(i).Tag.Get("kafka"))
+	}
+	return fields, tags
+}
+
 // Unmarshal Avro or JSON into a struct type taking into account Kafka Connect's
 // quirks. If a field from the source DBMS is nullable, Kafka connect seems
 // to place the value of that field in a nested map, so we have to look for
@@ -35,16 +52,15 @@ type kafkaMessageDecoder struct{}
 // Note: This function can currently handle all types of ints, bools, strings,
 // and time.Time types.
 func (kmd *kafkaMessageDecoder) unmarshalKafkaMessageMap(kafkaMessageMap map[string]interface{}, target interface{}) []error {
-	valueOfStructure := reflect.ValueOf(target).Elem()
-	typeOfStructure := valueOfStructure.Type()
+	fields, tags := extractFieldsTags(reflect.ValueOf(target).Elem())
 	errs := make([]error, 0)
-	for i := 0; i < valueOfStructure.NumField(); i++ {
-		tag := typeOfStructure.Field(i).Tag.Get("kafka")
+	for i := 0; i < len(fields); i++ {
+		tag := tags[i]
 		kafkaValue, valueInMap := kafkaMessageMap[tag]
 		if !valueInMap {
 			continue
 		}
-		field := valueOfStructure.Field(i)
+		field := fields[i]
 
 		// handle Kafka Connect placing nullable values as nested
 		// map[string]interface{} where the (single) key of the map is the type
@@ -60,9 +76,9 @@ func (kmd *kafkaMessageDecoder) unmarshalKafkaMessageMap(kafkaMessageMap map[str
 		}
 		var err error
 		if field.CanSet() && field.IsValid() {
-			fieldType := field.Type().String()
-			switch fieldType {
-			case "bool":
+			fieldKind := field.Type().Kind()
+			switch fieldKind {
+			case reflect.Bool:
 				// Booleans come through from Kafka Connect as int32, int64, or actual bools
 				if b, ok := kafkaValue.(int32); ok {
 					field.SetBool(b > 0)
@@ -75,7 +91,7 @@ func (kmd *kafkaMessageDecoder) unmarshalKafkaMessageMap(kafkaMessageMap map[str
 				} else {
 					err = fmt.Errorf("error unmarshaling Kafka message, couldn't set bool field with tag %s", tag)
 				}
-			case "int", "int8", "int16", "int32", "int64":
+			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 				// Avro only has int32 and int64 values so we just need to check those
 				if i, ok := kafkaValue.(int32); ok {
 					field.SetInt(int64(i))
@@ -86,7 +102,7 @@ func (kmd *kafkaMessageDecoder) unmarshalKafkaMessageMap(kafkaMessageMap map[str
 				} else {
 					err = fmt.Errorf("error unmarshaling Kafka message, couldn't set int field with tag %s", tag)
 				}
-			case "uint", "uint8", "uint16", "uint32", "uint64":
+			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 				if i, ok := kafkaValue.(int32); ok {
 					field.SetUint(uint64(i))
 				} else if i, ok := kafkaValue.(int64); ok {
@@ -96,7 +112,7 @@ func (kmd *kafkaMessageDecoder) unmarshalKafkaMessageMap(kafkaMessageMap map[str
 				} else {
 					err = fmt.Errorf("error unmarshaling Kafka message, couldn't set uint field with tag %s", tag)
 				}
-			case "float32", "float64":
+			case reflect.Float32, reflect.Float64:
 				if i, ok := kafkaValue.(float32); ok {
 					field.SetFloat(float64(i))
 				} else if i, ok := kafkaValue.(float64); ok {
@@ -104,30 +120,32 @@ func (kmd *kafkaMessageDecoder) unmarshalKafkaMessageMap(kafkaMessageMap map[str
 				} else {
 					err = fmt.Errorf("error unmarshaling Kafka message, couldn't set float field with tag %s", tag)
 				}
-			case "string":
+			case reflect.String:
 				if s, ok := kafkaValue.(string); ok {
 					field.SetString(s)
 				} else {
 					err = fmt.Errorf("error unmarshaling Kafka message, couldn't set string field with tag %s", tag)
 				}
-			case "time.Time":
-				// times are encoded as int64 milliseconds in Avro
-				if t, ok := kafkaValue.(int64); ok {
-					timeVal := time.Unix(0, t*1000000)
-					field.Set(reflect.ValueOf(timeVal))
-				} else if t, ok := kafkaValue.(float64); ok {
-					timeVal := time.Unix(0, int64(t)*1000000)
-					field.Set(reflect.ValueOf(timeVal))
-				} else if t, ok := kafkaValue.(string); ok {
-					// try decoding as RFC3339 time string
-					timeVal, parseErr := time.Parse(time.RFC3339, t)
-					if parseErr == nil {
+			case reflect.Struct:
+				if field.Type().String() == "time.Time" {
+					// times are encoded as int64 milliseconds in Avro
+					if t, ok := kafkaValue.(int64); ok {
+						timeVal := time.Unix(0, t*1000000)
 						field.Set(reflect.ValueOf(timeVal))
+					} else if t, ok := kafkaValue.(float64); ok {
+						timeVal := time.Unix(0, int64(t)*1000000)
+						field.Set(reflect.ValueOf(timeVal))
+					} else if t, ok := kafkaValue.(string); ok {
+						// try decoding as RFC3339 time string
+						timeVal, parseErr := time.Parse(time.RFC3339, t)
+						if parseErr == nil {
+							field.Set(reflect.ValueOf(timeVal))
+						} else {
+							err = fmt.Errorf("error unmarshaling Kafka message, failed to parse time field with tag %s, reason: %s", tag, parseErr.Error())
+						}
 					} else {
-						err = fmt.Errorf("error unmarshaling Kafka message, failed to parse time field with tag %s, reason: %s", tag, parseErr.Error())
+						err = fmt.Errorf("error unmarshaling Kafka message, couldn't set time field with tag %s", tag)
 					}
-				} else {
-					err = fmt.Errorf("error unmarshaling Kafka message, couldn't set time field with tag %s", tag)
 				}
 			default:
 				err = fmt.Errorf(
