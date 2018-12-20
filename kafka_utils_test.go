@@ -16,6 +16,7 @@ package tools
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
@@ -153,4 +154,58 @@ func TestUnmarshalMap_UnexportedField(t *testing.T) {
 	require.Len(t, errs, 1)
 	expectedErr := fmt.Errorf("cannot set invalid field with tag a")
 	assert.Equal(t, expectedErr, errs[0])
+}
+
+// Test that nested structs are handled correctly
+func TestUnmarshalMap_Struct(t *testing.T) {
+	type DoubleNestedTarget struct {
+		C string    `kafka:"c"`
+		D time.Time `kafka:"d"`
+	}
+	type NestedTarget struct {
+		B int `kafka:"b"`
+		DoubleNestedTarget
+	}
+	type unmarshalTarget struct {
+		A int `kafka:"a"`
+		NestedTarget
+	}
+	target := &unmarshalTarget{}
+	message := make(map[string]interface{})
+	message["a"] = int32(1)
+	message["b"] = int32(2)
+	message["c"] = "data"
+	message["d"] = time.Unix(1522083600, 0).UTC().Unix() * 1000
+	messageDecoder := kafkaMessageDecoder{}
+	errs := messageDecoder.unmarshalKafkaMessageMap(message, target)
+	assert.Empty(t, errs)
+	assert.Equal(t, 1, target.A)
+	assert.Equal(t, 2, target.B)
+	assert.Equal(t, "data", target.C)
+	assert.Equal(t, time.Unix(1522083600, 0), target.D)
+}
+
+func TestExtractFieldsTags(t *testing.T) {
+	type DoubleNestedTarget struct {
+		C string    `kafka:"c"`
+		D time.Time `kafka:"d"`
+	}
+	type NestedTarget struct {
+		B int `kafka:"b"`
+		DoubleNestedTarget
+	}
+	type unmarshalTarget struct {
+		A int `kafka:"a"`
+		NestedTarget
+	}
+	target := &unmarshalTarget{}
+	reflected := reflect.ValueOf(target).Elem()
+	fields, tags := extractFieldsTags(reflect.ValueOf(target).Elem())
+	assert.Equal(t, fields, []reflect.Value{
+		reflected.FieldByName("A"),
+		reflected.FieldByName("B"),
+		reflected.FieldByName("C"),
+		reflected.FieldByName("D"),
+	})
+	assert.Equal(t, tags, []string{"a", "b", "c", "d"})
 }
