@@ -35,7 +35,7 @@ func TestLoadLocation(t *testing.T) {
 			if test.expectedOutcome != nil {
 				assert.Equal(t, test.expectedOutcome, loc)
 				assert.NoError(t, err)
-				assert.Contains(t, locationsCache, test.locationName)
+				assert.Contains(t, locCache.cache, test.locationName)
 			} else {
 				assert.Error(t, err)
 			}
