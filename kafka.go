@@ -51,8 +51,8 @@ type KafkaConfig struct {
 	Handlers                 map[string]KafkaMessageHandler
 	JSONEnabled              bool
 	Verbose                  bool
-	KafkaVersion             *sarama.KafkaVersion
-	ProducerCompressionCodec sarama.CompressionCodec
+	KafkaVersion             string
+	ProducerCompressionCodec string
 	ProducerCompressionLevel int
 	kafkaMetrics
 }
@@ -104,17 +104,32 @@ func (kc *KafkaConfig) NewKafkaClient(ctx context.Context) (sarama.Client, error
 		sarama.Logger = saramaLogger
 	}
 	kafkaConfig := sarama.NewConfig()
-	if kc.KafkaVersion == nil {
-		kafkaConfig.Version = sarama.V1_0_0_0
-	} else {
-		kafkaConfig.Version = *kc.KafkaVersion
+	kafkaVersion, err := sarama.ParseKafkaVersion(kc.KafkaVersion)
+	if err != nil {
+		return nil, err
 	}
+	kafkaConfig.Version = kafkaVersion
 	kafkaConfig.Consumer.Return.Errors = true
 	kafkaConfig.ClientID = kc.ClientID
 	kafkaConfig.Producer.RequiredAcks = sarama.WaitForAll
 	kafkaConfig.Producer.Return.Successes = true
 	kafkaConfig.Producer.Return.Errors = true
-	kafkaConfig.Producer.Compression = kc.ProducerCompressionCodec
+	var compressionCodec sarama.CompressionCodec
+	switch kc.ProducerCompressionCodec {
+	case "zstd":
+		compressionCodec = sarama.CompressionZSTD
+	case "snappy":
+		compressionCodec = sarama.CompressionSnappy
+	case "lz4":
+		compressionCodec = sarama.CompressionLZ4
+	case "gzip":
+		compressionCodec = sarama.CompressionGZIP
+	case "none":
+		compressionCodec = sarama.CompressionNone
+	default:
+		return nil, fmt.Errorf("unknown compression codec %v", kc.ProducerCompressionCodec)
+	}
+	kafkaConfig.Producer.Compression = compressionCodec
 	kafkaConfig.Producer.CompressionLevel = kc.ProducerCompressionLevel
 
 	kc.initKafkaMetrics(prometheus.DefaultRegisterer)

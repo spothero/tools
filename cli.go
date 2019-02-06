@@ -68,13 +68,16 @@ func (c *HTTPServerConfig) RegisterFlags(flags *pflag.FlagSet, defaultPort int, 
 
 // RegisterFlags registers Kafka flags with pflags
 func (kc *KafkaConfig) RegisterFlags(flags *pflag.FlagSet) {
-	flags.StringVarP(&kc.Broker, "kafka-broker", "b", "kafka:29092", "Kafka Broker Address")
+	flags.StringVarP(&kc.Broker, "kafka-broker", "b", "kafka:29092", "Kafka broker Address")
 	flags.StringVar(&kc.ClientID, "kafka-client-id", "availability", "Kafka consumer Client ID")
 	flags.StringVar(&kc.TLSCaCrtPath, "kafka-server-ca-crt-path", "", "Kafka Server TLS CA Certificate Path")
 	flags.StringVar(&kc.TLSCrtPath, "kafka-client-crt-path", "", "Kafka Client TLS Certificate Path")
 	flags.StringVar(&kc.TLSKeyPath, "kafka-client-key-path", "", "Kafka Client TLS Key Path")
 	flags.BoolVar(&kc.Verbose, "kafka-verbose", false, "When this flag is set Kafka will log verbosely")
 	flags.BoolVar(&kc.JSONEnabled, "enable-json", true, "When this flag is set, messages from Kafka will be consumed as JSON instead of Avro")
+	flags.StringVar(&kc.KafkaVersion, "kafka-version", "2.1.0", "Kafka broker version")
+	flags.StringVar(&kc.ProducerCompressionCodec, "kafka-producer-compression", "none", "Compression codec to use when producing messages, one of: \"none\", \"zstd\", \"snappy\", \"lz4\", \"zstd\", \"gzip\"")
+	flags.IntVar(&kc.ProducerCompressionLevel, "kafka-producer-compression-level", -1000, "Compression level to use on produced messages, -1000 signifies to use the default level.")
 }
 
 // RegisterFlags register Logging flags with pflags
