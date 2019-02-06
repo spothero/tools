@@ -51,6 +51,7 @@ type KafkaConfig struct {
 	Handlers     map[string]KafkaMessageHandler
 	JSONEnabled  bool
 	Verbose      bool
+	KafkaVersion *sarama.KafkaVersion
 	kafkaMetrics
 }
 
@@ -101,8 +102,12 @@ func (kc *KafkaConfig) NewKafkaClient(ctx context.Context) (sarama.Client, error
 		sarama.Logger = saramaLogger
 	}
 	kafkaConfig := sarama.NewConfig()
+	if kc.KafkaVersion == nil {
+		kafkaConfig.Version = sarama.V1_0_0_0
+	} else {
+		kafkaConfig.Version = *kc.KafkaVersion
+	}
 	kafkaConfig.Consumer.Return.Errors = true
-	kafkaConfig.Version = sarama.V1_0_0_0
 	kafkaConfig.ClientID = kc.ClientID
 	kafkaConfig.Producer.RequiredAcks = sarama.WaitForAll
 	kafkaConfig.Producer.Return.Successes = true
@@ -571,7 +576,14 @@ func (kp *KafkaProducer) RunProducer(
 		case message := <-messages:
 			kp.producer.Input() <- message
 		case err := <-kp.producer.Errors():
-			key, _ := err.Msg.Key.Encode()
+			var key []byte
+			if err.Msg.Key != nil {
+				if _key, err := err.Msg.Key.Encode(); err == nil {
+					key = _key
+				} else {
+					Logger.Error("Could not encode produced message key", zap.Error(err))
+				}
+			}
 			Logger.Error(
 				"Error producing Kafka message",
 				zap.String("topic", err.Msg.Topic),
