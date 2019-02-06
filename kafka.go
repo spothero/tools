@@ -43,15 +43,17 @@ type KafkaMessageHandler interface {
 
 // KafkaConfig contains connection settings and configuration for communicating with a Kafka cluster
 type KafkaConfig struct {
-	Broker       string
-	ClientID     string
-	TLSCaCrtPath string
-	TLSCrtPath   string
-	TLSKeyPath   string
-	Handlers     map[string]KafkaMessageHandler
-	JSONEnabled  bool
-	Verbose      bool
-	KafkaVersion *sarama.KafkaVersion
+	Broker                   string
+	ClientID                 string
+	TLSCaCrtPath             string
+	TLSCrtPath               string
+	TLSKeyPath               string
+	Handlers                 map[string]KafkaMessageHandler
+	JSONEnabled              bool
+	Verbose                  bool
+	KafkaVersion             *sarama.KafkaVersion
+	ProducerCompressionCodec sarama.CompressionCodec
+	ProducerCompressionLevel int
 	kafkaMetrics
 }
 
@@ -112,6 +114,8 @@ func (kc *KafkaConfig) NewKafkaClient(ctx context.Context) (sarama.Client, error
 	kafkaConfig.Producer.RequiredAcks = sarama.WaitForAll
 	kafkaConfig.Producer.Return.Successes = true
 	kafkaConfig.Producer.Return.Errors = true
+	kafkaConfig.Producer.Compression = kc.ProducerCompressionCodec
+	kafkaConfig.Producer.CompressionLevel = kc.ProducerCompressionLevel
 
 	kc.initKafkaMetrics(prometheus.DefaultRegisterer)
 
