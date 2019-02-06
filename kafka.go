@@ -43,14 +43,17 @@ type KafkaMessageHandler interface {
 
 // KafkaConfig contains connection settings and configuration for communicating with a Kafka cluster
 type KafkaConfig struct {
-	Broker       string
-	ClientID     string
-	TLSCaCrtPath string
-	TLSCrtPath   string
-	TLSKeyPath   string
-	Handlers     map[string]KafkaMessageHandler
-	JSONEnabled  bool
-	Verbose      bool
+	Broker                   string
+	ClientID                 string
+	TLSCaCrtPath             string
+	TLSCrtPath               string
+	TLSKeyPath               string
+	Handlers                 map[string]KafkaMessageHandler
+	JSONEnabled              bool
+	Verbose                  bool
+	KafkaVersion             string
+	ProducerCompressionCodec string
+	ProducerCompressionLevel int
 	kafkaMetrics
 }
 
@@ -101,12 +104,33 @@ func (kc *KafkaConfig) NewKafkaClient(ctx context.Context) (sarama.Client, error
 		sarama.Logger = saramaLogger
 	}
 	kafkaConfig := sarama.NewConfig()
+	kafkaVersion, err := sarama.ParseKafkaVersion(kc.KafkaVersion)
+	if err != nil {
+		return nil, err
+	}
+	kafkaConfig.Version = kafkaVersion
 	kafkaConfig.Consumer.Return.Errors = true
-	kafkaConfig.Version = sarama.V1_0_0_0
 	kafkaConfig.ClientID = kc.ClientID
 	kafkaConfig.Producer.RequiredAcks = sarama.WaitForAll
 	kafkaConfig.Producer.Return.Successes = true
 	kafkaConfig.Producer.Return.Errors = true
+	var compressionCodec sarama.CompressionCodec
+	switch kc.ProducerCompressionCodec {
+	case "zstd":
+		compressionCodec = sarama.CompressionZSTD
+	case "snappy":
+		compressionCodec = sarama.CompressionSnappy
+	case "lz4":
+		compressionCodec = sarama.CompressionLZ4
+	case "gzip":
+		compressionCodec = sarama.CompressionGZIP
+	case "none":
+		compressionCodec = sarama.CompressionNone
+	default:
+		return nil, fmt.Errorf("unknown compression codec %v", kc.ProducerCompressionCodec)
+	}
+	kafkaConfig.Producer.Compression = compressionCodec
+	kafkaConfig.Producer.CompressionLevel = kc.ProducerCompressionLevel
 
 	kc.initKafkaMetrics(prometheus.DefaultRegisterer)
 
@@ -571,7 +595,14 @@ func (kp *KafkaProducer) RunProducer(
 		case message := <-messages:
 			kp.producer.Input() <- message
 		case err := <-kp.producer.Errors():
-			key, _ := err.Msg.Key.Encode()
+			var key []byte
+			if err.Msg.Key != nil {
+				if _key, err := err.Msg.Key.Encode(); err == nil {
+					key = _key
+				} else {
+					Logger.Error("Could not encode produced message key", zap.Error(err))
+				}
+			}
 			Logger.Error(
 				"Error producing Kafka message",
 				zap.String("topic", err.Msg.Topic),

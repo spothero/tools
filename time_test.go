@@ -10,11 +10,11 @@ import (
 func TestLoadLocation(t *testing.T) {
 	chiTz, err := time.LoadLocation("America/Chicago")
 	require.NoError(t, err)
-	tests := []struct{
-		name string
-		locationName string
+	tests := []struct {
+		name            string
+		locationName    string
 		expectedOutcome *time.Location
-	} {
+	}{
 		{
 			"location should be loaded",
 			"America/Chicago",

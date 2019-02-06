@@ -2,15 +2,23 @@
 
 
 [[projects]]
-  digest = "1:b6957a1836b6d7e51e5a71391f5c08fa5d866f57e4ac425fa5f183d518a5657b"
+  digest = "1:ed77032e4241e3b8329c9304d66452ed196e795876e14be677a546f36b94e67a"
+  name = "github.com/DataDog/zstd"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "c7161f8c63c045cbc7ca051dcc969dd0e4054de2"
+  version = "v1.3.5"
+
+[[projects]]
+  digest = "1:59ced12f3862e56e91115f7f24969db8b609b0a6355063b8d1355aceb52d5f14"
   name = "github.com/Shopify/sarama"
   packages = [
     ".",
     "mocks",
   ]
   pruneopts = "UT"
-  revision = "ec843464b50d4c8b56403ec9d589cf41ea30e722"
-  version = "v1.19.0"
+  revision = "03a43f93cd29dc549e6d9b11892795c206f9c38c"
+  version = "v1.20.1"
 
 [[projects]]
   digest = "1:93d386478f65decfcd20a4793d96bf81b10425deca1293910151922087abe477"
