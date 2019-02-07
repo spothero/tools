@@ -324,7 +324,7 @@ func (kc *KafkaConfig) initKafkaMetrics(registry prometheus.Registerer) {
 		kc.messagesProcessed,
 		kc.messageErrors,
 		kc.errorsProcessed,
-		kc.messagesProcessed,
+		kc.messagesProduced,
 		kc.errorsProduced,
 	)
 }
