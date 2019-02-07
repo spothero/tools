@@ -319,7 +319,14 @@ func (kc *KafkaConfig) initKafkaMetrics(registry prometheus.Registerer) {
 		},
 		promLabels,
 	)
-	registry.MustRegister(kc.messageProcessingTime, kc.messagesProcessed, kc.messageErrors, kc.errorsProcessed)
+	registry.MustRegister(
+		kc.messageProcessingTime,
+		kc.messagesProcessed,
+		kc.messageErrors,
+		kc.errorsProcessed,
+		kc.messagesProduced,
+		kc.errorsProduced,
+	)
 }
 
 // Close Sarama consumer and client
