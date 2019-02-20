@@ -36,14 +36,15 @@ import (
 
 // HTTPServerConfig contains the basic configuration necessary for running an HTTP Server
 type HTTPServerConfig struct {
-	Address    string
-	Port       int
-	Name       string
-	Version    string
-	AppPackage string
-	GitSHA     string
-	Logging    LoggingConfig
-	Tracer     TracingConfig
+	Address                  string
+	Port                     int
+	Name                     string
+	Version                  string
+	AppPackage               string
+	GitSHA                   string
+	DurationHistogramBuckets int
+	Logging                  LoggingConfig
+	Tracer                   TracingConfig
 }
 
 type httpStatusRecorder struct {
@@ -120,13 +121,13 @@ func makeHTTPCounter() *prometheus.CounterVec {
 	return counter
 }
 
-func makeHTTPDurationHistogram() *prometheus.HistogramVec {
+func makeHTTPDurationHistogram(numBuckets int) *prometheus.HistogramVec {
 	histogram := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "http_request_duration_seconds",
 			Help: "Total duration histogram for the HTTP request",
 			// Power of 2 time - 1ms, 2ms, 4ms ... 32768ms, +Inf ms
-			Buckets: prometheus.ExponentialBuckets(0.001, 2.0, 16),
+			Buckets: prometheus.ExponentialBuckets(0.001, 2.0, numBuckets),
 		},
 		[]string{
 			// The path recording the request
@@ -141,11 +142,11 @@ func makeHTTPDurationHistogram() *prometheus.HistogramVec {
 	return histogram
 }
 
-func initHTTPMetrics(server string) *httpMetrics {
+func initHTTPMetrics(server string, numHistogramBuckets int) *httpMetrics {
 	return &httpMetrics{
 		server,
 		makeHTTPCounter(),
-		makeHTTPDurationHistogram(),
+		makeHTTPDurationHistogram(numHistogramBuckets),
 	}
 }
 
@@ -219,8 +220,8 @@ func (hm *httpMetrics) tracingHandler(hsr *httpStatusRecorder, r *http.Request) 
 //   end it when the request completes
 // * Capture any unhandled errors and send them to Sentry
 // * Capture metrics to Prometheus for the duration of the HTTP request
-func BaseHTTPMonitoringHandler(next http.Handler, serverName string) http.HandlerFunc {
-	handlerMetrics := initHTTPMetrics(serverName)
+func BaseHTTPMonitoringHandler(next http.Handler, serverName string, numHistogramBuckets int) http.HandlerFunc {
+	handlerMetrics := initHTTPMetrics(serverName, numHistogramBuckets)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Default to http.StatusOK which is the golang default if the status is not set.
 		wrappedWriter := &httpStatusRecorder{w, http.StatusOK}
@@ -255,7 +256,7 @@ func (c *HTTPServerConfig) RunWebServer(
 	mux := http.NewServeMux()
 	server := &http.Server{
 		Addr:         fmt.Sprintf("%s:%d", c.Address, c.Port),
-		Handler:      BaseHTTPMonitoringHandler(mux, c.Name),
+		Handler:      BaseHTTPMonitoringHandler(mux, c.Name, c.DurationHistogramBuckets),
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 30 * time.Second,
 	}
