@@ -55,26 +55,21 @@ func (msc *mockSaramaClient) GetOffset(topic string, partitionID int32, time int
 	return msc.getOffsetReturn, msc.getOffsetErr
 }
 
-func setupTestConsumer(t *testing.T) (*testHandler, *KafkaConsumer, *mocks.Consumer, context.Context, context.CancelFunc) {
+func setupTestConsumer(t *testing.T, clientGetOffsetReturn int, clientGetOffsetError error) (*testHandler, KafkaConsumer, *mocks.Consumer, context.Context, context.CancelFunc) {
 	ctx, cancel := context.WithCancel(context.Background())
 	mockConsumer := mocks.NewConsumer(t, nil)
 	config := KafkaConfig{ClientID: "test"}
 	config.initKafkaMetrics(prometheus.NewRegistry())
-	consumer := &KafkaConsumer{consumer: mockConsumer, KafkaClient: KafkaClient{KafkaConfig: config}}
+	mockClient := &mockSaramaClient{getOffsetReturn: int64(clientGetOffsetReturn), getOffsetErr: clientGetOffsetError}
+	consumer := KafkaConsumer{consumer: mockConsumer, KafkaClient: KafkaClient{KafkaConfig: config, client: mockClient}}
 	return &testHandler{}, consumer, consumer.consumer.(*mocks.Consumer), ctx, cancel
-}
-
-func setupTestClient(getOffsetReturn int, getOffsetError error, kc *KafkaConsumer) {
-	mockClient := &mockSaramaClient{getOffsetReturn: int64(getOffsetReturn), getOffsetErr: getOffsetError}
-	kc.client = mockClient
 }
 
 func TestConsumeTopic(t *testing.T) {
 	// Simulate reading messages off of one topic with five partitions
 	// Note that this is more of an integration test rather than a unit test
-	handler, consumer, mockSaramaConsumer, ctx, cancel := setupTestConsumer(t)
+	handler, consumer, mockSaramaConsumer, ctx, cancel := setupTestConsumer(t, 2, nil)
 	defer mockSaramaConsumer.Close()
-	setupTestClient(2, nil, consumer)
 
 	// Setup 5 partitions on the topic
 	numPartitions := 5
@@ -117,9 +112,8 @@ func TestConsumeTopic(t *testing.T) {
 }
 
 func TestConsumeTopic_noTopics(t *testing.T) {
-	handler, consumer, mockConsumer, _, _ := setupTestConsumer(t)
+	handler, consumer, mockConsumer, _, _ := setupTestConsumer(t, 2, nil)
 	defer mockConsumer.Close()
-	setupTestClient(2, nil, consumer)
 	mockConsumer.SetTopicMetadata(map[string][]int32{
 		"test-topic": nil,
 	})
@@ -129,9 +123,8 @@ func TestConsumeTopic_noTopics(t *testing.T) {
 
 // Make sure there's a panic trying to get the newest offset from a topic & partition
 func TestConsumeTopic_errorGettingOffset(t *testing.T) {
-	handler, consumer, mockSaramaConsumer, _, _ := setupTestConsumer(t)
+	handler, consumer, mockSaramaConsumer, _, _ := setupTestConsumer(t, 2, fmt.Errorf("some kafka error"))
 	defer mockSaramaConsumer.Close()
-	setupTestClient(2, fmt.Errorf("some kafka error"), consumer)
 
 	mockSaramaConsumer.SetTopicMetadata(map[string][]int32{
 		"test-topic": {0},
@@ -141,9 +134,8 @@ func TestConsumeTopic_errorGettingOffset(t *testing.T) {
 }
 
 func TestConsumeTopicFromBeginning(t *testing.T) {
-	handler, consumer, mockSaramaConsumer, ctx, cancel := setupTestConsumer(t)
+	handler, consumer, mockSaramaConsumer, ctx, cancel := setupTestConsumer(t, 2, nil)
 	defer mockSaramaConsumer.Close()
-	setupTestClient(2, nil, consumer)
 
 	numPartitions := 2
 	mockSaramaConsumer.SetTopicMetadata(map[string][]int32{
@@ -182,9 +174,8 @@ func TestConsumeTopicFromBeginning(t *testing.T) {
 }
 
 func TestConsumeTopicFromLatest(t *testing.T) {
-	handler, consumer, mockSaramaConsumer, ctx, cancel := setupTestConsumer(t)
+	handler, consumer, mockSaramaConsumer, ctx, cancel := setupTestConsumer(t, 0, nil)
 	defer mockSaramaConsumer.Close()
-	setupTestClient(0, nil, consumer)
 	mockSaramaConsumer.SetTopicMetadata(map[string][]int32{
 		"test-topic": {0},
 	})
@@ -207,7 +198,7 @@ func TestConsumeTopicFromLatest(t *testing.T) {
 
 // Test that processing messages from a partition works
 func TestConsumePartition(t *testing.T) {
-	handler, consumer, mockSaramaConsumer, ctx, cancel := setupTestConsumer(t)
+	handler, consumer, mockSaramaConsumer, ctx, cancel := setupTestConsumer(t, 0, nil)
 	defer mockSaramaConsumer.Close()
 	partitionConsumer := *mockSaramaConsumer.ExpectConsumePartition("test-topic", 0, 0)
 	message := &sarama.ConsumerMessage{
@@ -244,7 +235,7 @@ func TestConsumePartition(t *testing.T) {
 
 // Test that we're "caught up" if there aren't any messages to process
 func TestConsumePartition_caughtUp(t *testing.T) {
-	handler, consumer, mockSaramaConsumer, ctx, cancel := setupTestConsumer(t)
+	handler, consumer, mockSaramaConsumer, ctx, cancel := setupTestConsumer(t, 1, nil)
 	defer mockSaramaConsumer.Close()
 	partitionConsumer := *mockSaramaConsumer.ExpectConsumePartition("test-topic", 0, 0)
 	message := &sarama.ConsumerMessage{
@@ -265,7 +256,7 @@ func TestConsumePartition_caughtUp(t *testing.T) {
 
 // Test that the function exits after catching up if specified
 func TestConsumePartition_exitAfterCaughtUp(t *testing.T) {
-	handler, consumer, mockSaramaConsumer, ctx, _ := setupTestConsumer(t)
+	handler, consumer, mockSaramaConsumer, ctx, _ := setupTestConsumer(t, 1, nil)
 	defer mockSaramaConsumer.Close()
 	partitionConsumer := *mockSaramaConsumer.ExpectConsumePartition("test-topic", 0, 0)
 	message := &sarama.ConsumerMessage{
@@ -284,7 +275,7 @@ func TestConsumePartition_exitAfterCaughtUp(t *testing.T) {
 
 // Test that the consumer handles errors from Kafka
 func TestConsumePartition_handleError(t *testing.T) {
-	handler, consumer, mockSaramaConsumer, ctx, cancel := setupTestConsumer(t)
+	handler, consumer, mockSaramaConsumer, ctx, cancel := setupTestConsumer(t, 0, nil)
 	defer mockSaramaConsumer.Close()
 	partitionConsumer := *mockSaramaConsumer.ExpectConsumePartition("test-topic", 0, 0)
 	readStatus := make(chan consumerLastStatus)
