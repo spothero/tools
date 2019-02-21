@@ -54,6 +54,7 @@ type KafkaConfig struct {
 	KafkaVersion             string
 	ProducerCompressionCodec string
 	ProducerCompressionLevel int
+	SchemaRegistry           SchemaRegistryConfig
 	kafkaMetrics
 }
 
@@ -96,7 +97,7 @@ type KafkaConsumerIface interface {
 
 // NewKafkaClient creates a Kafka client with metrics exporting and optional
 // TLS that can be used to create consumers or producers
-func (kc KafkaConfig) NewKafkaClient(ctx context.Context) (KafkaClient, error) {
+func (kc KafkaConfig) NewKafkaClient(ctx context.Context, schemaRegistry SchemaRegistryConfig) (KafkaClient, error) {
 	if kc.Verbose {
 		saramaLogger, err := CreateStdLogger(Logger.Named("sarama"), "info")
 		if err != nil {
@@ -177,7 +178,7 @@ func (kc KafkaConfig) NewKafkaClient(ctx context.Context) (KafkaClient, error) {
 }
 
 // NewKafkaConsumer sets up a Kafka consumer
-func (kc KafkaClient) NewKafkaConsumer(schemaRegistryConfig *SchemaRegistryConfig) (KafkaConsumer, error) {
+func (kc KafkaClient) NewKafkaConsumer() (KafkaConsumer, error) {
 	consumer, err := sarama.NewConsumerFromClient(kc.client)
 	if err != nil {
 		if closeErr := kc.client.Close(); closeErr != nil {
@@ -194,9 +195,9 @@ func (kc KafkaClient) NewKafkaConsumer(schemaRegistryConfig *SchemaRegistryConfi
 	if kc.JSONEnabled {
 		kafkaConsumer.messageUnmarshaler = &jsonMessageUnmarshaler{messageUnmarshaler: messageUnmarshaler}
 	} else {
-		schemaRegistryConfig.client = &schemaRegistryClient{}
-		schemaRegistryConfig.messageUnmarshaler = messageUnmarshaler
-		kafkaConsumer.messageUnmarshaler = schemaRegistryConfig
+		kc.KafkaConfig.SchemaRegistry.client = &schemaRegistryClient{}
+		kc.KafkaConfig.SchemaRegistry.messageUnmarshaler = messageUnmarshaler
+		kafkaConsumer.messageUnmarshaler = &kc.KafkaConfig.SchemaRegistry
 	}
 	return kafkaConsumer, nil
 }
