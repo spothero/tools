@@ -58,9 +58,9 @@ func (msc *mockSaramaClient) GetOffset(topic string, partitionID int32, time int
 func setupTestConsumer(t *testing.T) (*testHandler, *KafkaConsumer, *mocks.Consumer, context.Context, context.CancelFunc) {
 	ctx, cancel := context.WithCancel(context.Background())
 	mockConsumer := mocks.NewConsumer(t, nil)
-	config := &KafkaConfig{ClientID: "test"}
+	config := KafkaConfig{ClientID: "test"}
 	config.initKafkaMetrics(prometheus.NewRegistry())
-	consumer := &KafkaConsumer{consumer: mockConsumer, kafkaClient: kafkaClient{kafkaConfig: config}}
+	consumer := &KafkaConsumer{consumer: mockConsumer, KafkaClient: KafkaClient{KafkaConfig: config}}
 	return &testHandler{}, consumer, consumer.consumer.(*mocks.Consumer), ctx, cancel
 }
 
