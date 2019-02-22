@@ -78,6 +78,7 @@ func (kc *KafkaConfig) RegisterFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&kc.KafkaVersion, "kafka-version", "2.1.0", "Kafka broker version")
 	flags.StringVar(&kc.ProducerCompressionCodec, "kafka-producer-compression-codec", "none", "Compression codec to use when producing messages, one of: \"none\", \"zstd\", \"snappy\", \"lz4\", \"zstd\", \"gzip\"")
 	flags.IntVar(&kc.ProducerCompressionLevel, "kafka-producer-compression-level", -1000, "Compression level to use on produced messages, -1000 signifies to use the default level.")
+	kc.SchemaRegistry = &SchemaRegistryConfig{}
 	kc.SchemaRegistry.RegisterFlags(flags)
 }
 
