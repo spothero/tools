@@ -203,8 +203,8 @@ func (kc KafkaClient) NewKafkaConsumer() (KafkaConsumer, error) {
 }
 
 // NewKafkaProducer creates a sarama producer from a client
-func (kc KafkaClient) NewKafkaProducer(client sarama.Client) (KafkaProducer, error) {
-	producer, err := sarama.NewAsyncProducerFromClient(client)
+func (kc KafkaClient) NewKafkaProducer() (KafkaProducer, error) {
+	producer, err := sarama.NewAsyncProducerFromClient(kc.client)
 	if err != nil {
 		if closeErr := producer.Close(); closeErr != nil {
 			Logger.Error("Error closing Kafka producer", zap.Error(err))
