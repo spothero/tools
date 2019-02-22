@@ -218,6 +218,13 @@ func (kc KafkaClient) NewKafkaProducer() (KafkaProducer, error) {
 	}, nil
 }
 
+// Close the underlying Kafka client
+func (kc KafkaClient) Close() {
+	if err := kc.client.Close(); err != nil {
+		Logger.Error("Error closing Kafka client", zap.Error(err))
+	}
+}
+
 func (kc KafkaConfig) updateBrokerMetrics(registry metrics.Registry) {
 	registry.Each(func(name string, i interface{}) {
 		var metricVal float64
