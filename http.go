@@ -42,6 +42,9 @@ type HTTPServerConfig struct {
 	Version    string
 	AppPackage string
 	GitSHA     string
+	TLSEnabled bool
+	TLSCrtPath string
+	TLSKeyPath string
 	Logging    LoggingConfig
 	Tracer     TracingConfig
 }
@@ -253,8 +256,12 @@ func (c *HTTPServerConfig) RunWebServer(
 	// Setup server and listen for requests
 	defer wg.Done()
 	mux := http.NewServeMux()
+	httpPrefix := "http"
+	if c.TLSEnabled {
+		httpPrefix = "https"
+	}
 	server := &http.Server{
-		Addr:         fmt.Sprintf("%s:%d", c.Address, c.Port),
+		Addr:         fmt.Sprintf("%s://%s:%d", httpPrefix, c.Address, c.Port),
 		Handler:      BaseHTTPMonitoringHandler(mux, c.Name),
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 30 * time.Second,
@@ -275,9 +282,16 @@ func (c *HTTPServerConfig) RunWebServer(
 		registerMuxes(mux)
 	}
 	go func() {
-		Logger.Info(fmt.Sprintf("HTTP server started on %s", server.Addr))
-		if err := server.ListenAndServe(); err != nil {
-			Logger.Info("HTTP server shutdown", zap.Error(err))
+		if !c.TLSEnabled {
+			Logger.Info(fmt.Sprintf("HTTP server started on %s", server.Addr))
+			if err := server.ListenAndServe(); err != nil {
+				Logger.Info("HTTP server shutdown", zap.Error(err))
+			}
+		} else {
+			Logger.Info(fmt.Sprintf("HTTPS server started on %s", server.Addr))
+			if err := server.ListenAndServeTLS(c.TLSCrtPath, c.TLSKeyPath); err != nil {
+				Logger.Info("HTTPS server shutdown", zap.Error(err))
+			}
 		}
 	}()
 	<-ctx.Done()

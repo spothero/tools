@@ -64,6 +64,9 @@ func (c *HTTPServerConfig) RegisterFlags(flags *pflag.FlagSet, defaultPort int, 
 	flags.StringVarP(&c.Address, "address", "a", "localhost", "Address for server")
 	flags.IntVarP(&c.Port, "port", "p", defaultPort, "Port for server")
 	flags.StringVar(&c.Name, "server-name", defaultName, "Server Name")
+	flags.BoolVar(&c.TLSEnabled, "tls-enabled", false, "Use TLS for HTTP")
+	flags.StringVar(&c.TLSCrtPath, "tls-crt-path", "", "Path to TLS crt")
+	flags.StringVar(&c.TLSKeyPath, "tls-key-path:", "", "Path to TLS key")
 }
 
 // RegisterFlags registers Kafka flags with pflags
