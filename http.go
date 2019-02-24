@@ -256,12 +256,8 @@ func (c *HTTPServerConfig) RunWebServer(
 	// Setup server and listen for requests
 	defer wg.Done()
 	mux := http.NewServeMux()
-	httpPrefix := "http"
-	if c.TLSEnabled {
-		httpPrefix = "https"
-	}
 	server := &http.Server{
-		Addr:         fmt.Sprintf("%s://%s:%d", httpPrefix, c.Address, c.Port),
+		Addr:         fmt.Sprintf("%s:%d", c.Address, c.Port),
 		Handler:      BaseHTTPMonitoringHandler(mux, c.Name),
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 30 * time.Second,
