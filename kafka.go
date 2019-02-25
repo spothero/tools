@@ -54,24 +54,26 @@ type KafkaConfig struct {
 	KafkaVersion             string
 	ProducerCompressionCodec string
 	ProducerCompressionLevel int
+	SchemaRegistry           *SchemaRegistryConfig
 	kafkaMetrics
 }
 
-type kafkaClient struct {
-	client      sarama.Client
-	kafkaConfig *KafkaConfig
+// KafkaClient wraps a sarama client and Kafka configuration and can be used to create producers and consumers
+type KafkaClient struct {
+	KafkaConfig
+	client sarama.Client
 }
 
 // KafkaConsumer contains a sarama client, consumer, and implementation of the KafkaMessageUnmarshaler interface
 type KafkaConsumer struct {
-	kafkaClient
+	KafkaClient
 	consumer           sarama.Consumer
 	messageUnmarshaler KafkaMessageUnmarshaler
 }
 
 // KafkaProducer contains a sarama client and async producer
 type KafkaProducer struct {
-	kafkaClient
+	KafkaClient
 	producer sarama.AsyncProducer
 }
 
@@ -95,7 +97,7 @@ type KafkaConsumerIface interface {
 
 // NewKafkaClient creates a Kafka client with metrics exporting and optional
 // TLS that can be used to create consumers or producers
-func (kc *KafkaConfig) NewKafkaClient(ctx context.Context) (sarama.Client, error) {
+func (kc KafkaConfig) NewKafkaClient(ctx context.Context) (KafkaClient, error) {
 	if kc.Verbose {
 		saramaLogger, err := CreateStdLogger(Logger.Named("sarama"), "info")
 		if err != nil {
@@ -106,7 +108,7 @@ func (kc *KafkaConfig) NewKafkaClient(ctx context.Context) (sarama.Client, error
 	kafkaConfig := sarama.NewConfig()
 	kafkaVersion, err := sarama.ParseKafkaVersion(kc.KafkaVersion)
 	if err != nil {
-		return nil, err
+		return KafkaClient{}, err
 	}
 	kafkaConfig.Version = kafkaVersion
 	kafkaConfig.Consumer.Return.Errors = true
@@ -127,7 +129,7 @@ func (kc *KafkaConfig) NewKafkaClient(ctx context.Context) (sarama.Client, error
 	case "none":
 		compressionCodec = sarama.CompressionNone
 	default:
-		return nil, fmt.Errorf("unknown compression codec %v", kc.ProducerCompressionCodec)
+		return KafkaClient{}, fmt.Errorf("unknown compression codec %v", kc.ProducerCompressionCodec)
 	}
 	kafkaConfig.Producer.Compression = compressionCodec
 	kafkaConfig.Producer.CompressionLevel = kc.ProducerCompressionLevel
@@ -164,61 +166,66 @@ func (kc *KafkaConfig) NewKafkaClient(ctx context.Context) (sarama.Client, error
 		}
 	}
 
-	return sarama.NewClient([]string{kc.Broker}, kafkaConfig)
+	saramaClient, err := sarama.NewClient([]string{kc.Broker}, kafkaConfig)
+	if err != nil {
+		return KafkaClient{}, err
+	}
+
+	return KafkaClient{
+		KafkaConfig: kc,
+		client:      saramaClient,
+	}, nil
 }
 
 // NewKafkaConsumer sets up a Kafka consumer
-func (kc *KafkaConfig) NewKafkaConsumer(
-	client sarama.Client,
-	schemaRegistryConfig *SchemaRegistryConfig,
-) (*KafkaConsumer, error) {
-	consumer, err := sarama.NewConsumerFromClient(client)
+func (kc KafkaClient) NewKafkaConsumer() (KafkaConsumer, error) {
+	consumer, err := sarama.NewConsumerFromClient(kc.client)
 	if err != nil {
-		if closeErr := client.Close(); closeErr != nil {
+		if closeErr := kc.client.Close(); closeErr != nil {
 			Logger.Error("Error closing Kafka client", zap.Error(err))
 		}
-		return nil, err
+		return KafkaConsumer{}, err
 	}
 
-	kafkaConsumer := &KafkaConsumer{
-		kafkaClient: kafkaClient{
-			client:      client,
-			kafkaConfig: kc,
-		},
-		consumer: consumer,
+	kafkaConsumer := KafkaConsumer{
+		KafkaClient: kc,
+		consumer:    consumer,
 	}
 	messageUnmarshaler := &kafkaMessageDecoder{}
 	if kc.JSONEnabled {
 		kafkaConsumer.messageUnmarshaler = &jsonMessageUnmarshaler{messageUnmarshaler: messageUnmarshaler}
 	} else {
-		schemaRegistryConfig.client = &schemaRegistryClient{}
-		schemaRegistryConfig.messageUnmarshaler = messageUnmarshaler
-		kafkaConsumer.messageUnmarshaler = schemaRegistryConfig
+		kc.KafkaConfig.SchemaRegistry.client = &schemaRegistryClient{}
+		kc.KafkaConfig.SchemaRegistry.messageUnmarshaler = messageUnmarshaler
+		kafkaConsumer.messageUnmarshaler = kc.KafkaConfig.SchemaRegistry
 	}
 	return kafkaConsumer, nil
 }
 
 // NewKafkaProducer creates a sarama producer from a client
-func (kc *KafkaConfig) NewKafkaProducer(client sarama.Client) (*KafkaProducer, error) {
-	producer, err := sarama.NewAsyncProducerFromClient(client)
+func (kc KafkaClient) NewKafkaProducer() (KafkaProducer, error) {
+	producer, err := sarama.NewAsyncProducerFromClient(kc.client)
 	if err != nil {
 		if closeErr := producer.Close(); closeErr != nil {
 			Logger.Error("Error closing Kafka producer", zap.Error(err))
 		}
-		return nil, err
+		return KafkaProducer{}, err
 	}
 
-	kafkaProducer := &KafkaProducer{
-		kafkaClient: kafkaClient{
-			client:      client,
-			kafkaConfig: kc,
-		},
-		producer: producer,
-	}
-	return kafkaProducer, nil
+	return KafkaProducer{
+		KafkaClient: kc,
+		producer:    producer,
+	}, nil
 }
 
-func (kc *KafkaConfig) updateBrokerMetrics(registry metrics.Registry) {
+// Close the underlying Kafka client
+func (kc KafkaClient) Close() {
+	if err := kc.client.Close(); err != nil {
+		Logger.Error("Error closing Kafka client", zap.Error(err))
+	}
+}
+
+func (kc KafkaConfig) updateBrokerMetrics(registry metrics.Registry) {
 	registry.Each(func(name string, i interface{}) {
 		var metricVal float64
 		switch metric := i.(type) {
@@ -257,7 +264,7 @@ func (kc *KafkaConfig) updateBrokerMetrics(registry metrics.Registry) {
 	})
 }
 
-func (kc *KafkaConfig) recordBrokerMetrics(
+func (kc KafkaConfig) recordBrokerMetrics(
 	ctx context.Context,
 	updateInterval time.Duration,
 	registry metrics.Registry,
@@ -330,7 +337,7 @@ func (kc *KafkaConfig) initKafkaMetrics(registry prometheus.Registerer) {
 }
 
 // Close Sarama consumer and client
-func (kc *KafkaConsumer) Close() {
+func (kc KafkaConsumer) Close() {
 	err := kc.consumer.Close()
 	if err != nil {
 		Logger.Error("Error closing Kafka consumer", zap.Error(err))
@@ -349,7 +356,7 @@ type PartitionOffsets map[int32]int64
 // when it started up. When all partition consumers are closed, it will send the last offset read on each partition
 // through the readResult channel. If exitAfterCaughtUp is true, the consumer will exit
 // after reading to the latest offset.
-func (kc *KafkaConsumer) ConsumeTopic(
+func (kc KafkaConsumer) ConsumeTopic(
 	ctx context.Context,
 	handler KafkaMessageHandler,
 	topic string,
@@ -412,7 +419,7 @@ func (kc *KafkaConsumer) ConsumeTopic(
 
 // ConsumeTopicFromBeginning starts Kafka consumers on all partitions
 // in a given topic from the message with the oldest offset.
-func (kc *KafkaConsumer) ConsumeTopicFromBeginning(
+func (kc KafkaConsumer) ConsumeTopicFromBeginning(
 	ctx context.Context,
 	handler KafkaMessageHandler,
 	topic string,
@@ -420,9 +427,6 @@ func (kc *KafkaConsumer) ConsumeTopicFromBeginning(
 	catchupWg *sync.WaitGroup,
 	exitAfterCaughtUp bool,
 ) error {
-	if kc == nil {
-		return fmt.Errorf("kafka consumer is nil")
-	}
 	partitions, err := kc.consumer.Partitions(topic)
 	if err != nil {
 		return err
@@ -436,15 +440,12 @@ func (kc *KafkaConsumer) ConsumeTopicFromBeginning(
 
 // ConsumeTopicFromLatest starts Kafka consumers on all partitions
 // in a given topic from the message with the latest offset.
-func (kc *KafkaConsumer) ConsumeTopicFromLatest(
+func (kc KafkaConsumer) ConsumeTopicFromLatest(
 	ctx context.Context,
 	handler KafkaMessageHandler,
 	topic string,
 	readResult chan PartitionOffsets,
 ) error {
-	if kc == nil {
-		return fmt.Errorf("kafka consumer is nil")
-	}
 	partitions, err := kc.consumer.Partitions(topic)
 	if err != nil {
 		return err
@@ -471,7 +472,7 @@ type consumerLastStatus struct {
 // all messages are processed before notifying the caller that the consumer
 // is caught up. When the consumer shuts down, it returns the last offset to
 // which it read through the readResult channel.
-func (kc *KafkaConsumer) consumePartition(
+func (kc KafkaConsumer) consumePartition(
 	ctx context.Context,
 	handler KafkaMessageHandler,
 	topic string,
@@ -518,14 +519,14 @@ func (kc *KafkaConsumer) consumePartition(
 	promLabels := prometheus.Labels{
 		"topic":     topic,
 		"partition": fmt.Sprintf("%d", partition),
-		"client":    kc.kafkaConfig.ClientID,
+		"client":    kc.KafkaClient.ClientID,
 	}
 	for {
 		select {
 		case msg, ok := <-partitionConsumer.Messages():
 			curOffset = msg.Offset
 			if !ok {
-				kc.kafkaConfig.messageErrors.With(promLabels).Add(1)
+				kc.KafkaConfig.messageErrors.With(promLabels).Add(1)
 				Logger.Error(
 					"Unable to process message from Kafka",
 					zap.ByteString("key", msg.Key), zap.Int64("offset", msg.Offset),
@@ -533,7 +534,7 @@ func (kc *KafkaConsumer) consumePartition(
 					zap.Time("message_ts", msg.Timestamp))
 				continue
 			}
-			timer := prometheus.NewTimer(kc.kafkaConfig.messageProcessingTime.With(promLabels))
+			timer := prometheus.NewTimer(kc.KafkaConfig.messageProcessingTime.With(promLabels))
 			if err := handler.HandleMessage(ctx, msg, kc.messageUnmarshaler); err != nil {
 				Logger.Error(
 					"Error handling message",
@@ -545,7 +546,7 @@ func (kc *KafkaConsumer) consumePartition(
 					zap.Error(err))
 			}
 			timer.ObserveDuration()
-			kc.kafkaConfig.messagesProcessed.With(promLabels).Add(1)
+			kc.KafkaConfig.messagesProcessed.With(promLabels).Add(1)
 			if msg.Offset == caughtUpOffset {
 				caughtUp = true
 				catchupWg.Done()
@@ -558,7 +559,7 @@ func (kc *KafkaConsumer) consumePartition(
 				}
 			}
 		case err := <-partitionConsumer.Errors():
-			kc.kafkaConfig.errorsProcessed.With(promLabels).Add(1)
+			kc.KafkaConfig.errorsProcessed.With(promLabels).Add(1)
 			Logger.Error("Encountered an error from Kafka", zap.Error(err))
 		case <-ctx.Done():
 			if !caughtUp {
@@ -572,29 +573,23 @@ func (kc *KafkaConsumer) consumePartition(
 }
 
 // close Kafka producer and client
-func (kp *KafkaProducer) close() {
+func (kp KafkaProducer) close() {
 	err := kp.producer.Close()
 	if err != nil {
 		Logger.Error("Error closing Kafka producer", zap.Error(err))
 	} else {
-		Logger.Debug("Kafka producer closed")
-	}
-	if !kp.client.Closed() {
-		err = kp.client.Close()
-		if err != nil {
-			Logger.Error("Error closing Kafka client", zap.Error(err))
-		}
+		Logger.Info("Kafka producer closed")
 	}
 }
 
 // RunProducer wraps the sarama AsyncProducer and adds metrics and logging
 // to the producer
-func (kp *KafkaProducer) RunProducer(
+func (kp KafkaProducer) RunProducer(
 	ctx context.Context,
 	messages <-chan *sarama.ProducerMessage,
 ) {
 	promLabels := prometheus.Labels{
-		"client": kp.kafkaConfig.ClientID,
+		"client": kp.KafkaConfig.ClientID,
 	}
 	defer kp.close()
 	for {
@@ -619,11 +614,11 @@ func (kp *KafkaProducer) RunProducer(
 				zap.Error(err))
 			promLabels["partition"] = fmt.Sprintf("%d", err.Msg.Partition)
 			promLabels["topic"] = err.Msg.Topic
-			kp.kafkaConfig.errorsProduced.With(promLabels).Add(1)
+			kp.KafkaConfig.errorsProduced.With(promLabels).Add(1)
 		case msg := <-kp.producer.Successes():
 			promLabels["partition"] = fmt.Sprintf("%d", msg.Partition)
 			promLabels["topic"] = msg.Topic
-			kp.kafkaConfig.messagesProduced.With(promLabels).Add(1)
+			kp.KafkaConfig.messagesProduced.With(promLabels).Add(1)
 		case <-ctx.Done():
 			return
 		}
