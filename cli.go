@@ -55,12 +55,7 @@ func CobraBindEnvironmentVariables(prefix string) func(cmd *cobra.Command, _ []s
 }
 
 // RegisterFlags registers HTTP flags with pflags
-func (c *HTTPServerConfig) RegisterFlags(flags *pflag.FlagSet, defaultPort int, defaultName, version, appPackage, gitSHA string) {
-	c.Version = version
-	c.AppPackage = appPackage
-	c.GitSHA = gitSHA
-	c.Logging.RegisterFlags(flags)
-	c.Tracer.RegisterFlags(flags, defaultName)
+func (c *HTTPServerConfig) RegisterFlags(flags *pflag.FlagSet, defaultPort int, defaultName string) {
 	flags.StringVarP(&c.Address, "address", "a", "localhost", "Address for server")
 	flags.IntVarP(&c.Port, "port", "p", defaultPort, "Port for server")
 	flags.StringVar(&c.Name, "server-name", defaultName, "Server Name")
