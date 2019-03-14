@@ -39,11 +39,6 @@ type HTTPServerConfig struct {
 	Address    string
 	Port       int
 	Name       string
-	Version    string
-	AppPackage string
-	GitSHA     string
-	Logging    LoggingConfig
-	Tracer     TracingConfig
 }
 
 type httpStatusRecorder struct {
@@ -73,10 +68,6 @@ func (c *HTTPServerConfig) RunHTTPServer(
 	postShutdown func(ctx context.Context),
 	registerMuxes func(*http.ServeMux),
 ) {
-	c.Logging.InitializeLogger()
-	closer := c.Tracer.ConfigureTracer()
-	defer closer.Close()
-
 	// Setup a context to send cancellation signals to goroutines
 	ctx, cancel := context.WithCancel(context.Background())
 
