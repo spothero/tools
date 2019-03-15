@@ -572,37 +572,43 @@ func (kc KafkaConsumer) consumePartition(
 	}
 }
 
-// close Kafka producer and client
-func (kp KafkaProducer) close() {
-	err := kp.producer.Close()
-	if err != nil {
-		Logger.Error("Error closing Kafka producer", zap.Error(err))
-	} else {
-		Logger.Info("Kafka producer closed")
-	}
-}
-
-// RunProducer wraps the sarama AsyncProducer and adds metrics and logging
-// to the producer
-func (kp KafkaProducer) RunProducer(
-	ctx context.Context,
-	messages <-chan *sarama.ProducerMessage,
-) {
+// RunProducer wraps the sarama AsyncProducer and adds metrics, logging, and a shutdown procedure
+// to the producer. To stop the producer, close the messages channel; when the producer is shutdown a signal will
+// be emitted on the done channel. If the messages channel is unbuffered, each message sent to the producer is
+// guaranteed to at least have been attempted to be produced to Kafka.
+func (kp KafkaProducer) RunProducer(messages <-chan *sarama.ProducerMessage, done chan bool) {
 	promLabels := prometheus.Labels{
 		"client": kp.KafkaConfig.ClientID,
 	}
-	defer kp.close()
-	for {
-		select {
-		case message := <-messages:
+	var closeWg sync.WaitGroup
+	closeWg.Add(2) // 1 for success, error channels
+
+	// Handle producer messages
+	go func() {
+		defer func() {
+			// channel closed, initiate producer shutdown
+			Logger.Debug("closing kafka producer")
+			// wait for error and successes channels to close
+			kp.producer.AsyncClose()
+			closeWg.Wait()
+			Logger.Debug("kafka producer closed")
+			done <- true
+		}()
+		for message := range messages {
 			kp.producer.Input() <- message
-		case err := <-kp.producer.Errors():
+		}
+	}()
+
+	// Handle errors returned by the producer
+	go func() {
+		defer closeWg.Done()
+		for err := range kp.producer.Errors() {
 			var key []byte
 			if err.Msg.Key != nil {
 				if _key, err := err.Msg.Key.Encode(); err == nil {
 					key = _key
 				} else {
-					Logger.Error("Could not encode produced message key", zap.Error(err))
+					Logger.Error("could not encode produced message key", zap.Error(err))
 				}
 			}
 			Logger.Error(
@@ -615,12 +621,16 @@ func (kp KafkaProducer) RunProducer(
 			promLabels["partition"] = fmt.Sprintf("%d", err.Msg.Partition)
 			promLabels["topic"] = err.Msg.Topic
 			kp.KafkaConfig.errorsProduced.With(promLabels).Add(1)
-		case msg := <-kp.producer.Successes():
+		}
+	}()
+
+	// Handle successes returned by the producer
+	go func() {
+		defer closeWg.Done()
+		for msg := range kp.producer.Successes() {
 			promLabels["partition"] = fmt.Sprintf("%d", msg.Partition)
 			promLabels["topic"] = msg.Topic
 			kp.KafkaConfig.messagesProduced.With(promLabels).Add(1)
-		case <-ctx.Done():
-			return
 		}
-	}
+	}()
 }
