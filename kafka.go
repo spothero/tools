@@ -514,6 +514,9 @@ func (kc KafkaConsumer) consumePartition(
 			zap.Int32("partition", partition))
 		catchupWg.Done()
 		caughtUp = true
+		if exitAfterCaughtUp {
+			return
+		}
 	}
 
 	promLabels := prometheus.Labels{

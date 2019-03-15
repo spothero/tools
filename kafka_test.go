@@ -273,6 +273,18 @@ func TestConsumePartition_exitAfterCaughtUp(t *testing.T) {
 	handler.AssertNumberOfCalls(t, "HandleMessage", 1)
 }
 
+func TestConsumePartition_exitAfterCaughtUpNoMessages(t *testing.T) {
+	handler, consumer, mockSaramaConsumer, ctx, _ := setupTestConsumer(t, 0, nil)
+	defer mockSaramaConsumer.Close()
+	mockSaramaConsumer.ExpectConsumePartition("test-topic", 0, -1)
+	readStatus := make(chan consumerLastStatus)
+	var catchupWg sync.WaitGroup
+	catchupWg.Add(1)
+	go consumer.consumePartition(ctx, handler, "test-topic", 0, -1, -1, readStatus, &catchupWg, true)
+	<-readStatus
+	handler.AssertNumberOfCalls(t, "HandleMessage", 0)
+}
+
 // Test that the consumer handles errors from Kafka
 func TestConsumePartition_handleError(t *testing.T) {
 	handler, consumer, mockSaramaConsumer, ctx, cancel := setupTestConsumer(t, 0, nil)
