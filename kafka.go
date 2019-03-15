@@ -573,9 +573,9 @@ func (kc KafkaConsumer) consumePartition(
 }
 
 // RunProducer wraps the sarama AsyncProducer and adds metrics, logging, and a shutdown procedure
-// to the producer. Run the producer in a goroutine. To stop the producer, close the messages channel; when the
-// producer is shutdown a signal will be emitted on the done channel. If the messages channel is unbuffered, each
-// message sent to the producer is guaranteed to at least have been attempted to be produced to Kafka.
+// to the producer. To stop the producer, close the messages channel; when the producer is shutdown a signal will
+// be emitted on the done channel. If the messages channel is unbuffered, each message sent to the producer is
+// guaranteed to at least have been attempted to be produced to Kafka.
 func (kp KafkaProducer) RunProducer(messages <-chan *sarama.ProducerMessage, done chan bool) {
 	promLabels := prometheus.Labels{
 		"client": kp.KafkaConfig.ClientID,
