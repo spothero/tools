@@ -577,9 +577,6 @@ func (kc KafkaConsumer) consumePartition(
 // producer is shutdown a signal will be emitted on the done channel. If the messages channel is unbuffered, each
 // message sent to the producer is guaranteed to at least have been attempted to be produced to Kafka.
 func (kp KafkaProducer) RunProducer(messages <-chan *sarama.ProducerMessage, done chan bool) {
-	defer func() {
-		done <- true
-	}()
 	promLabels := prometheus.Labels{
 		"client": kp.KafkaConfig.ClientID,
 	}
@@ -595,6 +592,7 @@ func (kp KafkaProducer) RunProducer(messages <-chan *sarama.ProducerMessage, don
 			kp.producer.AsyncClose()
 			closeWg.Wait()
 			Logger.Debug("kafka producer closed")
+			done <- true
 		}()
 		for message := range messages {
 			kp.producer.Input() <- message
