@@ -110,9 +110,3 @@ func (tc *TracingConfig) RegisterFlags(flags *pflag.FlagSet, defaultTracerName s
 	flags.IntVar(&tc.AgentPort, "tracer-agent-port", 5775, "Tracer Agent Port")
 	flags.StringVar(&tc.ServiceName, "tracer-service-name", defaultTracerName, "Determines the service name for the Tracer UI")
 }
-
-// RegisterFlags registers AWS config flags with pflags
-func (a *AWSConfig) RegisterFlags(flags *pflag.FlagSet, defaultRegion string) {
-	flags.StringVar(&a.Region, "aws-region", defaultRegion, "AWS region to connect to, if any")
-	flags.StringVar(&a.Profile, "aws-profile", "", "AWS profile to assume, if any")
-}

@@ -1,7 +1,7 @@
 # SpotHero Tools Library for Go
 
 [![GoDoc](https://godoc.org/github.com/spothero/tools?status.svg)](https://godoc.org/github.com/spothero/tools)
-[![Build Status](https://travis-ci.org/spothero/tools.svg?branch=master)](https://travis-ci.org/spothero/tools)
+[![Build Status](https://circleci.com/gh/spothero/tools/tree/master.svg?style=shield)](https://circleci.com/gh/spothero/tools/tree/master)
 [![codecov](https://codecov.io/gh/spothero/tools/branch/master/graph/badge.svg)](https://codecov.io/gh/spothero/tools)
 [![Go Report Card](https://goreportcard.com/badge/github.com/spothero/tools)](https://goreportcard.com/report/github.com/spothero/tools)
 
@@ -80,7 +80,7 @@ import (
 
 A simple example is provided under [examples/example_server.go](examples/example_server.go) which shows usage of this
 library to create a simple 12-factor Go Web application which has tracing, logging, metrics,
-sentry, new relic, and local caching enabled.
+sentry, and local caching enabled.
 
 For production applications, we recommend separating the Cobra/Viper command portion into its own
 `cmd/` directory, and your application logic into a `pkg/` directory as is standard with most Go
