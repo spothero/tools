@@ -1,7 +1,7 @@
 # SpotHero Tools Library for Go
 
 [![GoDoc](https://godoc.org/github.com/spothero/tools?status.svg)](https://godoc.org/github.com/spothero/tools)
-[![Build Status](https://travis-ci.org/spothero/tools.svg?branch=master)](https://travis-ci.org/spothero/tools)
+[![Build Status](https://circleci.com/gh/spothero/tools/tree/master.svg?style=shield)](https://circleci.com/gh/spothero/tools/tree/master)
 [![codecov](https://codecov.io/gh/spothero/tools/branch/master/graph/badge.svg)](https://codecov.io/gh/spothero/tools)
 [![Go Report Card](https://goreportcard.com/badge/github.com/spothero/tools)](https://goreportcard.com/report/github.com/spothero/tools)
 
