@@ -80,7 +80,7 @@ import (
 
 A simple example is provided under [examples/example_server.go](examples/example_server.go) which shows usage of this
 library to create a simple 12-factor Go Web application which has tracing, logging, metrics,
-sentry, new relic, and local caching enabled.
+sentry, and local caching enabled.
 
 For production applications, we recommend separating the Cobra/Viper command portion into its own
 `cmd/` directory, and your application logic into a `pkg/` directory as is standard with most Go

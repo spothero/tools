@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/getsentry/raven-go"
-	"github.com/newrelic/go-agent"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/prometheus/client_golang/prometheus"
@@ -206,8 +205,6 @@ func (hm *httpMetrics) tracingHandler(hsr *httpStatusRecorder, r *http.Request) 
 // BaseHTTPMonitoringHandler is meant to be used as middleware for every request. It will:
 // * Starts an opentracing span, place it in http.Request context, and close
 //   close the span when the request completes
-// * Starts a New Relic transaction, place it in the http.Request context, and
-//   end it when the request completes
 // * Capture any unhandled errors and send them to Sentry
 // * Capture metrics to Prometheus for the duration of the HTTP request
 func BaseHTTPMonitoringHandler(next http.Handler, serverName string) http.HandlerFunc {
@@ -221,9 +218,6 @@ func BaseHTTPMonitoringHandler(next http.Handler, serverName string) http.Handle
 		defer metricsTimer.ObserveDuration()
 		statusCodeLogger := handlerMetrics.statusCodeLogger(wrappedWriter, r)
 		defer statusCodeLogger()
-		var transaction newrelic.Transaction
-		type newRelicContextKey string
-		r = r.WithContext(context.WithValue(r.Context(), newRelicContextKey("nrTransaction"), transaction))
 		raven.RecoveryHandler(next.ServeHTTP)(wrappedWriter, r)
 	})
 }
