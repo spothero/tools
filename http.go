@@ -203,8 +203,8 @@ func (hm *httpMetrics) tracingHandler(hsr *httpStatusRecorder, r *http.Request) 
 }
 
 // BaseHTTPMonitoringHandler is meant to be used as middleware for every request. It will:
-// * Starts an opentracing span, place it in http.Request context, and close
-//   close the span when the request completes
+// * Starts an opentracing span, place it in http.Request context, and
+//   closes the span when the request completes
 // * Capture any unhandled errors and send them to Sentry
 // * Capture metrics to Prometheus for the duration of the HTTP request
 func BaseHTTPMonitoringHandler(next http.Handler, serverName string) http.HandlerFunc {
