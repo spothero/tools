@@ -3,7 +3,7 @@ jobs:
   lint:
     docker:
       - image: circleci/golang:1.12
-    working_directory: /go/src/github.com/spothero/periodic
+    working_directory: /go/src/github.com/spothero/tools
     steps:
       - checkout
       - run: make bootstrap
@@ -12,12 +12,12 @@ jobs:
   test:
     docker:
       - image: circleci/golang:1.12
-    working_directory: /go/src/github.com/spothero/periodic
+    working_directory: /go/src/github.com/spothero/tools
     steps:
       - checkout
       - run: make vendor
       - run: mkdir -p /tmp/test-reports/unit # CircleCI likes test results to be in sub-directories for naming
-      - run: gotestsum --junitfile /tmp/test-reports/unit/report.xml -- github.com/spothero/periodic -race -coverprofile=coverage.txt -covermode=atomic
+      - run: gotestsum --junitfile /tmp/test-reports/unit/report.xml -- github.com/spothero/tools -race -coverprofile=coverage.txt -covermode=atomic
       - store_test_results:
           path: /tmp/test-reports
       - run: bash <(curl -s https://codecov.io/bash)
