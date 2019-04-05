@@ -35,9 +35,9 @@ import (
 
 // HTTPServerConfig contains the basic configuration necessary for running an HTTP Server
 type HTTPServerConfig struct {
-	Address    string
-	Port       int
-	Name       string
+	Address string
+	Port    int
+	Name    string
 }
 
 type httpStatusRecorder struct {

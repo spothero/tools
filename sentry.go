@@ -46,11 +46,17 @@ func (sc *SentryConfig) InitializeRaven() {
 // SentryCore Implements a zapcore.Core that sends logged errors to Sentry
 type SentryCore struct {
 	zapcore.LevelEnabler
+	withFields []zapcore.Field
 }
 
 // With adds structured context to the Sentry Core
 func (c *SentryCore) With(fields []zapcore.Field) zapcore.Core {
-	return c.With(fields)
+	if len(fields) == 0 {
+		return c
+	}
+	clonedLogger := *c
+	clonedLogger.withFields = fields
+	return &clonedLogger
 }
 
 // Check must be called before calling Write. This determines whether or not logs are sent to
@@ -84,7 +90,11 @@ func (c *SentryCore) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 	// This block was adapted from the way zap encodes messages internally
 	// See https://github.com/uber-go/zap/blob/v1.7.1/zapcore/field.go#L107
 	ravenExtra := make(map[string]interface{})
-	for _, field := range fields {
+	mergedFields := fields
+	if len(c.withFields) > 0 {
+		mergedFields = append(mergedFields, c.withFields...)
+	}
+	for _, field := range mergedFields {
 		switch field.Type {
 		case zapcore.ArrayMarshalerType:
 			ravenExtra[field.Key] = field.Interface
@@ -142,7 +152,6 @@ func (c *SentryCore) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 		case zapcore.ErrorType:
 			ravenExtra[field.Key] = field.Interface.(error).Error()
 		case zapcore.SkipType:
-			break
 		default:
 			ravenExtra[field.Key] = fmt.Sprintf("Unknown field type %v", field.Type)
 		}

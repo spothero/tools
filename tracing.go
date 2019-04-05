@@ -56,13 +56,14 @@ func (tc *TracingConfig) ConfigureTracer() io.Closer {
 	reporterConfig.LocalAgentHostPort = fmt.Sprintf("%s:%d", tc.AgentHost, tc.AgentPort)
 
 	jaegerConfig := jaegercfg.Configuration{
-		Sampler:  &samplerConfig,
-		Reporter: &reporterConfig,
-		Disabled: !tc.Enabled,
+		ServiceName: tc.ServiceName,
+		Sampler:     &samplerConfig,
+		Reporter:    &reporterConfig,
+		Disabled:    !tc.Enabled,
 	}
 
-	tracer, closer, err := jaegerConfig.New(
-		tc.ServiceName, jaegercfg.Logger(jaegerzap.NewLogger(Logger.Named("jaeger"))))
+	tracer, closer, err := jaegerConfig.NewTracer(
+		jaegercfg.Logger(jaegerzap.NewLogger(Logger.Named("jaeger"))))
 	if err != nil {
 		Logger.Error("Couldn't initialize Jaeger tracer", zap.Error(err))
 		return nil

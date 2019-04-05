@@ -64,6 +64,9 @@ func (lc *LoggingConfig) InitializeLogger() {
 		logConfig.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 		logConfig.Level = zap.NewAtomicLevelAt(level)
 		Logger, err = zap.NewDevelopment()
+		if err != nil {
+			fmt.Printf("error creating logger configuration: %s\n", err.Error())
+		}
 	} else {
 		logConfig = zap.Config{
 			Level:             zap.NewAtomicLevelAt(level),
@@ -82,7 +85,7 @@ func (lc *LoggingConfig) InitializeLogger() {
 	}
 	Logger, err = logConfig.Build()
 	if err != nil {
-		fmt.Printf("Error initializing Logger: %s\n", err.Error())
+		fmt.Printf("error initializing Logger: %s\n", err.Error())
 	}
 	if lc.SentryLoggingEnabled && err == nil {
 		// attach Sentry core
@@ -109,5 +112,5 @@ func CreateStdLogger(zapLogger *zap.Logger, logLevel string) (*log.Logger, error
 	case logLevel == "fatal":
 		return zap.NewStdLogAt(zapLogger, zapcore.FatalLevel)
 	}
-	return nil, fmt.Errorf("Unknown log level %s", logLevel)
+	return nil, fmt.Errorf("unknown log level %s", logLevel)
 }

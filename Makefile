@@ -12,12 +12,17 @@ all: bootstrap vendor test build
 BOOTSTRAP=\
 	github.com/golang/dep/cmd/dep \
 	github.com/alecthomas/gometalinter
+DEP=$(BIN_DIR)/dep
+GOMETALINTER=$(BIN_DIR)/gometalinter
 
-$(BOOTSTRAP):
-	go get -u $@
+$(GOMETALINTER):
+	go get -u github.com/alecthomas/gometalinter
+	gometalinter --install &> /dev/null
 
-bootstrap: $(BOOTSTRAP)
-	gometalinter --install
+$(DEP):
+	go get -u github.com/golang/dep/cmd/dep
+
+bootstrap: $(GOMETALINTER) $(DEP) ## Pulls requirements for building and pulling dependencies
 
 vendor:
 	dep ensure -v -vendor-only
@@ -30,6 +35,16 @@ coverage: test
 
 clean:
 	rm -rf vendor
+
+# Linting
+LINTERS=gofmt golint staticcheck vet misspell ineffassign deadcode
+METALINT=gometalinter --tests --disable-all --vendor --deadline=5m -e "zz_.*\.go" ./...
+
+lint: ## Lints the code to ensure it meets coding standards
+	$(METALINT) $(addprefix --enable=,$(LINTERS))
+
+$(LINTERS):
+	$(METALINT) --enable=$@
 
 build:
 	go build -ldflags="-X main.version=${VERSION} -X main.gitSha=${GIT_SHA}" examples/example_server.go
