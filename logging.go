@@ -47,12 +47,12 @@ var SugaredLogger = Logger.Sugar()
 // InitializeLogger sets up the logger. This function should be called as soon
 // as possible. Any use of the logger provided by this package will be a nop
 // until this function is called
-func (lc *LoggingConfig) InitializeLogger() {
+func (lc *LoggingConfig) InitializeLogger() error {
 	var err error
 	var logConfig zap.Config
 	var level zapcore.Level
 	if err := level.Set(lc.Level); err != nil {
-		fmt.Printf("Invalid log level %s. Using INFO.", lc.Level)
+		fmt.Printf("invalid log level %s - using INFO", lc.Level)
 		level.Set("info")
 	}
 	if lc.UseDevelopmentLogger {
@@ -65,7 +65,7 @@ func (lc *LoggingConfig) InitializeLogger() {
 		logConfig.Level = zap.NewAtomicLevelAt(level)
 		Logger, err = zap.NewDevelopment()
 		if err != nil {
-			fmt.Printf("error creating logger configuration: %s\n", err.Error())
+			return fmt.Errorf("error creating logger configuration - %s", err.Error())
 		}
 	} else {
 		logConfig = zap.Config{
@@ -85,7 +85,7 @@ func (lc *LoggingConfig) InitializeLogger() {
 	}
 	Logger, err = logConfig.Build()
 	if err != nil {
-		fmt.Printf("error initializing Logger: %s\n", err.Error())
+		return fmt.Errorf("error initializing Logger - %s", err.Error())
 	}
 	if lc.SentryLoggingEnabled && err == nil {
 		// attach Sentry core
@@ -94,6 +94,7 @@ func (lc *LoggingConfig) InitializeLogger() {
 		}))
 	}
 	SugaredLogger = Logger.Sugar()
+	return nil
 }
 
 // CreateStdLogger returns a standard-library compatible logger
