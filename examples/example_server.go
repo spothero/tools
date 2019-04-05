@@ -28,7 +28,6 @@ import (
 // e.x.: when running go build, provide -ldflags="-X main.version=1.0.0"
 var gitSHA = "not-set"
 var version = "not-set"
-var appPackage = "github.com/spothero/core"
 
 // newRootCmd is the entrypoint to your go program. Coupled with the `main` function at the bottom
 // of this file, this is how you create and expose your CLI and Environment variables. We're

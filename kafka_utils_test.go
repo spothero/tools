@@ -142,7 +142,7 @@ func TestUnmarshalMap_UnsupportedType(t *testing.T) {
 // Test that fields that can't be set return errors
 func TestUnmarshalMap_UnexportedField(t *testing.T) {
 	type unmarshalTarget struct {
-		a int `kafka:"a"`
+		_ int `kafka:"a"`
 	}
 	target := &unmarshalTarget{}
 

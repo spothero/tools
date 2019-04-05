@@ -117,7 +117,8 @@ func TestConsumeTopic_noTopics(t *testing.T) {
 	mockConsumer.SetTopicMetadata(map[string][]int32{
 		"test-topic": nil,
 	})
-	err := consumer.ConsumeTopic(nil, handler, "test-topic", PartitionOffsets{0: sarama.OffsetOldest}, nil, nil, false)
+	ctx := context.Background()
+	err := consumer.ConsumeTopic(ctx, handler, "test-topic", PartitionOffsets{0: sarama.OffsetOldest}, nil, nil, false)
 	assert.Error(t, err)
 }
 
@@ -129,7 +130,8 @@ func TestConsumeTopic_errorGettingOffset(t *testing.T) {
 	mockSaramaConsumer.SetTopicMetadata(map[string][]int32{
 		"test-topic": {0},
 	})
-	err := consumer.ConsumeTopic(nil, handler, "test-topic", PartitionOffsets{0: sarama.OffsetOldest}, nil, nil, false)
+	ctx := context.Background()
+	err := consumer.ConsumeTopic(ctx, handler, "test-topic", PartitionOffsets{0: sarama.OffsetOldest}, nil, nil, false)
 	assert.Error(t, err)
 }
 
