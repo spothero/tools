@@ -1,5 +1,14 @@
 version: 2.1
 jobs:
+  lint:
+    docker:
+      - image: circleci/golang:1.12
+    working_directory: /go/src/github.com/spothero/periodic
+    steps:
+      - checkout
+      - run: make bootstrap
+      - run: make vendor
+      - run: make lint
   test:
     docker:
       - image: circleci/golang:1.12
@@ -16,4 +25,5 @@ workflows:
   version: 2
   test_and_lint:
     jobs:
+      - lint
       - test
