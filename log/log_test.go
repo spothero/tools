@@ -41,7 +41,7 @@ func TestGet(t *testing.T) {
 			logger,
 		}, {
 			"populated context with logger returns that logger",
-			context.WithValue(nil, logKey, logger.Named("not global")),
+			context.WithValue(context.Background(), logKey, logger.Named("not global")),
 			logger.Named("not global"),
 		},
 	}
@@ -61,18 +61,18 @@ func TestNewContext(t *testing.T) {
 	}{
 		{
 			"no fields leads to a default logger context",
+			context.Background(),
 			nil,
-			nil,
-			context.WithValue(nil, logKey, logger),
+			context.WithValue(context.Background(), logKey, logger),
 		}, {
 			"providing fields leads to a new context with a new logger with the provided fields",
-			nil,
+			context.Background(),
 			[]zapcore.Field{
 				zap.Int("zero", 0),
 				zap.Int("one", 1),
 			},
 			context.WithValue(
-				nil,
+				context.Background(),
 				logKey,
 				logger.With(
 					zap.Int("zero", 0),
@@ -156,7 +156,7 @@ func TestInitializeLogger(t *testing.T) {
 			// logger, so unfortunately there's not much for us to test here. We could optionally
 			// wrap the zap logger in our own struct and pack along a series of our own fields for
 			// testing, but we have opted not to do this.
-			test.lc.Cores = []zapcore.Core{MockCore{}}
+			test.lc.Cores = []zapcore.Core{&MockCore{}}
 			if test.expectError {
 				assert.Error(t, test.lc.InitializeLogger())
 				return

@@ -24,7 +24,9 @@ import (
 )
 
 // logKey is the type used to uniquely place the logger within context.Context
-const logKey = iota
+type ctxKey int
+
+const logKey ctxKey = iota
 
 // logger is the default zap logger
 var logger = zap.NewNop()
@@ -39,8 +41,8 @@ type LoggingConfig struct {
 	Level                string
 	SamplingInitial      int
 	SamplingThereafter   int
-	AppVersion           string
-	GitSha               string
+	Encoding             string                 // One of "json" or "console"
+	Fields               map[string]interface{} // These fields will be applied to all logs. Strongly recommend `version` at a minimum.
 	Cores                []zapcore.Core
 	Options              []zap.Option
 	counter              *prometheus.CounterVec
@@ -59,6 +61,9 @@ func (lc *LoggingConfig) InitializeLogger() error {
 	var err error
 	var logConfig zap.Config
 	var level zapcore.Level
+	if lc.Encoding == "" {
+		lc.Encoding = "json"
+	}
 	if err := level.Set(lc.Level); err != nil {
 		fmt.Printf("invalid log level %s - using INFO", lc.Level)
 		level.Set("info")
@@ -80,11 +85,11 @@ func (lc *LoggingConfig) InitializeLogger() error {
 				Initial:    lc.SamplingInitial,
 				Thereafter: lc.SamplingThereafter,
 			},
-			Encoding:         "json",
+			Encoding:         lc.Encoding,
 			EncoderConfig:    zap.NewProductionEncoderConfig(),
 			OutputPaths:      append(lc.OutputPaths, "stdout"),
 			ErrorOutputPaths: append(lc.ErrorOutputPaths, "stderr"),
-			InitialFields:    map[string]interface{}{"appVersion": lc.AppVersion, "gitSha": lc.GitSha},
+			InitialFields:    lc.Fields,
 		}
 	}
 
@@ -101,6 +106,7 @@ func (lc *LoggingConfig) InitializeLogger() error {
 			return zapcore.NewTee(existingCore, core)
 		}))
 	}
+	lc.Options = append(lc.Options, zap.Hooks(lc.metricsHook))
 	if logger, err = logConfig.Build(lc.Options...); err != nil {
 		return fmt.Errorf("error initializing logger - %s", err.Error())
 	}

@@ -26,21 +26,21 @@ type MockCore struct {
 }
 
 // With returns the mock core with the added fields
-func (mc MockCore) With(fields []zapcore.Field) zapcore.Core {
+func (mc *MockCore) With(fields []zapcore.Field) zapcore.Core {
 	return mc.Called(fields).Get(0).(zapcore.Core)
 }
 
 // Check is called before Write
-func (mc MockCore) Check(ent zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.CheckedEntry {
+func (mc *MockCore) Check(ent zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.CheckedEntry {
 	return mc.Called().Get(0).(*zapcore.CheckedEntry)
 }
 
 // Write logs the entry
-func (mc MockCore) Write(ent zapcore.Entry, fields []zapcore.Field) error {
+func (mc *MockCore) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 	return mc.Called(ent, fields).Error(0)
 }
 
 // Sync syncs buffered logs
-func (mc MockCore) Sync() error {
+func (mc *MockCore) Sync() error {
 	return mc.Called().Error(0)
 }
