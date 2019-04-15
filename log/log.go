@@ -23,9 +23,10 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// logKey is the type used to uniquely place the logger within context.Context
+// ctxKey is the type used to uniquely place the logger within context.Context
 type ctxKey int
 
+// logKey is the value used to uniquely place the logger within context.Context
 const logKey ctxKey = iota
 
 // logger is the default zap logger
