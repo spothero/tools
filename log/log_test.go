@@ -156,11 +156,12 @@ func TestInitializeLogger(t *testing.T) {
 			// logger, so unfortunately there's not much for us to test here. We could optionally
 			// wrap the zap logger in our own struct and pack along a series of our own fields for
 			// testing, but we have opted not to do this.
+			test.lc.Cores = []zapcore.Core{MockCore{}}
 			if test.expectError {
 				assert.Error(t, test.lc.InitializeLogger())
-			} else {
-				assert.NoError(t, test.lc.InitializeLogger())
+				return
 			}
+			assert.NoError(t, test.lc.InitializeLogger())
 		})
 	}
 }

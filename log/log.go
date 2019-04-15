@@ -29,9 +29,9 @@ const logKey = iota
 // logger is the default zap logger
 var logger = zap.NewNop()
 
-// TODO: Sentry Hook
-
 // LoggingConfig defines the necessary configuration for instantiating a Logger
+//
+// Cores provides optional functionality to allow users to Tee log output to additional Log cores
 type LoggingConfig struct {
 	UseDevelopmentLogger bool
 	OutputPaths          []string
@@ -41,6 +41,8 @@ type LoggingConfig struct {
 	SamplingThereafter   int
 	AppVersion           string
 	GitSha               string
+	Cores                []zapcore.Core
+	Options              []zap.Option
 	counter              *prometheus.CounterVec
 }
 
@@ -94,28 +96,15 @@ func (lc *LoggingConfig) InitializeLogger() error {
 		[]string{"level"},
 	)
 
-	logger, err = logConfig.Build(zap.Hooks(lc.metricsHook))
-	if err != nil {
+	for _, core := range lc.Cores {
+		lc.Options = append(lc.Options, zap.WrapCore(func(existingCore zapcore.Core) zapcore.Core {
+			return zapcore.NewTee(existingCore, core)
+		}))
+	}
+	if logger, err = logConfig.Build(lc.Options...); err != nil {
 		return fmt.Errorf("error initializing logger - %s", err.Error())
 	}
 	return nil
-}
-
-// RegisterCore registers additional zapcore cores for additional logging functionality. Cores are
-// added as a zapcore Tee.
-//
-// See https://godoc.org/go.uber.org/zap/zapcore#Core for more information on Cores.
-//
-// Note that context is optional. If a logger is found in the context, it will be replaced with the
-// newly created logger. If the context is nil the global logger will be replaced. Please note that
-// if you wish for the registered core to be globally available, it should be placed before any
-// context loggers are created. If you do not, the core will be inconsistently registered in your
-// application.
-func RegisterCore(ctx context.Context, core zapcore.Core) {
-	logger = logger.WithOptions(zap.WrapCore(func(existingCore zapcore.Core) zapcore.Core {
-		return zapcore.NewTee(existingCore, core)
-	}))
-
 }
 
 // NewContext creates and returns a new context with a wrapped logger. If fields are specified,
