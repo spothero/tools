@@ -33,20 +33,18 @@ const logKey ctxKey = iota
 var logger = zap.NewNop()
 
 // LoggingConfig defines the necessary configuration for instantiating a Logger
-//
-// Cores provides optional functionality to allow users to Tee log output to additional Log cores
 type LoggingConfig struct {
-	UseDevelopmentLogger bool
-	OutputPaths          []string
-	ErrorOutputPaths     []string
-	Level                string
-	SamplingInitial      int
-	SamplingThereafter   int
+	UseDevelopmentLogger bool                   // If true, use default zap development logger settings
+	OutputPaths          []string               // List of locations where logs should be placed. Defaults to stdout
+	ErrorOutputPaths     []string               // List of locations where error logs should be placed. Defaults to stderr
+	Level                string                 // The level at which logs should be produced. Defaults to INFO
+	SamplingInitial      int                    // Initial sampling rate for the logger for each cycle
+	SamplingThereafter   int                    // Sampling rate after that initial cap is hit, per cycle
 	Encoding             string                 // One of "json" or "console"
 	Fields               map[string]interface{} // These fields will be applied to all logs. Strongly recommend `version` at a minimum.
-	Cores                []zapcore.Core
-	Options              []zap.Option
-	counter              *prometheus.CounterVec
+	Cores                []zapcore.Core         // Provides optional functionality to allow users to Tee log output to additional Log cores
+	Options              []zap.Option           // Users may specify any additional zap logger options which override defaults
+	counter              *prometheus.CounterVec // Counter tracks the number of logs by level
 }
 
 // metricsHook is a callback hook used to track logging metrics at runtime
@@ -57,7 +55,7 @@ func (lc *LoggingConfig) metricsHook(entry zapcore.Entry) error {
 
 // InitializeLogger sets up the logger. This function should be called as soon
 // as possible. Any use of the logger provided by this package will be a nop
-// until this function is called
+// until this function is called.
 func (lc *LoggingConfig) InitializeLogger() error {
 	var err error
 	var logConfig zap.Config
