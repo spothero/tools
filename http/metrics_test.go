@@ -46,6 +46,7 @@ func TestMiddleware(t *testing.T) {
 	}
 	http.HandlerFunc(handler).ServeHTTP(httpRec, req)
 
+	// Expected prometheus labels after this request
 	labels := prometheus.Labels{
 		"path":        "/",
 		"status_code": "200",
@@ -63,7 +64,7 @@ func TestMiddleware(t *testing.T) {
 		// least one. This just ensures that our timer is working. This request should never take
 		// longer than a millisecond, but we hugely increase the threshold to ensure we dont
 		// introduce tests that periodically fail for no clear reason.
-		if bucket.GetUpperBound() >= 1.024 {
+		if bucket.GetUpperBound() >= 1.0 {
 			assert.Equal(t, uint64(1), bucket.GetCumulativeCount())
 			break
 		}
