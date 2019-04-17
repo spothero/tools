@@ -75,6 +75,7 @@ func (lc *LoggingConfig) InitializeLogger() error {
 		logConfig = zap.NewDevelopmentConfig()
 		logConfig.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 		logConfig.Level = zap.NewAtomicLevelAt(level)
+		logConfig.InitialFields = lc.Fields
 	} else {
 		logConfig = zap.Config{
 			Level:             zap.NewAtomicLevelAt(level),

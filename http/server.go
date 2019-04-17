@@ -45,7 +45,7 @@ type Config struct {
 	PreStart         func(ctx context.Context, router *mux.Router, server *http.Server) // A function to be called before starting the web server
 	PostShutdown     func(ctx context.Context)                                          // A function to be called before stopping the web server
 	RegisterHandlers func(*mux.Router)                                                  // Handler registration callback function. Register your routes in this function.
-	Middleware       []MiddlewareFunc                                                   // A list of middleware functions to be called. Order is honored.
+	Middleware       Middleware                                                         // A list of global middleware functions to be called. Order is honored.
 }
 
 // Server contains unexported fields and is used to start and manage the Server.
@@ -54,7 +54,6 @@ type Server struct {
 	router       *mux.Router
 	preStart     func(ctx context.Context, router *mux.Router, server *http.Server)
 	postShutdown func(ctx context.Context)
-	metrics      Metrics
 }
 
 // NewDefaultConfig returns a standard configuraton given a server name. It is recommended to
@@ -69,6 +68,14 @@ func NewDefaultConfig(name string) Config {
 		HealthHandler:  true,
 		MetricsHandler: true,
 		PprofHandler:   true,
+		Middleware: Middleware{
+			NewMetrics(name).Middleware,
+			TracingMiddleware,
+			LoggingMiddleware,
+			//
+			// TODO: RAVEN MIDDLEWARE
+			//
+		},
 	}
 }
 
@@ -85,9 +92,7 @@ func (c Config) NewServer() Server {
 		router.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 		router.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	}
-	httpHandler := router
 	if c.MetricsHandler {
-		metrics = NewMetrics(c.Name)
 		router.Handle("/metrics", promhttp.Handler())
 	}
 	if c.RegisterHandlers != nil {
@@ -96,14 +101,13 @@ func (c Config) NewServer() Server {
 	return Server{
 		httpServer: &http.Server{
 			Addr:         fmt.Sprintf("%s:%d", c.Address, c.Port),
-			Handler:      middleware{functions: c.Middleware}.handler(router, c.Name),
+			Handler:      c.Middleware.handler(router),
 			ReadTimeout:  time.Duration(c.ReadTimeout) * time.Second,
 			WriteTimeout: time.Duration(c.WriteTimeout) * time.Second,
 		},
 		router:       router,
 		preStart:     c.PreStart,
 		postShutdown: c.PostShutdown,
-		metrics:      metrics,
 	}
 }
 
@@ -139,8 +143,6 @@ func (s Server) Run() {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
 	<-signals
-
-	// Send cancellation signal to running goroutines
 	log.Get(ctx).Info("Received interrupt, shutting down")
 	cancel()
 }

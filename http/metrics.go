@@ -38,8 +38,6 @@ func NewMetrics(serverName string) Metrics {
 		[]string{
 			// The path recording the request
 			"path",
-			// The HTTP status class
-			"status_class",
 			// The Specific HTTP Status Code
 			"status_code",
 		},
@@ -52,8 +50,6 @@ func NewMetrics(serverName string) Metrics {
 		[]string{
 			// The path recording the request
 			"path",
-			// The HTTP status class
-			"status_class",
 			// The Specific HTTP Status Code
 			"status_code",
 		},
@@ -67,27 +63,16 @@ func NewMetrics(serverName string) Metrics {
 	}
 }
 
-func (m Metrics) record(sr StatusRecorder, r http.Request) *prometheus.Timer {
-	return prometheus.NewTimer(prometheus.ObserverFunc(func(durationSec float64) {
-		statusClass := ""
-		switch {
-		case sr.StatusCode >= http.StatusInternalServerError:
-			statusClass = "5xx"
-		case sr.StatusCode >= http.StatusBadRequest:
-			statusClass = "4xx"
-		case sr.StatusCode >= http.StatusMultipleChoices:
-			statusClass = "3xx"
-		case sr.StatusCode >= http.StatusOK:
-			statusClass = "2xx"
-		default:
-			statusClass = "1xx"
-		}
+func (m Metrics) Middleware(sr *StatusRecorder, r *http.Request) (func(), *http.Request) {
+	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(durationSec float64) {
 		labels := prometheus.Labels{
-			"path":         r.URL.Path,
-			"status_class": statusClass,
-			"status_code":  strconv.Itoa(sr.StatusCode),
+			"path":        r.URL.Path,
+			"status_code": strconv.Itoa(sr.StatusCode),
 		}
 		m.counter.With(labels).Inc()
 		m.duration.With(labels).Observe(durationSec)
 	}))
+	return func() {
+		timer.ObserveDuration()
+	}, r
 }

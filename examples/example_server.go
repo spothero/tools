@@ -1,4 +1,4 @@
-// Copyright 2018 SpotHero
+// Copyright 2019 SpotHero
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,9 +19,12 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/gorilla/mux"
 	"github.com/opentracing/opentracing-go"
 	"github.com/spf13/cobra"
 	"github.com/spothero/tools"
+	shHTTP "github.com/spothero/tools/http"
+	"github.com/spothero/tools/log"
 )
 
 // These variables should be set during build with the Go link tool
@@ -33,7 +36,8 @@ var version = "not-set"
 // of this file, this is how you create and expose your CLI and Environment variables. We're
 // building on the excellent open-source tool Cobra and Viper from spf13
 func newRootCmd(args []string) *cobra.Command {
-	config := &tools.HTTPServerConfig{}
+	config := shHTTP.NewDefaultConfig("example_server")
+	config.RegisterHandlers = registerHandlers
 	cmd := &cobra.Command{
 		Use:              "example_server",
 		Short:            "SpotHero Example Golang Microservice",
@@ -41,22 +45,31 @@ func newRootCmd(args []string) *cobra.Command {
 		Version:          fmt.Sprintf("%s (%s)", version, gitSHA),
 		PersistentPreRun: tools.CobraBindEnvironmentVariables("example_server"),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			config.RunHTTPServer(nil, nil, registerMuxes)
+			lc := &log.LoggingConfig{
+				UseDevelopmentLogger: true,
+				Fields: map[string]interface{}{
+					"version": version,
+					"gitSHA":  gitSHA,
+				},
+			}
+			lc.InitializeLogger()
+			config.NewServer().Run()
 			return nil
 		},
 	}
 	// Register default http server flags
-	flags := cmd.Flags()
-	config.RegisterFlags(flags, 8080, "example_server")
+	// TODO: Update this with flags
+	//flags := cmd.Flags()
+	//config.RegisterFlags(flags, 8080, "example_server")
 	return cmd
 }
 
-// RegisterMuxes is a callback used to register HTTP endpoints to the default server
+// registerHandlers is a callback used to register HTTP endpoints to the default server
 // NOTE: The HTTP server automatically registers /health and /metrics -- Have a look in your
 // browser!
-func registerMuxes(mux *http.ServeMux) {
-	mux.HandleFunc("/", helloWorld)
-	mux.HandleFunc("/best-language", bestLanguage)
+func registerHandlers(router *mux.Router) {
+	router.HandleFunc("/", helloWorld)
+	router.HandleFunc("/best-language", bestLanguage)
 }
 
 // helloWorld simply writes "hello world" to the caller. It is ended for use as an HTTP callback.
