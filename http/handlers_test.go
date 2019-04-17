@@ -13,3 +13,20 @@
 // limitations under the License.
 
 package http
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestHealthHandler(t *testing.T) {
+	req, err := http.NewRequest("GET", "/health", nil)
+	assert.NoError(t, err)
+	httpRec := httptest.NewRecorder()
+	http.HandlerFunc(healthHandler).ServeHTTP(httpRec, req)
+	assert.Equal(t, httpRec.Code, http.StatusOK)
+	assert.Equal(t, httpRec.Body.String(), "OK")
+}
