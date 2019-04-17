@@ -21,8 +21,10 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/spothero/tools/log"
 	"github.com/stretchr/testify/assert"
+	jaeger "github.com/uber/jaeger-client-go"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
@@ -67,6 +69,8 @@ func TestLoggingMiddleware(t *testing.T) {
 	*logger = *zap.New(core)
 
 	deferable, r := LoggingMiddleware(&sr, req)
+
+	// Test that request parameters are appropriately logged to our standards
 	assert.NotNil(t, r)
 	currLogs := recordedLogs.All()
 	assert.Len(t, currLogs, 1)
@@ -79,6 +83,8 @@ func TestLoggingMiddleware(t *testing.T) {
 		[]string{"remote_address", "http_method", "path", "query_string", "hostname", "port"},
 		foundLogKeysRequest,
 	)
+
+	// Test that response parameters are appropriately logged to our standards
 	deferable()
 	currLogs = recordedLogs.All()
 	assert.Len(t, currLogs, 2)
@@ -94,5 +100,21 @@ func TestLoggingMiddleware(t *testing.T) {
 }
 
 func TestTracingMiddleware(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	sr := StatusRecorder{recorder, http.StatusOK}
+	req, err := http.NewRequest("GET", "/", nil)
+	assert.NoError(t, err)
 
+	tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
+	defer closer.Close()
+	opentracing.SetGlobalTracer(tracer)
+	deferable, r := TracingMiddleware(&sr, req)
+	assert.NotNil(t, r)
+	deferable()
+
+	// Test that the span context is returned
+	requestSpan := opentracing.SpanFromContext(r.Context())
+	if _, ok := requestSpan.Context().(jaeger.SpanContext); !ok {
+		assert.FailNow(t, "unable to discover jaeger span")
+	}
 }
