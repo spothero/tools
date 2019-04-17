@@ -90,15 +90,17 @@ func (m Middleware) handler(next http.Handler) http.HandlerFunc {
 // * HTTP response code
 func LoggingMiddleware(sr *StatusRecorder, r *http.Request) (func(), *http.Request) {
 	remoteAddress := zap.String("remote_address", r.RemoteAddr)
-	method := zap.String("method", r.Method)
+	method := zap.String("http_method", r.Method)
+	path := zap.String("path", r.URL.Path)
+	query := zap.String("query_string", r.URL.Query().Encode())
 	hostname := zap.String("hostname", r.URL.Hostname())
 	port := zap.String("port", r.URL.Port())
-	log.Get(r.Context()).Info("Request Received", remoteAddress, method, hostname, port)
+	log.Get(r.Context()).Info("Request Received", remoteAddress, method, path, query, hostname, port)
 	log.Get(r.Context()).Debug("Request Headers", zap.Reflect("Headers", r.Header))
 	return func() {
 		log.Get(r.Context()).Info(
 			"Returning Response",
-			remoteAddress, method, hostname, port, zap.Int("response_code", sr.StatusCode))
+			remoteAddress, hostname, port, zap.Int("response_code", sr.StatusCode))
 	}, r
 }
 
@@ -131,7 +133,7 @@ func TracingMiddleware(sr *StatusRecorder, r *http.Request) (func(), *http.Reque
 
 	// While this removes the veneer of OpenTracing abstraction, the current specification does not
 	// provide a method of accessing Trace ID directly. Until OpenTracing 2.0 is released with
-	// support for abstract access for Trace ID we will coerce the type to the  underlying tracer.
+	// support for abstract access for Trace ID we will coerce the type to the underlying tracer.
 	// See: https://github.com/opentracing/specification/issues/123
 	if sc, ok := span.Context().(jaeger.SpanContext); ok {
 		// Embed the Trace ID in the logging context for all future requests

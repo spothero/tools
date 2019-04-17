@@ -49,7 +49,7 @@ func newRootCmd(args []string) *cobra.Command {
 				UseDevelopmentLogger: true,
 				Fields: map[string]interface{}{
 					"version": version,
-					"gitSHA":  gitSHA,
+					"git_sha": gitSHA,
 				},
 			}
 			lc.InitializeLogger()

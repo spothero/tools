@@ -21,6 +21,7 @@ import (
 	"net/http/pprof"
 	"os"
 	"os/signal"
+	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -72,9 +73,6 @@ func NewDefaultConfig(name string) Config {
 			NewMetrics(name).Middleware,
 			TracingMiddleware,
 			LoggingMiddleware,
-			//
-			// TODO: RAVEN MIDDLEWARE
-			//
 		},
 	}
 }
@@ -123,13 +121,29 @@ func (s Server) Run() {
 		s.preStart(ctx, s.router, s.httpServer)
 	}
 
+	// Start all configured servers
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
-		log.Get(ctx).Info(fmt.Sprintf("HTTP server started on %s", s.httpServer.Addr))
-		if err := s.httpServer.ListenAndServe(); err != nil {
-			log.Get(ctx).Info("HTTP server shutdown", zap.Error(err))
-		}
+		defer wg.Done()
+		go func() {
+			log.Get(ctx).Info(fmt.Sprintf("HTTP server started on %s", s.httpServer.Addr))
+			if err := s.httpServer.ListenAndServe(); err != nil {
+				log.Get(ctx).Info("HTTP server shutdown", zap.Error(err))
+			}
+		}()
+		<-ctx.Done()
 	}()
-	<-ctx.Done()
+
+	// Capture cancellation signal and deliver to running goroutines
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, os.Interrupt)
+	<-signals
+	log.Get(ctx).Info("Received interrupt, shutting down")
+	cancel()
+
+	// Wait for servers to finish exiting and initiate shutdown
+	wg.Wait()
 	shutdown, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	s.httpServer.Shutdown(shutdown)
@@ -138,11 +152,4 @@ func (s Server) Run() {
 	if s.postShutdown != nil {
 		s.postShutdown(ctx)
 	}
-
-	// Send cancellation signal to running goroutines
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, os.Interrupt)
-	<-signals
-	log.Get(ctx).Info("Received interrupt, shutting down")
-	cancel()
 }
