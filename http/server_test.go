@@ -97,17 +97,17 @@ func TestNewServer(t *testing.T) {
 // TODO: WIP NOT COMPLETED YET
 //
 func TestRun(t *testing.T) {
-	mockPreStart := func(ctx context.Context, router *mux.Router, server *http.Server) {}
-	mockPostShutdown := func(ctx context.Context) {}
-	router := mux.NewRouter()
-	server := httptest.NewServer(router)
-	s := Server{
-		httpServer:    server,
-		router:        router,
-		preStart:      mockPreStart,
-		postShutdown:  mockPostShutdown,
-		cancelSignals: []os.Signal{TODO},
-	}
+	//mockPreStart := func(ctx context.Context, router *mux.Router, server *http.Server) {}
+	//mockPostShutdown := func(ctx context.Context) {}
+	//router := mux.NewRouter()
+	//server := httptest.NewServer(router)
+	//s := Server{
+	//	httpServer:    server,
+	//	router:        router,
+	//	preStart:      mockPreStart,
+	//	postShutdown:  mockPostShutdown,
+	//	cancelSignals: []os.Signal{TODO},
+	//}
 	// TODO:
 	// TODO: Mock signal?
 }
