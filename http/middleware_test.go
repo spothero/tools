@@ -100,21 +100,60 @@ func TestLoggingMiddleware(t *testing.T) {
 }
 
 func TestTracingMiddleware(t *testing.T) {
-	recorder := httptest.NewRecorder()
-	sr := StatusRecorder{recorder, http.StatusOK}
-	req, err := http.NewRequest("GET", "/", nil)
-	assert.NoError(t, err)
+	tests := []struct {
+		name              string
+		withExistingTrace bool
+		statusCode        int
+	}{
+		{
+			"tracing middleware without an incoming trace creates a new trace",
+			false,
+			http.StatusOK,
+		},
+		{
+			"tracing middleware with an incoming trace reuses the trace",
+			true,
+			http.StatusInternalServerError,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			sr := StatusRecorder{recorder, http.StatusOK}
+			req, err := http.NewRequest("GET", "/", nil)
+			assert.NoError(t, err)
 
-	tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
-	defer closer.Close()
-	opentracing.SetGlobalTracer(tracer)
-	deferable, r := TracingMiddleware(&sr, req)
-	assert.NotNil(t, r)
-	deferable()
+			tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
+			defer closer.Close()
+			opentracing.SetGlobalTracer(tracer)
 
-	// Test that the span context is returned
-	requestSpan := opentracing.SpanFromContext(r.Context())
-	if _, ok := requestSpan.Context().(jaeger.SpanContext); !ok {
-		assert.FailNow(t, "unable to discover jaeger span")
+			// Configure a preset span and place in request context
+			var rootSpanCtx opentracing.SpanContext
+			if test.withExistingTrace {
+				span, spanCtx := opentracing.StartSpanFromContext(req.Context(), "test")
+				rootSpanCtx = span.Context()
+				req = req.WithContext(spanCtx)
+			}
+			deferable, r := TracingMiddleware(&sr, req)
+			assert.NotNil(t, r)
+
+			sr.StatusCode = test.statusCode
+			deferable()
+
+			// Test that the span context is returned
+			requestSpan := opentracing.SpanFromContext(r.Context())
+			if spanCtx, ok := requestSpan.Context().(jaeger.SpanContext); ok {
+				if test.withExistingTrace {
+					assert.NotNil(t, rootSpanCtx)
+					if rootJaegerSpanCtx, ok := rootSpanCtx.(jaeger.SpanContext); ok {
+						assert.Equal(t, rootJaegerSpanCtx.TraceID(), spanCtx.TraceID())
+					} else {
+						assert.FailNow(t, "unable to extract root jaeger span from span context")
+					}
+				}
+			} else {
+				assert.FailNow(t, "unable to extract jaeger span from span context")
+			}
+		})
 	}
 }

@@ -47,14 +47,16 @@ type Config struct {
 	PostShutdown     func(ctx context.Context)                                          // A function to be called before stopping the web server
 	RegisterHandlers func(*mux.Router)                                                  // Handler registration callback function. Register your routes in this function.
 	Middleware       Middleware                                                         // A list of global middleware functions to be called. Order is honored.
+	CancelSignals    []os.Signal                                                        // OS Signals to be used to cancel running servers. Defaults to SIGINT/`os.Interrupt`.
 }
 
 // Server contains unexported fields and is used to start and manage the Server.
 type Server struct {
-	httpServer   *http.Server
-	router       *mux.Router
-	preStart     func(ctx context.Context, router *mux.Router, server *http.Server)
-	postShutdown func(ctx context.Context)
+	httpServer    *http.Server
+	router        *mux.Router
+	preStart      func(ctx context.Context, router *mux.Router, server *http.Server)
+	postShutdown  func(ctx context.Context)
+	cancelSignals []os.Signal
 }
 
 // NewDefaultConfig returns a standard configuraton given a server name. It is recommended to
@@ -74,6 +76,7 @@ func NewDefaultConfig(name string) Config {
 			TracingMiddleware,
 			LoggingMiddleware,
 		},
+		CancelSignals: []os.Signal{os.Interrupt},
 	}
 }
 
@@ -103,16 +106,21 @@ func (c Config) NewServer() Server {
 			ReadTimeout:  time.Duration(c.ReadTimeout) * time.Second,
 			WriteTimeout: time.Duration(c.WriteTimeout) * time.Second,
 		},
-		router:       router,
-		preStart:     c.PreStart,
-		postShutdown: c.PostShutdown,
+		router:        router,
+		preStart:      c.PreStart,
+		postShutdown:  c.PostShutdown,
+		cancelSignals: c.CancelSignals,
 	}
 }
 
 // Run starts the web server, calling any provided preStart hooks and registering the provided
 // muxes. The server runs until a cancellation signal is sent to exit. At that point, the server is
 // stopped and any postShutdown hooks are called.
-func (s Server) Run() {
+//
+// Note that cancelSignals defines the os.Signals that should cause the server to exit and shut
+// down. If no cancelSignals are provided, this defaults to os.Interrupt. Note that if you override
+// this value and still wish to handle os.Interrupt you _must_ additionally include that value.
+func (s Server) Run(cancelSignals ...os.Signal) {
 	// Setup a context to send cancellation signals to goroutines
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -137,7 +145,7 @@ func (s Server) Run() {
 
 	// Capture cancellation signal and deliver to running goroutines
 	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, os.Interrupt)
+	signal.Notify(signals, cancelSignals...)
 	<-signals
 	log.Get(ctx).Info("Received interrupt, shutting down")
 	cancel()
