@@ -48,7 +48,7 @@ type Middleware []MiddlewareFunc
 func (m Middleware) handler(next http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Default to http.StatusOK which is the golang default if the status is not set.
-		wrappedWriter := &utils.StatusRecorder{w, http.StatusOK}
+		wrappedWriter := &utils.StatusRecorder{ResponseWriter: w, StatusCode: http.StatusOK}
 		for _, mw := range m {
 			var deferable func()
 			deferable, r = mw(wrappedWriter, r)

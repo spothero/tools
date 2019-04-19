@@ -35,8 +35,8 @@ func (sr *StatusRecorder) WriteHeader(code int) {
 	sr.ResponseWriter.WriteHeader(code)
 }
 
-// FetchRoutePath extracts the path template from a given request, or emptry string if none could
-// be found.
+// FetchRoutePathTemplate extracts the path template from a given request, or emptry string if none
+// could be found.
 func FetchRoutePathTemplate(r *http.Request) string {
 	routePath := ""
 	if route := mux.CurrentRoute(r); route != nil {

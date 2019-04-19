@@ -28,14 +28,14 @@ import (
 
 func TestLoggingMiddleware(t *testing.T) {
 	recorder := httptest.NewRecorder()
-	sr := utils.StatusRecorder{recorder, http.StatusOK}
+	sr := utils.StatusRecorder{ResponseWriter: recorder, StatusCode: http.StatusOK}
 	req, err := http.NewRequest("GET", "/", nil)
 	assert.NoError(t, err)
 
 	// Override the global logger with the observable
 	core, recordedLogs := observer.New(zapcore.InfoLevel)
-	lc := &LoggingConfig{Cores: []zapcore.Core{core}}
-	lc.InitializeLogger()
+	c := &Config{Cores: []zapcore.Core{core}}
+	c.InitializeLogger()
 	logger = zap.New(core)
 
 	deferable, r := LoggingMiddleware(&sr, req)

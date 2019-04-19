@@ -45,7 +45,7 @@ func newRootCmd(args []string) *cobra.Command {
 		Version:          fmt.Sprintf("%s (%s)", version, gitSHA),
 		PersistentPreRun: tools.CobraBindEnvironmentVariables("example_server"),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			lc := &log.LoggingConfig{
+			lc := &log.Config{
 				UseDevelopmentLogger: true,
 				Fields: map[string]interface{}{
 					"version": version,

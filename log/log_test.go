@@ -91,19 +91,19 @@ func TestNewContext(t *testing.T) {
 func TestMetricsHook(t *testing.T) {
 	tests := []struct {
 		name string
-		lc   LoggingConfig
+		c    Config
 
 		expectedOutput int
 	}{
 		{
 			"log level counter should return with correct value",
-			LoggingConfig{},
+			Config{},
 			1,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			test.lc.counter = prometheus.NewCounterVec(
+			test.c.counter = prometheus.NewCounterVec(
 				prometheus.CounterOpts{
 					Name: "logs_emitted",
 					Help: "Total number of logs emitted by this application instance",
@@ -111,14 +111,14 @@ func TestMetricsHook(t *testing.T) {
 				[]string{"level"},
 			)
 			for i := 0; i < test.expectedOutput; i++ {
-				test.lc.metricsHook(zapcore.Entry{Level: zapcore.DebugLevel})
+				test.c.metricsHook(zapcore.Entry{Level: zapcore.DebugLevel})
 			}
-			counter, err := test.lc.counter.GetMetricWith(prometheus.Labels{"level": "DEBUG"})
+			counter, err := test.c.counter.GetMetricWith(prometheus.Labels{"level": "DEBUG"})
 			assert.NoError(t, err)
 			pb := &dto.Metric{}
 			counter.Write(pb)
 			assert.Equal(t, test.expectedOutput, int(pb.Counter.GetValue()))
-			prometheus.Unregister(test.lc.counter)
+			prometheus.Unregister(test.c.counter)
 		})
 	}
 }
@@ -126,27 +126,27 @@ func TestMetricsHook(t *testing.T) {
 func TestInitializeLogger(t *testing.T) {
 	tests := []struct {
 		name        string
-		lc          LoggingConfig
+		c           Config
 		expectError bool
 	}{
 		{
 			"debug initialization should create a development logger",
-			LoggingConfig{UseDevelopmentLogger: true},
+			Config{UseDevelopmentLogger: true},
 			false,
 		},
 		{
 			"initialization with a bad level defaults to INFO",
-			LoggingConfig{Level: "DOESNOTEXIST"},
+			Config{Level: "DOESNOTEXIST"},
 			false,
 		},
 		{
 			"non-debug initialization should create a JSON logger",
-			LoggingConfig{UseDevelopmentLogger: false},
+			Config{UseDevelopmentLogger: false},
 			false,
 		},
 		{
 			"non-debug initialization to a nonexistent path raises an error",
-			LoggingConfig{UseDevelopmentLogger: false, OutputPaths: []string{"C://DNE"}},
+			Config{UseDevelopmentLogger: false, OutputPaths: []string{"C://DNE"}},
 			true,
 		},
 	}
@@ -157,10 +157,10 @@ func TestInitializeLogger(t *testing.T) {
 			// wrap the zap logger in our own struct and pack along a series of our own fields for
 			// testing, but we have opted not to do this.
 			if test.expectError {
-				assert.Error(t, test.lc.InitializeLogger())
+				assert.Error(t, test.c.InitializeLogger())
 				return
 			}
-			assert.NoError(t, test.lc.InitializeLogger())
+			assert.NoError(t, test.c.InitializeLogger())
 		})
 	}
 }

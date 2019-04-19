@@ -28,12 +28,6 @@ import (
 
 func TestNewDefaultConfig(t *testing.T) {
 	config := NewDefaultConfig("test")
-	// Just check that middleware is set
-	assert.NotNil(t, config.Middleware)
-	// Set middleware nil because it contains singletons -- so we dont want to recreate them for
-	// the below equality assertion.
-	config.Middleware = nil
-
 	// Ensure that the remaining fields are correctly configured
 	assert.Equal(t, Config{
 		Name:           "test",
@@ -44,6 +38,7 @@ func TestNewDefaultConfig(t *testing.T) {
 		HealthHandler:  true,
 		MetricsHandler: true,
 		PprofHandler:   true,
+		Middleware:     nil,
 		CancelSignals:  []os.Signal{os.Interrupt},
 	}, config)
 }

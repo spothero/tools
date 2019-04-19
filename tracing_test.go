@@ -45,7 +45,7 @@ func TestTracingMiddleware(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
-			sr := utils.StatusRecorder{recorder, http.StatusOK}
+			sr := utils.StatusRecorder{ResponseWriter: recorder, StatusCode: http.StatusOK}
 			req, err := http.NewRequest("GET", "/", nil)
 			assert.NoError(t, err)
 

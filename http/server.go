@@ -59,7 +59,7 @@ type Server struct {
 	cancelSignals []os.Signal
 }
 
-// NewDefaultConfig returns a standard configuraton given a server name. It is recommended to
+// NewDefaultConfig returns a standard configuration given a server name. It is recommended to
 // invoke this function for a Config before providing further customization.
 func NewDefaultConfig(name string) Config {
 	return Config{
@@ -71,7 +71,6 @@ func NewDefaultConfig(name string) Config {
 		HealthHandler:  true,
 		MetricsHandler: true,
 		PprofHandler:   true,
-		Middleware:     Middleware{NewMetrics(name, nil, true).Middleware},
 		CancelSignals:  []os.Signal{os.Interrupt},
 	}
 }

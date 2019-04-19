@@ -78,8 +78,8 @@ func TestMiddleware(t *testing.T) {
 
 	metrics := NewMetrics("test", nil, true)
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		sr := &utils.StatusRecorder{w, http.StatusOK}
-		deferableFunc, r := metrics.Middleware(sr, r)
+		sr := &utils.StatusRecorder{ResponseWriter: w, StatusCode: http.StatusOK}
+		deferableFunc, _ := metrics.Middleware(sr, r)
 		defer deferableFunc()
 	}
 	router := mux.NewRouter()

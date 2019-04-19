@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package http
+package log
 
 import (
 	"testing"
@@ -23,40 +23,36 @@ import (
 
 func TestRegisterFlags(t *testing.T) {
 	flags := pflag.NewFlagSet("pflags", pflag.PanicOnError)
-	c := NewDefaultConfig("test")
+	c := Config{}
 	c.RegisterFlags(flags)
 	err := flags.Parse(nil)
 	assert.NoError(t, err)
 
-	sn, err := flags.GetString("server-name")
+	udl, err := flags.GetBool("use-development-logger")
 	assert.NoError(t, err)
-	assert.Equal(t, c.Name, sn)
+	assert.True(t, udl)
 
-	ad, err := flags.GetString("address")
+	lop, err := flags.GetStringArray("log-output-paths")
 	assert.NoError(t, err)
-	assert.Equal(t, c.Address, ad)
+	assert.Len(t, lop, 0)
 
-	p, err := flags.GetInt("port")
+	leop, err := flags.GetStringArray("log-error-output-paths")
 	assert.NoError(t, err)
-	assert.Equal(t, c.Port, p)
+	assert.Len(t, leop, 0)
 
-	rt, err := flags.GetInt("read-timeout")
+	ll, err := flags.GetString("log-level")
 	assert.NoError(t, err)
-	assert.Equal(t, c.ReadTimeout, rt)
+	assert.Equal(t, "info", ll)
 
-	wt, err := flags.GetInt("write-timeout")
+	lsi, err := flags.GetInt("log-sampling-initial")
 	assert.NoError(t, err)
-	assert.Equal(t, c.WriteTimeout, wt)
+	assert.Equal(t, 100, lsi)
 
-	hh, err := flags.GetBool("health-handler")
+	lst, err := flags.GetInt("log-sampling-thereafter")
 	assert.NoError(t, err)
-	assert.Equal(t, c.HealthHandler, hh)
+	assert.Equal(t, 100, lst)
 
-	mh, err := flags.GetBool("metrics-handler")
+	e, err := flags.GetString("log-encoding")
 	assert.NoError(t, err)
-	assert.Equal(t, c.MetricsHandler, mh)
-
-	ph, err := flags.GetBool("pprof-handler")
-	assert.NoError(t, err)
-	assert.Equal(t, c.PprofHandler, ph)
+	assert.Equal(t, "json", e)
 }
