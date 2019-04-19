@@ -108,12 +108,11 @@ func TracingMiddleware(sr *utils.StatusRecorder, r *http.Request) (func(), *http
 		opentracing.HTTPHeaders,
 		opentracing.HTTPHeadersCarrier(r.Header))
 	if err != nil {
-		log.Get(r.Context()).Debug("Failed to extract opentracing context on an incoming HTTP request.")
+		log.Get(r.Context()).Debug("failed to extract opentracing context on an incoming http request")
 	}
 	span, spanCtx := opentracing.StartSpanFromContext(r.Context(), utils.FetchRoutePathTemplate(r), ext.RPCServerOption(wireContext))
 	span = span.SetTag("http.method", r.Method)
 	span = span.SetTag("http.url", r.URL.String())
-	span = span.SetTag("peer.address", r.RemoteAddr)
 
 	// While this removes the veneer of OpenTracing abstraction, the current specification does not
 	// provide a method of accessing Trace ID directly. Until OpenTracing 2.0 is released with

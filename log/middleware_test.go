@@ -50,7 +50,7 @@ func TestLoggingMiddleware(t *testing.T) {
 	}
 	assert.ElementsMatch(
 		t,
-		[]string{"remote_address", "http_method", "path", "query_string", "hostname", "port"},
+		[]string{"http_method", "path", "query_string", "hostname", "port"},
 		foundLogKeysRequest,
 	)
 
@@ -64,7 +64,7 @@ func TestLoggingMiddleware(t *testing.T) {
 	}
 	assert.ElementsMatch(
 		t,
-		[]string{"remote_address", "hostname", "port", "response_code"},
+		[]string{"hostname", "port", "response_code"},
 		foundLogKeysResponse,
 	)
 }

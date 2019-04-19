@@ -61,7 +61,7 @@ func TestNewMetrics(t *testing.T) {
 				if test.mustRegister {
 					assert.Panics(t, func() { NewMetrics("test2", registry, test.mustRegister) })
 				} else {
-					_ = NewMetrics("test2", registry, test.mustRegister)
+					assert.NotPanics(t, func() { _ = NewMetrics("test2", registry, test.mustRegister) })
 				}
 			}
 			assert.Equal(t, "test", metrics.serverName)

@@ -32,17 +32,16 @@ import (
 // On outbound response return these attributes include all of the above as well as:
 // * HTTP response code
 func LoggingMiddleware(sr *utils.StatusRecorder, r *http.Request) (func(), *http.Request) {
-	remoteAddress := zap.String("remote_address", r.RemoteAddr)
 	method := zap.String("http_method", r.Method)
 	path := zap.String("path", utils.FetchRoutePathTemplate(r))
 	query := zap.String("query_string", r.URL.Query().Encode())
 	hostname := zap.String("hostname", r.URL.Hostname())
 	port := zap.String("port", r.URL.Port())
-	Get(r.Context()).Info("Request Received", remoteAddress, method, path, query, hostname, port)
-	Get(r.Context()).Debug("Request Headers", zap.Reflect("Headers", r.Header))
+	Get(r.Context()).Info("request received", method, path, query, hostname, port)
+	Get(r.Context()).Debug("request headers", zap.Reflect("Headers", r.Header))
 	return func() {
 		Get(r.Context()).Info(
-			"Returning Response",
-			remoteAddress, hostname, port, zap.Int("response_code", sr.StatusCode))
+			"returning response",
+			hostname, port, zap.Int("response_code", sr.StatusCode))
 	}, r
 }
