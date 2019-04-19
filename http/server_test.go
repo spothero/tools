@@ -17,9 +17,10 @@ package http
 import (
 	"context"
 	"net/http"
-	"net/http/httptest"
 	"os"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -93,21 +94,35 @@ func TestNewServer(t *testing.T) {
 	assert.Lenf(t, expectedRoutes, 0, "some expected routes were not registered: %v", expectedRoutes)
 }
 
-//
-// TODO: WIP NOT COMPLETED YET
-//
 func TestRun(t *testing.T) {
-	//mockPreStart := func(ctx context.Context, router *mux.Router, server *http.Server) {}
-	//mockPostShutdown := func(ctx context.Context) {}
-	//router := mux.NewRouter()
-	//server := httptest.NewServer(router)
-	//s := Server{
-	//	httpServer:    server,
-	//	router:        router,
-	//	preStart:      mockPreStart,
-	//	postShutdown:  mockPostShutdown,
-	//	cancelSignals: []os.Signal{TODO},
-	//}
+	preStartCalled := false
+	mockPreStart := func(ctx context.Context, router *mux.Router, server *http.Server) {
+		preStartCalled = true
+	}
+	postShutdownCalled := false
+	mockPostShutdown := func(ctx context.Context) {
+		postShutdownCalled = true
+	}
+	router := mux.NewRouter()
+
+	s := Server{
+		httpServer: &http.Server{
+			Addr:    "tcp://127.0.0.1:0",
+			Handler: router,
+		},
+		router:        router,
+		preStart:      mockPreStart,
+		postShutdown:  mockPostShutdown,
+		cancelSignals: []os.Signal{syscall.SIGUSR1},
+	}
+	timer := time.NewTimer(10 * time.Millisecond)
+	go func() {
+		<-timer.C
+		syscall.Kill(syscall.Getpid(), syscall.SIGUSR1)
+	}()
+	s.Run()
+	assert.True(t, preStartCalled)
+	assert.True(t, postShutdownCalled)
 	// TODO:
 	// TODO: Mock signal?
 }

@@ -19,18 +19,56 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
+	"github.com/spothero/tools/http/utils"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewMetrics(t *testing.T) {
-	metrics := NewMetrics("test")
-	assert.Equal(t, "test", metrics.serverName)
-	assert.NotNil(t, metrics.counter)
-	prometheus.Unregister(metrics.counter)
-	assert.NotNil(t, metrics.duration)
-	prometheus.Unregister(metrics.duration)
+	tests := []struct {
+		name         string
+		mustRegister bool
+		duplicate    bool
+	}{
+		{
+			"when must register is true and we do not duplicate registration no panic occurs",
+			true,
+			false,
+		},
+		{
+			"when must register is true and we duplicate registration a panic occurs",
+			true,
+			true,
+		},
+		{
+			"when must register is false and we do not duplicate registration no panic occurs",
+			false,
+			false,
+		},
+		{
+			"when must register is false and we duplicate registration a panic occurs",
+			false,
+			true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			registry := prometheus.NewRegistry()
+			metrics := NewMetrics("test", registry, test.mustRegister)
+			if test.duplicate {
+				if test.mustRegister {
+					assert.Panics(t, func() { NewMetrics("test2", registry, test.mustRegister) })
+				} else {
+					_ = NewMetrics("test2", registry, test.mustRegister)
+				}
+			}
+			assert.Equal(t, "test", metrics.serverName)
+			assert.NotNil(t, metrics.counter)
+			assert.NotNil(t, metrics.duration)
+		})
+	}
 }
 
 func TestMiddleware(t *testing.T) {
@@ -38,13 +76,15 @@ func TestMiddleware(t *testing.T) {
 	assert.NoError(t, err)
 	httpRec := httptest.NewRecorder()
 
-	metrics := NewMetrics("test")
+	metrics := NewMetrics("test", nil, true)
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		sr := &StatusRecorder{w, http.StatusOK}
+		sr := &utils.StatusRecorder{w, http.StatusOK}
 		deferableFunc, r := metrics.Middleware(sr, r)
 		defer deferableFunc()
 	}
-	http.HandlerFunc(handler).ServeHTTP(httpRec, req)
+	router := mux.NewRouter()
+	router.HandleFunc("/", handler)
+	router.ServeHTTP(httpRec, req)
 
 	// Expected prometheus labels after this request
 	labels := prometheus.Labels{

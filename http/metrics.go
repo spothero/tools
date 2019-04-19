@@ -15,19 +15,28 @@
 package http
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/spothero/tools/http/utils"
+	"github.com/spothero/tools/log"
+	"go.uber.org/zap"
 )
 
+// Metrics is a bundle of prometheus HTTP metrics recorders
 type Metrics struct {
 	serverName string
 	counter    *prometheus.CounterVec
 	duration   *prometheus.HistogramVec
 }
 
-func NewMetrics(serverName string) Metrics {
+// NewMetrics creates and returns a metrics bundle given a server name. The user may optionally
+// specify an existing Prometheus Registry. If no Registry is provided, the global Prometheus
+// Registry is used. Finally, if mustRegister is true, and a registration error is encountered,
+// the application will panic.
+func NewMetrics(serverName string, registry prometheus.Registerer, mustRegister bool) Metrics {
 	histogram := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "http_request_duration_seconds",
@@ -54,8 +63,21 @@ func NewMetrics(serverName string) Metrics {
 			"status_code",
 		},
 	)
-	prometheus.MustRegister(histogram)
-	prometheus.MustRegister(counter)
+	// If the user hasnt provided a Prometheus Registry, use the global Registry
+	if registry == nil {
+		registry = prometheus.DefaultRegisterer
+	}
+	if mustRegister {
+		registry.MustRegister(histogram)
+		registry.MustRegister(counter)
+	} else {
+		if err := registry.Register(histogram); err != nil {
+			log.Get(context.Background()).Error("failed to register HTTP histogram", zap.Error(err))
+		}
+		if err := registry.Register(counter); err != nil {
+			log.Get(context.Background()).Error("failed to register HTTP counter", zap.Error(err))
+		}
+	}
 	return Metrics{
 		serverName,
 		counter,
@@ -63,10 +85,11 @@ func NewMetrics(serverName string) Metrics {
 	}
 }
 
-func (m Metrics) Middleware(sr *StatusRecorder, r *http.Request) (func(), *http.Request) {
+// Middleware provides standard HTTP middleware for recording prometheus metrics on every request
+func (m Metrics) Middleware(sr *utils.StatusRecorder, r *http.Request) (func(), *http.Request) {
 	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(durationSec float64) {
 		labels := prometheus.Labels{
-			"path":        r.URL.Path,
+			"path":        utils.FetchRoutePathTemplate(r),
 			"status_code": strconv.Itoa(sr.StatusCode),
 		}
 		m.counter.With(labels).Inc()

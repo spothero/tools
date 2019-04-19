@@ -71,12 +71,8 @@ func NewDefaultConfig(name string) Config {
 		HealthHandler:  true,
 		MetricsHandler: true,
 		PprofHandler:   true,
-		Middleware: Middleware{
-			NewMetrics(name).Middleware,
-			TracingMiddleware,
-			LoggingMiddleware,
-		},
-		CancelSignals: []os.Signal{os.Interrupt},
+		Middleware:     Middleware{NewMetrics(name, nil, true).Middleware},
+		CancelSignals:  []os.Signal{os.Interrupt},
 	}
 }
 
@@ -120,7 +116,7 @@ func (c Config) NewServer() Server {
 // Note that cancelSignals defines the os.Signals that should cause the server to exit and shut
 // down. If no cancelSignals are provided, this defaults to os.Interrupt. Note that if you override
 // this value and still wish to handle os.Interrupt you _must_ additionally include that value.
-func (s Server) Run(cancelSignals ...os.Signal) {
+func (s Server) Run() {
 	// Setup a context to send cancellation signals to goroutines
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -145,7 +141,7 @@ func (s Server) Run(cancelSignals ...os.Signal) {
 
 	// Capture cancellation signal and deliver to running goroutines
 	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, cancelSignals...)
+	signal.Notify(signals, s.cancelSignals...)
 	<-signals
 	log.Get(ctx).Info("Received interrupt, shutting down")
 	cancel()
