@@ -17,7 +17,7 @@ package log
 import (
 	"net/http"
 
-	"github.com/spothero/tools/http/utils"
+	"github.com/spothero/tools/http/writer"
 	"go.uber.org/zap"
 )
 
@@ -31,9 +31,9 @@ import (
 //
 // On outbound response return these attributes include all of the above as well as:
 // * HTTP response code
-func LoggingMiddleware(sr *utils.StatusRecorder, r *http.Request) (func(), *http.Request) {
+func LoggingMiddleware(sr *writer.StatusRecorder, r *http.Request) (func(), *http.Request) {
 	method := zap.String("http_method", r.Method)
-	path := zap.String("path", utils.FetchRoutePathTemplate(r))
+	path := zap.String("path", writer.FetchRoutePathTemplate(r))
 	query := zap.String("query_string", r.URL.Query().Encode())
 	hostname := zap.String("hostname", r.URL.Hostname())
 	port := zap.String("port", r.URL.Port())

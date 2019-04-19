@@ -22,7 +22,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
-	"github.com/spothero/tools/http/utils"
+	"github.com/spothero/tools/http/writer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -78,7 +78,7 @@ func TestMiddleware(t *testing.T) {
 
 	metrics := NewMetrics("test", nil, true)
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		sr := &utils.StatusRecorder{ResponseWriter: w, StatusCode: http.StatusOK}
+		sr := &writer.StatusRecorder{ResponseWriter: w, StatusCode: http.StatusOK}
 		deferableFunc, _ := metrics.Middleware(sr, r)
 		defer deferableFunc()
 	}

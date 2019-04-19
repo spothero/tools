@@ -17,13 +17,13 @@ package http
 import (
 	"net/http"
 
-	"github.com/spothero/tools/http/utils"
+	"github.com/spothero/tools/http/writer"
 )
 
 // MiddlewareFunc defines a middleware function used in processing HTTP Requests. Request
 // preprocessing may be specified in the body of the middleware function call. If post-processing
 // is required, please use the returned deferable func() to encapsulate that logic.
-type MiddlewareFunc func(*utils.StatusRecorder, *http.Request) (func(), *http.Request)
+type MiddlewareFunc func(*writer.StatusRecorder, *http.Request) (func(), *http.Request)
 
 // Middleware defines a collection of middleware functions.
 type Middleware []MiddlewareFunc
@@ -48,7 +48,7 @@ type Middleware []MiddlewareFunc
 func (m Middleware) handler(next http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Default to http.StatusOK which is the golang default if the status is not set.
-		wrappedWriter := &utils.StatusRecorder{ResponseWriter: w, StatusCode: http.StatusOK}
+		wrappedWriter := &writer.StatusRecorder{ResponseWriter: w, StatusCode: http.StatusOK}
 		for _, mw := range m {
 			var deferable func()
 			deferable, r = mw(wrappedWriter, r)

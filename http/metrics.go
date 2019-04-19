@@ -20,7 +20,7 @@ import (
 	"strconv"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/spothero/tools/http/utils"
+	"github.com/spothero/tools/http/writer"
 	"github.com/spothero/tools/log"
 	"go.uber.org/zap"
 )
@@ -86,10 +86,10 @@ func NewMetrics(serverName string, registry prometheus.Registerer, mustRegister 
 }
 
 // Middleware provides standard HTTP middleware for recording prometheus metrics on every request
-func (m Metrics) Middleware(sr *utils.StatusRecorder, r *http.Request) (func(), *http.Request) {
+func (m Metrics) Middleware(sr *writer.StatusRecorder, r *http.Request) (func(), *http.Request) {
 	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(durationSec float64) {
 		labels := prometheus.Labels{
-			"path":        utils.FetchRoutePathTemplate(r),
+			"path":        writer.FetchRoutePathTemplate(r),
 			"status_code": strconv.Itoa(sr.StatusCode),
 		}
 		m.counter.With(labels).Inc()

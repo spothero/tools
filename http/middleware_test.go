@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
-	"github.com/spothero/tools/http/utils"
+	"github.com/spothero/tools/http/writer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -28,7 +28,7 @@ func TestHandler(t *testing.T) {
 	middlewareCalled := false
 	deferableCalled := false
 	mw := Middleware{
-		func(sr *utils.StatusRecorder, r *http.Request) (func(), *http.Request) {
+		func(sr *writer.StatusRecorder, r *http.Request) (func(), *http.Request) {
 			middlewareCalled = true
 			return func() { deferableCalled = true }, r
 		},

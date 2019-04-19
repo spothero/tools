@@ -23,7 +23,7 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
-	"github.com/spothero/tools/http/utils"
+	"github.com/spothero/tools/http/writer"
 	"github.com/spothero/tools/log"
 	"github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
@@ -103,14 +103,14 @@ func TraceOutbound(r *http.Request, span opentracing.Span) {
 // * error (if the status code is >= 500)
 //
 // The returned HTTP Request includes the wrapped OpenTracing Span Context.
-func TracingMiddleware(sr *utils.StatusRecorder, r *http.Request) (func(), *http.Request) {
+func TracingMiddleware(sr *writer.StatusRecorder, r *http.Request) (func(), *http.Request) {
 	wireContext, err := opentracing.GlobalTracer().Extract(
 		opentracing.HTTPHeaders,
 		opentracing.HTTPHeadersCarrier(r.Header))
 	if err != nil {
 		log.Get(r.Context()).Debug("failed to extract opentracing context on an incoming http request")
 	}
-	span, spanCtx := opentracing.StartSpanFromContext(r.Context(), utils.FetchRoutePathTemplate(r), ext.RPCServerOption(wireContext))
+	span, spanCtx := opentracing.StartSpanFromContext(r.Context(), writer.FetchRoutePathTemplate(r), ext.RPCServerOption(wireContext))
 	span = span.SetTag("http.method", r.Method)
 	span = span.SetTag("http.url", r.URL.String())
 

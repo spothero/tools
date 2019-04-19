@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/spothero/tools/http/utils"
+	"github.com/spothero/tools/http/writer"
 	"github.com/stretchr/testify/assert"
 	jaeger "github.com/uber/jaeger-client-go"
 )
@@ -45,7 +45,7 @@ func TestTracingMiddleware(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
-			sr := utils.StatusRecorder{ResponseWriter: recorder, StatusCode: http.StatusOK}
+			sr := writer.StatusRecorder{ResponseWriter: recorder, StatusCode: http.StatusOK}
 			req, err := http.NewRequest("GET", "/", nil)
 			assert.NoError(t, err)
 
