@@ -58,9 +58,8 @@ func newRootCmd(args []string) *cobra.Command {
 		},
 	}
 	// Register default http server flags
-	// TODO: Update this with flags
-	//flags := cmd.Flags()
-	//config.RegisterFlags(flags, 8080, "example_server")
+	flags := cmd.Flags()
+	config.RegisterFlags(flags, "example_server")
 	return cmd
 }
 
