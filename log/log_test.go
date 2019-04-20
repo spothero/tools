@@ -89,38 +89,23 @@ func TestNewContext(t *testing.T) {
 }
 
 func TestMetricsHook(t *testing.T) {
-	tests := []struct {
-		name string
-		lc   LoggingConfig
-
-		expectedOutput int
-	}{
-		{
-			"log level counter should return with correct value",
-			LoggingConfig{},
-			1,
-		},
+	lc := LoggingConfig{
+		counter: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "logs_emitted",
+				Help: "Total number of logs emitted by this application instance",
+			},
+			[]string{"level"},
+		),
 	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			test.lc.counter = prometheus.NewCounterVec(
-				prometheus.CounterOpts{
-					Name: "logs_emitted",
-					Help: "Total number of logs emitted by this application instance",
-				},
-				[]string{"level"},
-			)
-			for i := 0; i < test.expectedOutput; i++ {
-				test.lc.metricsHook(zapcore.Entry{Level: zapcore.DebugLevel})
-			}
-			counter, err := test.lc.counter.GetMetricWith(prometheus.Labels{"level": "DEBUG"})
-			assert.NoError(t, err)
-			pb := &dto.Metric{}
-			counter.Write(pb)
-			assert.Equal(t, test.expectedOutput, int(pb.Counter.GetValue()))
-			prometheus.Unregister(test.lc.counter)
-		})
-	}
+	metricsHookFunc := metricsHook(lc.counter)
+	metricsHookFunc(zapcore.Entry{Level: zapcore.DebugLevel})
+	counter, err := lc.counter.GetMetricWith(prometheus.Labels{"level": "DEBUG"})
+	assert.NoError(t, err)
+	pb := &dto.Metric{}
+	counter.Write(pb)
+	assert.Equal(t, 1, int(pb.Counter.GetValue()))
+	prometheus.Unregister(lc.counter)
 }
 
 func TestInitializeLogger(t *testing.T) {

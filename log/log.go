@@ -48,15 +48,17 @@ type LoggingConfig struct {
 }
 
 // metricsHook is a callback hook used to track logging metrics at runtime
-func (lc *LoggingConfig) metricsHook(entry zapcore.Entry) error {
-	lc.counter.With(prometheus.Labels{"level": entry.Level.CapitalString()}).Inc()
-	return nil
+func metricsHook(counter *prometheus.CounterVec) func(entry zapcore.Entry) error {
+	return func(entry zapcore.Entry) error {
+		counter.With(prometheus.Labels{"level": entry.Level.CapitalString()}).Inc()
+		return nil
+	}
 }
 
 // InitializeLogger sets up the logger. This function should be called as soon
 // as possible. Any use of the logger provided by this package will be a nop
 // until this function is called.
-func (lc *LoggingConfig) InitializeLogger() error {
+func (lc LoggingConfig) InitializeLogger() error {
 	var err error
 	var logConfig zap.Config
 	var level zapcore.Level
@@ -105,7 +107,7 @@ func (lc *LoggingConfig) InitializeLogger() error {
 			return zapcore.NewTee(existingCore, core)
 		}))
 	}
-	lc.Options = append(lc.Options, zap.Hooks(lc.metricsHook))
+	lc.Options = append(lc.Options, zap.Hooks(metricsHook(lc.counter)))
 	if logger, err = logConfig.Build(lc.Options...); err != nil {
 		return fmt.Errorf("error initializing logger - %s", err.Error())
 	}
