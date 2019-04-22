@@ -21,47 +21,13 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/opentracing/opentracing-go"
-	"github.com/spf13/cobra"
-	"github.com/spothero/tools"
-	shHTTP "github.com/spothero/tools/http"
-	"github.com/spothero/tools/log"
+	"github.com/spothero/tools/service"
 )
 
 // These variables should be set during build with the Go link tool
 // e.x.: when running go build, provide -ldflags="-X main.version=1.0.0"
 var gitSHA = "not-set"
 var version = "not-set"
-
-// newRootCmd is the entrypoint to your go program. Coupled with the `main` function at the bottom
-// of this file, this is how you create and expose your CLI and Environment variables. We're
-// building on the excellent open-source tool Cobra and Viper from spf13
-func newRootCmd(args []string) *cobra.Command {
-	config := shHTTP.NewDefaultConfig("example_server")
-	config.RegisterHandlers = registerHandlers
-	cmd := &cobra.Command{
-		Use:              "example_server",
-		Short:            "SpotHero Example Golang Microservice",
-		Long:             `The SpotHero Example Golang Microservice shows off the capabilities of our Core library`,
-		Version:          fmt.Sprintf("%s (%s)", version, gitSHA),
-		PersistentPreRun: tools.CobraBindEnvironmentVariables("example_server"),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			lc := &log.Config{
-				UseDevelopmentLogger: true,
-				Fields: map[string]interface{}{
-					"version": version,
-					"git_sha": gitSHA,
-				},
-			}
-			lc.InitializeLogger()
-			config.NewServer().Run()
-			return nil
-		},
-	}
-	// Register default http server flags
-	flags := cmd.Flags()
-	config.RegisterFlags(flags)
-	return cmd
-}
 
 // registerHandlers is a callback used to register HTTP endpoints to the default server
 // NOTE: The HTTP server automatically registers /health and /metrics -- Have a look in your
@@ -96,8 +62,13 @@ func bestLanguage(w http.ResponseWriter, r *http.Request) {
 
 // This is the main entrypoint of the program. Here we create our root command and then execute it.
 func main() {
-	cmd := newRootCmd(os.Args[1:])
-	if err := cmd.Execute(); err != nil {
+	serverCmd := service.HTTPConfig{
+		Name:             "example_server",
+		Version:          version,
+		GitSHA:           gitSHA,
+		RegisterHandlers: registerHandlers,
+	}
+	if err := serverCmd.ServerCmd().Execute(); err != nil {
 		os.Exit(1)
 	}
 }
