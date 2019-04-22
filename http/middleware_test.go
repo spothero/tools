@@ -20,8 +20,8 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
-	"github.com/spothero/tools/http/writer"
 	"github.com/stretchr/testify/assert"
+	"writer"
 )
 
 func TestHandler(t *testing.T) {

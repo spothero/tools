@@ -17,8 +17,8 @@ package log
 import (
 	"net/http"
 
-	"github.com/spothero/tools/http/writer"
 	"go.uber.org/zap"
+	"http/writer"
 )
 
 // LoggingMiddleware logs a series of standard attributes for every HTTP request.

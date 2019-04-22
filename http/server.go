@@ -26,8 +26,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/spothero/tools/log"
 	"go.uber.org/zap"
+	"log"
 )
 
 // Config contains the configuration necessary for running an HTTP/HTTPS Server.

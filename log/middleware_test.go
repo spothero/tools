@@ -19,11 +19,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/spothero/tools/http/writer"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
+	"http/writer"
 )
 
 func TestLoggingMiddleware(t *testing.T) {
