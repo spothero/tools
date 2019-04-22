@@ -56,11 +56,6 @@ type httpMetrics struct {
 	Duration *prometheus.HistogramVec
 }
 
-// HTTPMetricsRecorder defines an interface for recording prometheus metrics on HTTP requests
-type HTTPMetricsRecorder interface {
-	RecordHttpMetrics(w http.ResponseWriter, r *http.Request) *prometheus.Timer
-}
-
 // RunHTTPServer starts and runs a web server, waiting for a cancellation signal to exit
 func (c *HTTPServerConfig) RunHTTPServer(
 	preStart func(ctx context.Context, mux *http.ServeMux, server *http.Server),
@@ -203,7 +198,7 @@ func (hm *httpMetrics) tracingHandler(hsr *httpStatusRecorder, r *http.Request) 
 }
 
 // BaseHTTPMonitoringHandler is meant to be used as middleware for every request. It will:
-// * Starts an opentracing span, place it in http.Request context, and
+// * Start an opentracing span, place it in http.Request context, and
 //   closes the span when the request completes
 // * Capture any unhandled errors and send them to Sentry
 // * Capture metrics to Prometheus for the duration of the HTTP request

@@ -89,7 +89,7 @@ func TestNewContext(t *testing.T) {
 }
 
 func TestMetricsHook(t *testing.T) {
-	lc := LoggingConfig{
+	c := Config{
 		counter: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "logs_emitted",
@@ -98,40 +98,40 @@ func TestMetricsHook(t *testing.T) {
 			[]string{"level"},
 		),
 	}
-	metricsHookFunc := metricsHook(lc.counter)
+	metricsHookFunc := metricsHook(c.counter)
 	metricsHookFunc(zapcore.Entry{Level: zapcore.DebugLevel})
-	counter, err := lc.counter.GetMetricWith(prometheus.Labels{"level": "DEBUG"})
+	counter, err := c.counter.GetMetricWith(prometheus.Labels{"level": "DEBUG"})
 	assert.NoError(t, err)
 	pb := &dto.Metric{}
 	counter.Write(pb)
 	assert.Equal(t, 1, int(pb.Counter.GetValue()))
-	prometheus.Unregister(lc.counter)
+	prometheus.Unregister(c.counter)
 }
 
 func TestInitializeLogger(t *testing.T) {
 	tests := []struct {
 		name        string
-		lc          LoggingConfig
+		c           Config
 		expectError bool
 	}{
 		{
 			"debug initialization should create a development logger",
-			LoggingConfig{UseDevelopmentLogger: true},
+			Config{UseDevelopmentLogger: true},
 			false,
 		},
 		{
 			"initialization with a bad level defaults to INFO",
-			LoggingConfig{Level: "DOESNOTEXIST"},
+			Config{Level: "DOESNOTEXIST"},
 			false,
 		},
 		{
 			"non-debug initialization should create a JSON logger",
-			LoggingConfig{UseDevelopmentLogger: false},
+			Config{UseDevelopmentLogger: false},
 			false,
 		},
 		{
 			"non-debug initialization to a nonexistent path raises an error",
-			LoggingConfig{UseDevelopmentLogger: false, OutputPaths: []string{"C://DNE"}},
+			Config{UseDevelopmentLogger: false, OutputPaths: []string{"C://DNE"}},
 			true,
 		},
 	}
@@ -141,12 +141,11 @@ func TestInitializeLogger(t *testing.T) {
 			// logger, so unfortunately there's not much for us to test here. We could optionally
 			// wrap the zap logger in our own struct and pack along a series of our own fields for
 			// testing, but we have opted not to do this.
-			test.lc.Cores = []zapcore.Core{&MockCore{}}
 			if test.expectError {
-				assert.Error(t, test.lc.InitializeLogger())
+				assert.Error(t, test.c.InitializeLogger())
 				return
 			}
-			assert.NoError(t, test.lc.InitializeLogger())
+			assert.NoError(t, test.c.InitializeLogger())
 		})
 	}
 }

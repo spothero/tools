@@ -32,8 +32,8 @@ const logKey ctxKey = iota
 // logger is the default zap logger
 var logger = zap.NewNop()
 
-// LoggingConfig defines the necessary configuration for instantiating a Logger
-type LoggingConfig struct {
+// Config defines the necessary configuration for instantiating a Logger
+type Config struct {
 	UseDevelopmentLogger bool                   // If true, use default zap development logger settings
 	OutputPaths          []string               // List of locations where logs should be placed. Defaults to stdout
 	ErrorOutputPaths     []string               // List of locations where error logs should be placed. Defaults to stderr
@@ -58,18 +58,18 @@ func metricsHook(counter *prometheus.CounterVec) func(entry zapcore.Entry) error
 // InitializeLogger sets up the logger. This function should be called as soon
 // as possible. Any use of the logger provided by this package will be a nop
 // until this function is called.
-func (lc LoggingConfig) InitializeLogger() error {
+func (c *Config) InitializeLogger() error {
 	var err error
 	var logConfig zap.Config
 	var level zapcore.Level
-	if lc.Encoding == "" {
-		lc.Encoding = "json"
+	if c.Encoding == "" {
+		c.Encoding = "json"
 	}
-	if err := level.Set(lc.Level); err != nil {
-		fmt.Printf("invalid log level %s - using INFO", lc.Level)
+	if err := level.Set(c.Level); err != nil {
+		fmt.Printf("invalid log level %s - using INFO", c.Level)
 		level.Set("info")
 	}
-	if lc.UseDevelopmentLogger {
+	if c.UseDevelopmentLogger {
 		// Initialize logger with default development options
 		// which enables debug logging, uses console encoder, writes to
 		// stderr, and disables sampling.
@@ -77,24 +77,25 @@ func (lc LoggingConfig) InitializeLogger() error {
 		logConfig = zap.NewDevelopmentConfig()
 		logConfig.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 		logConfig.Level = zap.NewAtomicLevelAt(level)
+		logConfig.InitialFields = c.Fields
 	} else {
 		logConfig = zap.Config{
 			Level:             zap.NewAtomicLevelAt(level),
 			Development:       false,
 			DisableStacktrace: false,
 			Sampling: &zap.SamplingConfig{
-				Initial:    lc.SamplingInitial,
-				Thereafter: lc.SamplingThereafter,
+				Initial:    c.SamplingInitial,
+				Thereafter: c.SamplingThereafter,
 			},
-			Encoding:         lc.Encoding,
+			Encoding:         c.Encoding,
 			EncoderConfig:    zap.NewProductionEncoderConfig(),
-			OutputPaths:      append(lc.OutputPaths, "stdout"),
-			ErrorOutputPaths: append(lc.ErrorOutputPaths, "stderr"),
-			InitialFields:    lc.Fields,
+			OutputPaths:      append(c.OutputPaths, "stdout"),
+			ErrorOutputPaths: append(c.ErrorOutputPaths, "stderr"),
+			InitialFields:    c.Fields,
 		}
 	}
 
-	lc.counter = prometheus.NewCounterVec(
+	c.counter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "logs_emitted",
 			Help: "Total number of logs emitted by this application instance",
@@ -102,13 +103,13 @@ func (lc LoggingConfig) InitializeLogger() error {
 		[]string{"level"},
 	)
 
-	for _, core := range lc.Cores {
-		lc.Options = append(lc.Options, zap.WrapCore(func(existingCore zapcore.Core) zapcore.Core {
+	for _, core := range c.Cores {
+		c.Options = append(c.Options, zap.WrapCore(func(existingCore zapcore.Core) zapcore.Core {
 			return zapcore.NewTee(existingCore, core)
 		}))
 	}
-	lc.Options = append(lc.Options, zap.Hooks(metricsHook(lc.counter)))
-	if logger, err = logConfig.Build(lc.Options...); err != nil {
+	c.Options = append(c.Options, zap.Hooks(metricsHook(c.counter)))
+	if logger, err = logConfig.Build(c.Options...); err != nil {
 		return fmt.Errorf("error initializing logger - %s", err.Error())
 	}
 	return nil

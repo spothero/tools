@@ -35,7 +35,7 @@ import (
 //
 // Note: CLI arguments (eg --address=localhost) will always take precedence over environment variables
 func CobraBindEnvironmentVariables(prefix string) func(cmd *cobra.Command, _ []string) {
-	// Search for environment values prefixed with "AVAILABILITY"
+	// Search for environment values with the given prefix
 	viper.SetEnvPrefix(prefix)
 	// Automatically extract values from Cobra pflags as prefixed above
 	viper.AutomaticEnv()
@@ -64,7 +64,7 @@ func (c *HTTPServerConfig) RegisterFlags(flags *pflag.FlagSet, defaultPort int, 
 // RegisterFlags registers Kafka flags with pflags
 func (kc *KafkaConfig) RegisterFlags(flags *pflag.FlagSet) {
 	flags.StringVarP(&kc.Broker, "kafka-broker", "b", "kafka:29092", "Kafka broker Address")
-	flags.StringVar(&kc.ClientID, "kafka-client-id", "availability", "Kafka consumer Client ID")
+	flags.StringVar(&kc.ClientID, "kafka-client-id", "client", "Kafka consumer Client ID")
 	flags.StringVar(&kc.TLSCaCrtPath, "kafka-server-ca-crt-path", "", "Kafka Server TLS CA Certificate Path")
 	flags.StringVar(&kc.TLSCrtPath, "kafka-client-crt-path", "", "Kafka Client TLS Certificate Path")
 	flags.StringVar(&kc.TLSKeyPath, "kafka-client-key-path", "", "Kafka Client TLS Key Path")
