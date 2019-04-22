@@ -22,9 +22,10 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
-	"github.com/spothero/tools"
 	shHTTP "github.com/spothero/tools/http"
 	"github.com/spothero/tools/log"
+	"github.com/spothero/tools/sentry"
+	"github.com/spothero/tools/tracing"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -60,7 +61,7 @@ func (hc HTTPConfig) ServerCmd() *cobra.Command {
 	config.PostShutdown = hc.PostShutdown
 	config.RegisterHandlers = hc.RegisterHandlers
 	config.Middleware = shHTTP.Middleware{
-		tools.TracingMiddleware,
+		tracing.TracingMiddleware,
 		shHTTP.NewMetrics(hc.Name, hc.Registry, true).Middleware,
 		log.LoggingMiddleware,
 	}
@@ -71,7 +72,7 @@ func (hc HTTPConfig) ServerCmd() *cobra.Command {
 			"version": hc.Version,
 			"git_sha": hc.GitSHA,
 		},
-		Cores: []zapcore.Core{&tools.SentryCore{}},
+		Cores: []zapcore.Core{&sentry.SentryCore{}},
 	}
 	cmd := &cobra.Command{
 		Use:              hc.Name,
