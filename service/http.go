@@ -28,6 +28,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// HTTPConfig defines service level configuration for HTTP servers
 type HTTPConfig struct {
 	Name             string                                                             // Name of the application server
 	Version          string                                                             // Semantic Version of this Application
