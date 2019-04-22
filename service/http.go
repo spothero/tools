@@ -22,6 +22,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
+	"github.com/spothero/tools/cli"
 	shHTTP "github.com/spothero/tools/http"
 	"github.com/spothero/tools/log"
 	"github.com/spothero/tools/sentry"
@@ -79,7 +80,7 @@ func (hc HTTPConfig) ServerCmd() *cobra.Command {
 		Short:            "Starts and runs an HTTP Server",
 		Long:             "Starts and runs an HTTP Server",
 		Version:          fmt.Sprintf("%s (%s)", hc.Version, hc.GitSHA),
-		PersistentPreRun: tools.CobraBindEnvironmentVariables(hc.Name),
+		PersistentPreRun: cli.CobraBindEnvironmentVariables(hc.Name),
 		Run: func(cmd *cobra.Command, args []string) {
 			lc.InitializeLogger()
 			config.NewServer().Run()

@@ -22,6 +22,7 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/opentracing/opentracing-go"
+	"github.com/spothero/tools/log"
 	"go.uber.org/zap"
 )
 
@@ -44,7 +45,7 @@ func (jmu *jsonMessageUnmarshaler) UnmarshalMessage(
 	}
 	unmarshalErrs := jmu.messageUnmarshaler.unmarshalKafkaMessageMap(message, target)
 	if len(unmarshalErrs) > 0 {
-		Logger.Error(
+		log.Get(ctx).Error(
 			"Unable to unmarshal from JSON", zap.Errors("errors", unmarshalErrs),
 			zap.String("type", reflect.TypeOf(target).String()))
 		return fmt.Errorf("unable to unmarshal from JSON")

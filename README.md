@@ -33,7 +33,6 @@ library simply add this as a dependency in your [dep Gopkg.toml](https://github.
 
 Currently, this library supports the following features:
 
-* AWS Utilities
 * CLI Utilities
 * Kafka
   * Support for consuming and producing metrics
@@ -50,31 +49,6 @@ Currently, this library supports the following features:
 
 In addition, all the above packages may automatically be integrated with Cobra/Viper CLIs for
 12-factor application compatibility via the CLI module.
-
-### Getting Setup
-
-Usage of this library simply requires you to specify this package in your [dep Gopkg.toml](https://github.com/golang/dep/blob/master/docs/Gopkg.toml.md).
-
-For example:
-
-```
-...
-[[constraint]]
-  branch = "master"
-  name = "github.com/spothero/tools"
-```
-
-Then, in your application you can simply do the following:
-
-```go
-package coolpkg
-
-import (
-  "github.com/spothero/tools"
-  ...
-)
-...
-```
 
 ### Usage
 

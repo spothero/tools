@@ -17,7 +17,7 @@ package http
 import (
 	"net/http"
 
-	"writer"
+	"github.com/spothero/tools/http/writer"
 )
 
 // MiddlewareFunc defines a middleware function used in processing HTTP Requests. Request

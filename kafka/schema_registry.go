@@ -26,6 +26,7 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/linkedin/goavro"
 	"github.com/opentracing/opentracing-go"
+	"github.com/spothero/tools/log"
 	"go.uber.org/zap"
 )
 
@@ -49,7 +50,7 @@ func (src *schemaRegistryClient) getSchema(ctx context.Context, schemaID int, sc
 	endpoint := fmt.Sprintf("%s/schemas/ids/%d", schemaRegistryURL, schemaID)
 	response, err := http.Get(endpoint)
 	if err != nil {
-		Logger.Error(
+		log.Get(ctx).Error(
 			"Error getting schema from schema registry",
 			zap.Int("schema_id", schemaID), zap.Error(err))
 		return "", err
@@ -77,13 +78,13 @@ func (src *SchemaRegistryConfig) unmarshalMessage(ctx context.Context, message [
 	schemaInterface, schemaInCache := src.schemas.Load(schemaID)
 	var schema string
 	if !schemaInCache {
-		Logger.Info(
+		log.Get(ctx).Info(
 			"Schema not in cache, requesting from schema schema registry and caching",
 			zap.Uint32("schema_id", schemaID))
 		var getSchemaErr error
 		schema, getSchemaErr = src.client.getSchema(ctx, int(schemaID), src.SchemaRegistryURL)
 		if getSchemaErr != nil {
-			Logger.Error(
+			log.Get(ctx).Error(
 				"Error getting schema from schema schemaRegistry",
 				zap.Error(getSchemaErr), zap.Uint32("schema_id", schemaID))
 			return []error{getSchemaErr}
@@ -120,7 +121,7 @@ func (src *SchemaRegistryConfig) UnmarshalMessage(
 ) error {
 	unmarshalErrs := src.unmarshalMessage(ctx, msg.Value, target)
 	if len(unmarshalErrs) > 0 {
-		Logger.Error(
+		log.Get(ctx).Error(
 			"Unable to unmarshal from Avro", zap.Errors("errors", unmarshalErrs),
 			zap.String("type", reflect.TypeOf(target).String()))
 		return fmt.Errorf("unable to unmarshal from Avro")

@@ -149,27 +149,3 @@ func TestInitializeLogger(t *testing.T) {
 		})
 	}
 }
-
-func TestCreateStdLogger(t *testing.T) {
-	tests := []struct {
-		name        string
-		logLevel    int
-		expectError bool
-	}{
-		{
-			"debug logger returns a logger at debug level",
-			zapcore.DebugLevel,
-			false,
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			testLogger, err := CreateStdLogger(logger, test.logLevel)
-			if expectError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}

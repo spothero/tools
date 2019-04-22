@@ -28,7 +28,9 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rcrowley/go-metrics"
+	"github.com/spothero/tools/log"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 // KafkaMessageUnmarshaler defines an interface for unmarshaling messages received from Kafka to Go types
@@ -99,7 +101,7 @@ type KafkaConsumerIface interface {
 // TLS that can be used to create consumers or producers
 func (kc KafkaConfig) NewKafkaClient(ctx context.Context) (KafkaClient, error) {
 	if kc.Verbose {
-		saramaLogger, err := CreateStdLogger(Logger.Named("sarama"), "info")
+		saramaLogger, err := zap.NewStdLogAt(log.Get(ctx).Named("sarama"), zapcore.InfoLevel)
 		if err != nil {
 			panic(err)
 		}
@@ -143,7 +145,7 @@ func (kc KafkaConfig) NewKafkaClient(ctx context.Context) (KafkaClient, error) {
 	if kc.TLSCrtPath != "" && kc.TLSKeyPath != "" {
 		cer, err := tls.LoadX509KeyPair(kc.TLSCrtPath, kc.TLSKeyPath)
 		if err != nil {
-			Logger.Panic("Failed to load Kafka Server TLS Certificates", zap.Error(err))
+			log.Get(ctx).Panic("Failed to load Kafka Server TLS Certificates", zap.Error(err))
 		}
 		kafkaConfig.Net.TLS.Config = &tls.Config{
 			Certificates:       []tls.Certificate{cer},
@@ -155,7 +157,7 @@ func (kc KafkaConfig) NewKafkaClient(ctx context.Context) (KafkaClient, error) {
 		if kc.TLSCaCrtPath != "" {
 			caCert, err := ioutil.ReadFile(kc.TLSCaCrtPath)
 			if err != nil {
-				Logger.Panic("Failed to load Kafka Server CA Certificate", zap.Error(err))
+				log.Get(ctx).Panic("Failed to load Kafka Server CA Certificate", zap.Error(err))
 			}
 			if len(caCert) > 0 {
 				caCertPool := x509.NewCertPool()
@@ -182,7 +184,7 @@ func (kc KafkaClient) NewKafkaConsumer() (KafkaConsumer, error) {
 	consumer, err := sarama.NewConsumerFromClient(kc.client)
 	if err != nil {
 		if closeErr := kc.client.Close(); closeErr != nil {
-			Logger.Error("Error closing Kafka client", zap.Error(err))
+			log.Get(context.Background()).Error("Error closing Kafka client", zap.Error(err))
 		}
 		return KafkaConsumer{}, err
 	}
@@ -207,7 +209,7 @@ func (kc KafkaClient) NewKafkaProducer() (KafkaProducer, error) {
 	producer, err := sarama.NewAsyncProducerFromClient(kc.client)
 	if err != nil {
 		if closeErr := producer.Close(); closeErr != nil {
-			Logger.Error("Error closing Kafka producer", zap.Error(err))
+			log.Get(context.Background()).Error("Error closing Kafka producer", zap.Error(err))
 		}
 		return KafkaProducer{}, err
 	}
@@ -221,7 +223,7 @@ func (kc KafkaClient) NewKafkaProducer() (KafkaProducer, error) {
 // Close the underlying Kafka client
 func (kc KafkaClient) Close() {
 	if err := kc.client.Close(); err != nil {
-		Logger.Error("Error closing Kafka client", zap.Error(err))
+		log.Get(context.Background()).Error("Error closing Kafka client", zap.Error(err))
 	}
 }
 
@@ -240,7 +242,7 @@ func (kc KafkaConfig) updateBrokerMetrics(registry metrics.Registry) {
 				metricVal = float64(histValues[len(histValues)-1])
 			}
 		default:
-			Logger.Warn(
+			log.Get(context.Background()).Warn(
 				"Unknown metric type found while exporting Sarama metrics",
 				zap.String("type", reflect.TypeOf(metric).String()))
 			return
@@ -340,7 +342,7 @@ func (kc *KafkaConfig) initKafkaMetrics(registry prometheus.Registerer) {
 func (kc KafkaConsumer) Close() {
 	err := kc.consumer.Close()
 	if err != nil {
-		Logger.Error("Error closing Kafka consumer", zap.Error(err))
+		log.Get(context.Background()).Error("Error closing Kafka consumer", zap.Error(err))
 	}
 }
 
@@ -365,7 +367,7 @@ func (kc KafkaConsumer) ConsumeTopic(
 	catchupWg *sync.WaitGroup,
 	exitAfterCaughtUp bool,
 ) error {
-	Logger.Info("Starting Kafka consumer", zap.String("topic", topic))
+	log.Get(ctx).Info("Starting Kafka consumer", zap.String("topic", topic))
 	var partitionsCatchupWg sync.WaitGroup
 	partitions, err := kc.consumer.Partitions(topic)
 	if err != nil {
@@ -396,12 +398,12 @@ func (kc KafkaConsumer) ConsumeTopic(
 		partitionsCatchupWg.Wait()
 		if catchupWg != nil {
 			catchupWg.Done()
-			Logger.Info("All partitions caught up", zap.String("topic", topic))
+			log.Get(ctx).Info("All partitions caught up", zap.String("topic", topic))
 		}
 
 		readToOffsets := make(PartitionOffsets)
 		defer func() {
-			Logger.Info("All partition consumers closed", zap.String("topic", topic))
+			log.Get(ctx).Info("All partition consumers closed", zap.String("topic", topic))
 			if readResult != nil {
 				readResult <- readToOffsets
 			}
@@ -485,7 +487,7 @@ func (kc KafkaConsumer) consumePartition(
 ) {
 	partitionConsumer, err := kc.consumer.ConsumePartition(topic, partition, startOffset)
 	if err != nil {
-		Logger.Panic(
+		log.Get(ctx).Panic(
 			"Failed to create Kafka partition consumer",
 			zap.String("topic", topic), zap.Int32("partition", partition),
 			zap.Int64("start_offset", startOffset), zap.Error(err))
@@ -496,11 +498,11 @@ func (kc KafkaConsumer) consumePartition(
 	defer func() {
 		err := partitionConsumer.Close()
 		if err != nil {
-			Logger.Error(
+			log.Get(ctx).Error(
 				"Error closing Kafka partition consumer",
 				zap.Error(err), zap.String("topic", topic), zap.Int32("partition", partition))
 		} else {
-			Logger.Debug(
+			log.Get(ctx).Debug(
 				"Kafka partition consumer closed", zap.String("topic", topic),
 				zap.Int32("partition", partition))
 		}
@@ -509,7 +511,7 @@ func (kc KafkaConsumer) consumePartition(
 
 	caughtUp := false
 	if caughtUpOffset == -1 {
-		Logger.Debug(
+		log.Get(ctx).Debug(
 			"No messages on partition for topic, consumer is caught up", zap.String("topic", topic),
 			zap.Int32("partition", partition))
 		catchupWg.Done()
@@ -530,7 +532,7 @@ func (kc KafkaConsumer) consumePartition(
 			curOffset = msg.Offset
 			if !ok {
 				kc.KafkaConfig.messageErrors.With(promLabels).Add(1)
-				Logger.Error(
+				log.Get(ctx).Error(
 					"Unable to process message from Kafka",
 					zap.ByteString("key", msg.Key), zap.Int64("offset", msg.Offset),
 					zap.Int32("partition", msg.Partition), zap.String("topic", msg.Topic),
@@ -539,7 +541,7 @@ func (kc KafkaConsumer) consumePartition(
 			}
 			timer := prometheus.NewTimer(kc.KafkaConfig.messageProcessingTime.With(promLabels))
 			if err := handler.HandleMessage(ctx, msg, kc.messageUnmarshaler); err != nil {
-				Logger.Error(
+				log.Get(ctx).Error(
 					"Error handling message",
 					zap.String("topic", topic),
 					zap.Int32("partition", partition),
@@ -553,7 +555,7 @@ func (kc KafkaConsumer) consumePartition(
 			if msg.Offset == caughtUpOffset {
 				caughtUp = true
 				catchupWg.Done()
-				Logger.Debug(
+				log.Get(ctx).Debug(
 					"Successfully read to target Kafka offset",
 					zap.String("topic", topic), zap.Int32("partition", partition),
 					zap.Int64("offset", msg.Offset))
@@ -563,7 +565,7 @@ func (kc KafkaConsumer) consumePartition(
 			}
 		case err := <-partitionConsumer.Errors():
 			kc.KafkaConfig.errorsProcessed.With(promLabels).Add(1)
-			Logger.Error("Encountered an error from Kafka", zap.Error(err))
+			log.Get(ctx).Error("Encountered an error from Kafka", zap.Error(err))
 		case <-ctx.Done():
 			if !caughtUp {
 				// signal to the catchup wg that we're done if there's been a cancellation request
@@ -590,11 +592,11 @@ func (kp KafkaProducer) RunProducer(messages <-chan *sarama.ProducerMessage, don
 	go func() {
 		defer func() {
 			// channel closed, initiate producer shutdown
-			Logger.Debug("closing kafka producer")
+			log.Get(context.Background()).Debug("closing kafka producer")
 			// wait for error and successes channels to close
 			kp.producer.AsyncClose()
 			closeWg.Wait()
-			Logger.Debug("kafka producer closed")
+			log.Get(context.Background()).Debug("kafka producer closed")
 			done <- true
 		}()
 		for message := range messages {
@@ -611,10 +613,10 @@ func (kp KafkaProducer) RunProducer(messages <-chan *sarama.ProducerMessage, don
 				if _key, err := err.Msg.Key.Encode(); err == nil {
 					key = _key
 				} else {
-					Logger.Error("could not encode produced message key", zap.Error(err))
+					log.Get(context.Background()).Error("could not encode produced message key", zap.Error(err))
 				}
 			}
-			Logger.Error(
+			log.Get(context.Background()).Error(
 				"Error producing Kafka message",
 				zap.String("topic", err.Msg.Topic),
 				zap.String("key", string(key)),

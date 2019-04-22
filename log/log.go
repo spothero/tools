@@ -136,23 +136,3 @@ func Get(ctx context.Context) *zap.Logger {
 	}
 	return logger
 }
-
-// CreateStdLogger returns a standard-library compatible logger. This function is primarily
-// intended for use with dependency libraries. If possible, always prefer to use the Zap logger.
-func CreateStdLogger(zapLogger *zap.Logger, logLevel string) (*log.Logger, error) {
-	switch {
-	case logLevel == "debug":
-		return zap.NewStdLogAt(zapLogger, zapcore.DebugLevel)
-	case logLevel == "info":
-		return zap.NewStdLogAt(zapLogger, zapcore.InfoLevel)
-	case logLevel == "warn":
-		return zap.NewStdLogAt(zapLogger, zapcore.WarnLevel)
-	case logLevel == "error":
-		return zap.NewStdLogAt(zapLogger, zapcore.ErrorLevel)
-	case logLevel == "panic":
-		return zap.NewStdLogAt(zapLogger, zapcore.PanicLevel)
-	case logLevel == "fatal":
-		return zap.NewStdLogAt(zapLogger, zapcore.FatalLevel)
-	}
-	return nil, fmt.Errorf("unknown log level %s", logLevel)
-}

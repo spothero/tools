@@ -15,10 +15,12 @@
 package kafka
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"time"
 
+	"github.com/spothero/tools/log"
 	"go.uber.org/zap"
 )
 
@@ -150,13 +152,13 @@ func (kmd *kafkaMessageDecoder) unmarshalKafkaMessageMap(kafkaMessageMap map[str
 			default:
 				err = fmt.Errorf(
 					"unhandled Avro type %s, field with tag %s will not be set", field.Type().String(), tag)
-				Logger.Error(
+				log.Get(context.Background()).Error(
 					"Unhandled Avro type! This field will not be set!",
 					zap.String("field_type", field.Type().String()), zap.String("field_tag", tag))
 			}
 		} else {
 			err = fmt.Errorf("cannot set invalid field with tag %s", tag)
-			Logger.Error(
+			log.Get(context.Background()).Error(
 				"Cannot set invalid field", zap.String("field_tag", tag),
 				zap.Bool("field_can_set", field.CanSet()),
 				zap.Bool("field_is_valid", field.IsValid()))

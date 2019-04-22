@@ -15,6 +15,7 @@
 package tracing
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -66,16 +67,17 @@ func (tc *TracingConfig) ConfigureTracer() io.Closer {
 		Disabled:    !tc.Enabled,
 	}
 
+	logger := log.Get(context.Background()).Named("jaeger")
 	tracer, closer, err := jaegerConfig.NewTracer(
-		jaegercfg.Logger(jaegerzap.NewLogger(Logger.Named("jaeger"))))
+		jaegercfg.Logger(jaegerzap.NewLogger(logger)))
 	if err != nil {
-		Logger.Error("Couldn't initialize Jaeger tracer", zap.Error(err))
+		logger.Error("Couldn't initialize Jaeger tracer", zap.Error(err))
 		return nil
 	}
 	if !tc.Enabled {
-		Logger.Info("Jaeger tracer configured but disabled")
+		logger.Info("Jaeger tracer configured but disabled")
 	} else {
-		Logger.Info("Configured Jaeger tracer")
+		logger.Info("Configured Jaeger tracer")
 	}
 	opentracing.SetGlobalTracer(tracer)
 	return closer
