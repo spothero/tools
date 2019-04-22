@@ -68,7 +68,7 @@ func main() {
 		GitSHA:           gitSHA,
 		RegisterHandlers: registerHandlers,
 	}
-	if err := serverCmd.DefaultServer().Execute(); err != nil {
+	if err := serverCmd.ServerCmd().Execute(); err != nil {
 		os.Exit(1)
 	}
 }

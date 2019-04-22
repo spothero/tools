@@ -20,6 +20,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
 	"github.com/spothero/tools"
 	shHTTP "github.com/spothero/tools/http"
@@ -36,11 +37,14 @@ type HTTPConfig struct {
 	RegisterHandlers func(*mux.Router)                                                  // Router registration callback
 	PreStart         func(ctx context.Context, router *mux.Router, server *http.Server) // Server pre-start callback
 	PostShutdown     func(ctx context.Context)                                          // Server post-shutdown callback
+	Registry         *prometheus.Registry                                               // An existing Prometheus Registry. If nil (default), the global registry is used
 }
 
-// DefaultServer creates and returns a Cobra and Viper command preconfigured to run a
-// production-quality HTTP server.
-func (hc HTTPConfig) DefaultServer() *cobra.Command {
+// ServerCmd creates and returns a Cobra and Viper command preconfigured to run a
+// production-quality HTTP server. Note that this function returns the Default HTTP server for use
+// at SpotHero. Consumers of the tools libraries are free to define their own server entrypoints if
+// desired. This function is provided as a convenience function that should satisfy most use cases
+func (hc HTTPConfig) ServerCmd() *cobra.Command {
 	// HTTP Config
 	config := shHTTP.NewDefaultConfig(hc.Name)
 	config.Address = hc.Address
@@ -56,7 +60,7 @@ func (hc HTTPConfig) DefaultServer() *cobra.Command {
 	config.RegisterHandlers = hc.RegisterHandlers
 	config.Middleware = shHTTP.Middleware{
 		tools.TracingMiddleware,
-		shHTTP.NewMetrics(hc.Name, nil, true).Middleware,
+		shHTTP.NewMetrics(hc.Name, hc.Registry, true).Middleware,
 		log.LoggingMiddleware,
 	}
 	// Logging Config
@@ -71,13 +75,12 @@ func (hc HTTPConfig) DefaultServer() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:              hc.Name,
 		Short:            "Starts and runs an HTTP Server",
-		Long:             `Starts and runs an HTTP Server`,
+		Long:             "Starts and runs an HTTP Server",
 		Version:          fmt.Sprintf("%s (%s)", hc.Version, hc.GitSHA),
 		PersistentPreRun: tools.CobraBindEnvironmentVariables(hc.Name),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		Run: func(cmd *cobra.Command, args []string) {
 			lc.InitializeLogger()
 			config.NewServer().Run()
-			return nil
 		},
 	}
 	// Register Cobra/Viper CLI Flags
