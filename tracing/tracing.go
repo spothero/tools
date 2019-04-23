@@ -84,8 +84,8 @@ func (c Config) ConfigureTracer() io.Closer {
 }
 
 // TraceOutbound injects outbound HTTP requests with OpenTracing headers
-func TraceOutbound(r *http.Request, span opentracing.Span) {
-	opentracing.GlobalTracer().Inject(
+func TraceOutbound(r *http.Request, span opentracing.Span) error {
+	return opentracing.GlobalTracer().Inject(
 		span.Context(),
 		opentracing.HTTPHeaders,
 		opentracing.HTTPHeadersCarrier(r.Header))

@@ -57,7 +57,13 @@ type Config struct {
 	ProducerCompressionCodec string
 	ProducerCompressionLevel int
 	SchemaRegistry           *SchemaRegistryConfig
-	prometheusMetrics
+	messagesProcessed        *prometheus.GaugeVec
+	messageErrors            *prometheus.GaugeVec
+	messageProcessingTime    *prometheus.SummaryVec
+	errorsProcessed          *prometheus.GaugeVec
+	brokerMetrics            map[string]*prometheus.GaugeVec
+	messagesProduced         *prometheus.GaugeVec
+	errorsProduced           *prometheus.GaugeVec
 }
 
 // Client wraps a sarama client and Kafka configuration and can be used to create producers and consumers
@@ -77,16 +83,6 @@ type Consumer struct {
 type Producer struct {
 	Client
 	producer sarama.AsyncProducer
-}
-
-type prometheusMetrics struct {
-	messagesProcessed     *prometheus.GaugeVec
-	messageErrors         *prometheus.GaugeVec
-	messageProcessingTime *prometheus.SummaryVec
-	errorsProcessed       *prometheus.GaugeVec
-	brokerMetrics         map[string]*prometheus.GaugeVec
-	messagesProduced      *prometheus.GaugeVec
-	errorsProduced        *prometheus.GaugeVec
 }
 
 // ConsumerIface is an interface for consuming messages from a Kafka topic

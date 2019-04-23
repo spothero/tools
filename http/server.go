@@ -149,7 +149,8 @@ func (s Server) Run() {
 	wg.Wait()
 	shutdown, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	s.httpServer.Shutdown(shutdown)
+	err := s.httpServer.Shutdown(shutdown)
+	log.Get(ctx).Error("error shutting down http server", zap.Error(err))
 
 	// Call any existing post-shutdown callback
 	if s.postShutdown != nil {

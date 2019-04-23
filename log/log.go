@@ -67,7 +67,9 @@ func (c *Config) InitializeLogger() error {
 	}
 	if err := level.Set(c.Level); err != nil {
 		fmt.Printf("invalid log level %s - using INFO", c.Level)
-		level.Set("info")
+		if err := level.Set("info"); err != nil {
+			return err
+		}
 	}
 	if c.UseDevelopmentLogger {
 		// Initialize logger with default development options

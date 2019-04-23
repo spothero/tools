@@ -77,7 +77,7 @@ func TestNewServer(t *testing.T) {
 		"/debug/pprof/trace":   true,
 		"/metrics":             true,
 	}
-	server.router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+	err := server.router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 		routeName, err := route.GetPathTemplate()
 		assert.NoError(t, err)
 		if _, ok := expectedRoutes[routeName]; !ok {
@@ -86,6 +86,7 @@ func TestNewServer(t *testing.T) {
 		delete(expectedRoutes, routeName)
 		return nil
 	})
+	assert.NoError(t, err)
 	assert.Lenf(t, expectedRoutes, 0, "some expected routes were not registered: %v", expectedRoutes)
 }
 
@@ -113,7 +114,7 @@ func TestRun(t *testing.T) {
 	timer := time.NewTimer(10 * time.Millisecond)
 	go func() {
 		<-timer.C
-		syscall.Kill(syscall.Getpid(), syscall.SIGUSR1)
+		assert.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGUSR1))
 	}()
 	s.Run()
 	assert.True(t, preStartCalled)

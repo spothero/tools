@@ -90,7 +90,9 @@ func (hc HTTPConfig) ServerCmd() *cobra.Command {
 		Version:          fmt.Sprintf("%s (%s)", hc.Version, hc.GitSHA),
 		PersistentPreRun: cli.CobraBindEnvironmentVariables(hc.Name),
 		Run: func(cmd *cobra.Command, args []string) {
-			lc.InitializeLogger()
+			if err := lc.InitializeLogger(); err != nil {
+				panic("unable to initialize logger")
+			}
 			config.NewServer().Run()
 		},
 	}

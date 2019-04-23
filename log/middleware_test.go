@@ -35,7 +35,8 @@ func TestMiddleware(t *testing.T) {
 	// Override the global logger with the observable
 	core, recordedLogs := observer.New(zapcore.InfoLevel)
 	c := &Config{Cores: []zapcore.Core{core}}
-	c.InitializeLogger()
+	err = c.InitializeLogger()
+	assert.NoError(t, err)
 	logger = zap.New(core)
 
 	deferable, r := Middleware(&sr, req)

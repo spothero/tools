@@ -47,7 +47,7 @@ func CobraBindEnvironmentVariables(prefix string) func(cmd *cobra.Command, _ []s
 				underscoredName := strings.Replace(f.Name, "-", "_", -1)
 				if viper.IsSet(underscoredName) {
 					strV := viper.GetString(underscoredName)
-					cmd.Flags().Set(f.Name, strV)
+					_ = cmd.Flags().Set(f.Name, strV)
 				}
 			}
 		})

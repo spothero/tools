@@ -36,11 +36,14 @@ var appPackage string
 // InitializeRaven Initializes the Raven client. This function should be called as soon as
 // possible after the application configuration is loaded so that raven
 // is setup.
-func (c Config) InitializeRaven() {
-	raven.SetDSN(c.DSN)
+func (c Config) InitializeRaven() error {
+	if err := raven.SetDSN(c.DSN); err != nil {
+		return err
+	}
 	raven.SetEnvironment(c.Environment)
 	raven.SetRelease(c.AppVersion)
 	appPackage = c.AppPackage
+	return nil
 }
 
 // Core Implements a zapcore.Core that sends logged errors to Sentry
