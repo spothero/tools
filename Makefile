@@ -1,4 +1,4 @@
-.PHONY: default_target all build test coverage clean lint
+.PHONY: default_target all build test coverage lint
 
 VERSION ?= $(shell git describe --abbrev=0 --tags | sed 's/v//g')
 GIT_SHA ?= $(shell git rev-parse HEAD)
@@ -19,9 +19,6 @@ test: tidy
 
 coverage: test
 	go tool cover -html=coverage.txt
-
-clean:
-	rm -rf vendor
 
 lint:
 ifdef LINTER_INSTALLED
