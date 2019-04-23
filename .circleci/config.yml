@@ -17,7 +17,7 @@ jobs:
       - checkout
       - run: make tidy
       - run: mkdir -p /tmp/test-reports/unit # CircleCI likes test results to be in sub-directories for naming
-      - run: gotestsum --junitfile /tmp/test-reports/unit/report.xml -- github.com/spothero/tools -race -coverprofile=coverage.txt -covermode=atomic
+      - run: gotestsum --junitfile /tmp/test-reports/unit/report.xml -- ./... -race -coverprofile=coverage.txt -covermode=atomic
       - store_test_results:
           path: /tmp/test-reports
       - run: bash <(curl -s https://codecov.io/bash)
