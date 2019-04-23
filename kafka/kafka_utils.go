@@ -24,10 +24,10 @@ import (
 	"go.uber.org/zap"
 )
 
-type kafkaMessageUnmarshaler interface {
-	unmarshalKafkaMessageMap(kafkaMessageMap map[string]interface{}, target interface{}) []error
+type messageUnmarshaler interface {
+	unmarshalMessageMap(messageMap map[string]interface{}, target interface{}) []error
 }
-type kafkaMessageDecoder struct{}
+type messageDecoder struct{}
 
 // Given a reflected interface value, recursively identify all fields and their related kafka tag
 func extractFieldsTags(value reflect.Value) ([]reflect.Value, []string) {
@@ -53,12 +53,12 @@ func extractFieldsTags(value reflect.Value) ([]reflect.Value, []string) {
 // make every number a float64.
 // Note: This function can currently handle all types of ints, bools, strings,
 // and time.Time types.
-func (kmd *kafkaMessageDecoder) unmarshalKafkaMessageMap(kafkaMessageMap map[string]interface{}, target interface{}) []error {
+func (kmd *messageDecoder) unmarshalMessageMap(messageMap map[string]interface{}, target interface{}) []error {
 	fields, tags := extractFieldsTags(reflect.ValueOf(target).Elem())
 	errs := make([]error, 0)
 	for i := 0; i < len(fields); i++ {
 		tag := tags[i]
-		kafkaValue, valueInMap := kafkaMessageMap[tag]
+		kafkaValue, valueInMap := messageMap[tag]
 		if !valueInMap {
 			continue
 		}

@@ -126,7 +126,7 @@ func (sm *SchemaRegistryClientMock) getSchema(ctx context.Context, schemaID int,
 	return args.String(0), args.Error(1)
 }
 
-func (sm *SchemaRegistryClientMock) unmarshalKafkaMessageMap(kafkaMessageMap map[string]interface{}, target interface{}) []error {
+func (sm *SchemaRegistryClientMock) unmarshalMessageMap(kafkaMessageMap map[string]interface{}, target interface{}) []error {
 	args := sm.Called(kafkaMessageMap)
 	return args.Get(0).([]error)
 }
@@ -160,7 +160,7 @@ func setupMockSchemaRegistry(t *testing.T) (*SchemaRegistryConfig, *SchemaRegist
 func TestUnmarshalMessage(t *testing.T) {
 	mockSchemaRegistry, mockClient, schema, kafkaMessage, avroMessage := setupMockSchemaRegistry(t)
 	mockClient.On("getSchema", 77, mock.Anything).Return(schema, nil)
-	mockClient.On("unmarshalKafkaMessageMap", avroMessage).Return([]error{})
+	mockClient.On("unmarshalMessageMap", avroMessage).Return([]error{})
 	errs := mockSchemaRegistry.unmarshalMessage(context.Background(), kafkaMessage, nil)
 	assert.Empty(t, errs, "there should be no errors unmarshaling")
 	cachedSchema, schemaInCache := mockSchemaRegistry.schemas.Load(uint32(77))
@@ -183,7 +183,7 @@ func TestUnmarshalMessage_InvalidSchema(t *testing.T) {
 func TestUnmarshalMessage_InvalidAvro(t *testing.T) {
 	mockSchemaRegistry, mockClient, schema, kafkaMessage, avroMessage := setupMockSchemaRegistry(t)
 	mockClient.On("getSchema", 77, mock.Anything).Return(schema, nil)
-	mockClient.On("unmarshalKafkaMessageMap", avroMessage).Return([]error{fmt.Errorf("some error")})
+	mockClient.On("unmarshalMessageMap", avroMessage).Return([]error{fmt.Errorf("some error")})
 	errs := mockSchemaRegistry.unmarshalMessage(context.Background(), kafkaMessage, nil)
 	assert.Len(t, errs, 1)
 	_, schemaInCache := mockSchemaRegistry.schemas.Load(uint32(77))

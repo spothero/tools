@@ -17,6 +17,6 @@ package sentry
 import "github.com/spf13/pflag"
 
 // RegisterFlags registers Sentry flags with pflags
-func (sc *SentryConfig) RegisterFlags(flags *pflag.FlagSet) {
-	flags.StringVar(&sc.DSN, "sentry-dsn", "", "Sentry DSN")
+func (c Config) RegisterFlags(flags *pflag.FlagSet) {
+	flags.StringVar(&c.DSN, "sentry-dsn", "", "Sentry DSN")
 }

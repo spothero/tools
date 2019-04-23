@@ -23,8 +23,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// SentryConfig defines the necessary configuration for instantiating a Sentry Reporter
-type SentryConfig struct {
+// Config defines the necessary configuration for instantiating a Sentry Reporter
+type Config struct {
 	DSN         string
 	AppPackage  string
 	Environment string
@@ -36,21 +36,21 @@ var appPackage string
 // InitializeRaven Initializes the Raven client. This function should be called as soon as
 // possible after the application configuration is loaded so that raven
 // is setup.
-func (sc *SentryConfig) InitializeRaven() {
-	raven.SetDSN(sc.DSN)
-	raven.SetEnvironment(sc.Environment)
-	raven.SetRelease(sc.AppVersion)
-	appPackage = sc.AppPackage
+func (c Config) InitializeRaven() {
+	raven.SetDSN(c.DSN)
+	raven.SetEnvironment(c.Environment)
+	raven.SetRelease(c.AppVersion)
+	appPackage = c.AppPackage
 }
 
-// SentryCore Implements a zapcore.Core that sends logged errors to Sentry
-type SentryCore struct {
+// Core Implements a zapcore.Core that sends logged errors to Sentry
+type Core struct {
 	zapcore.LevelEnabler
 	withFields []zapcore.Field
 }
 
 // With adds structured context to the Sentry Core
-func (c *SentryCore) With(fields []zapcore.Field) zapcore.Core {
+func (c *Core) With(fields []zapcore.Field) zapcore.Core {
 	if len(fields) == 0 {
 		return c
 	}
@@ -61,7 +61,7 @@ func (c *SentryCore) With(fields []zapcore.Field) zapcore.Core {
 
 // Check must be called before calling Write. This determines whether or not logs are sent to
 // Sentry
-func (c *SentryCore) Check(ent zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.CheckedEntry {
+func (c *Core) Check(ent zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.CheckedEntry {
 	// send error logs and above to Sentry
 	if ent.Level >= zapcore.ErrorLevel {
 		return ce.AddCore(ent, c)
@@ -70,7 +70,7 @@ func (c *SentryCore) Check(ent zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore
 }
 
 // Write logs the entry and fields supplied at the log site and writes them to their destination
-func (c *SentryCore) Write(ent zapcore.Entry, fields []zapcore.Field) error {
+func (c *Core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 	var severity raven.Severity
 	switch ent.Level {
 	case zapcore.DebugLevel:
@@ -187,7 +187,7 @@ func (c *SentryCore) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 }
 
 // Sync flushes any buffered logs
-func (c *SentryCore) Sync() error {
+func (c *Core) Sync() error {
 	raven.Wait()
 	return nil
 }

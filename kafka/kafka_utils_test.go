@@ -68,8 +68,8 @@ func TestUnmarshalMap(t *testing.T) {
 	kafkaConnectMessage["p"] = true
 	kafkaConnectMessage["q"] = "2018-08-23T15:56:00-05:00"
 
-	messageDecoder := kafkaMessageDecoder{}
-	errs := messageDecoder.unmarshalKafkaMessageMap(kafkaConnectMessage, target)
+	messageDecoder := messageDecoder{}
+	errs := messageDecoder.unmarshalMessageMap(kafkaConnectMessage, target)
 	assert.Empty(t, errs)
 	assert.Equal(t, 1, target.A)
 	assert.Equal(t, int8(2), target.B)
@@ -103,8 +103,8 @@ func TestUnmarshalMap_NullableFields(t *testing.T) {
 	nullable["int"] = int32(123)
 	message["a"] = nullable
 
-	messageDecoder := kafkaMessageDecoder{}
-	errs := messageDecoder.unmarshalKafkaMessageMap(message, target)
+	messageDecoder := messageDecoder{}
+	errs := messageDecoder.unmarshalMessageMap(message, target)
 	assert.Empty(t, errs)
 	assert.Equal(t, 123, target.A)
 }
@@ -116,8 +116,8 @@ func TestUnmarshalMap_NilFields(t *testing.T) {
 	}
 	target := &unmarshalTarget{}
 	message := make(map[string]interface{})
-	messageDecoder := kafkaMessageDecoder{}
-	errs := messageDecoder.unmarshalKafkaMessageMap(message, target)
+	messageDecoder := messageDecoder{}
+	errs := messageDecoder.unmarshalMessageMap(message, target)
 	assert.Empty(t, errs)
 	assert.Equal(t, 0, target.A)
 }
@@ -132,8 +132,8 @@ func TestUnmarshalMap_UnsupportedType(t *testing.T) {
 	message := make(map[string]interface{})
 	message["a"] = []byte{'T', 'H', 'A', 'N', 'K'}
 
-	messageDecoder := kafkaMessageDecoder{}
-	errs := messageDecoder.unmarshalKafkaMessageMap(message, target)
+	messageDecoder := messageDecoder{}
+	errs := messageDecoder.unmarshalMessageMap(message, target)
 	require.Len(t, errs, 1)
 	expectedErr := fmt.Errorf("unhandled Avro type []uint8, field with tag a will not be set")
 	assert.Equal(t, expectedErr, errs[0])
@@ -149,8 +149,8 @@ func TestUnmarshalMap_UnexportedField(t *testing.T) {
 	message := make(map[string]interface{})
 	message["a"] = 1
 
-	messageDecoder := kafkaMessageDecoder{}
-	errs := messageDecoder.unmarshalKafkaMessageMap(message, target)
+	messageDecoder := messageDecoder{}
+	errs := messageDecoder.unmarshalMessageMap(message, target)
 	require.Len(t, errs, 1)
 	expectedErr := fmt.Errorf("cannot set invalid field with tag a")
 	assert.Equal(t, expectedErr, errs[0])
@@ -176,8 +176,8 @@ func TestUnmarshalMap_Struct(t *testing.T) {
 	message["b"] = int32(2)
 	message["c"] = "data"
 	message["d"] = time.Unix(1522083600, 0).UTC().Unix() * 1000
-	messageDecoder := kafkaMessageDecoder{}
-	errs := messageDecoder.unmarshalKafkaMessageMap(message, target)
+	messageDecoder := messageDecoder{}
+	errs := messageDecoder.unmarshalMessageMap(message, target)
 	assert.Empty(t, errs)
 	assert.Equal(t, 1, target.A)
 	assert.Equal(t, 2, target.B)

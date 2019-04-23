@@ -30,7 +30,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type kafkaSchemaRegistryClient interface {
+type schemaRegistry interface {
 	getSchema(ctx context.Context, schemaID int, schemaRegistryURL string) (string, error)
 }
 
@@ -40,8 +40,8 @@ type schemaRegistryClient struct{}
 type SchemaRegistryConfig struct {
 	SchemaRegistryURL  string
 	schemas            sync.Map
-	client             kafkaSchemaRegistryClient
-	messageUnmarshaler kafkaMessageUnmarshaler
+	client             schemaRegistry
+	messageUnmarshaler messageUnmarshaler
 }
 
 func (src *schemaRegistryClient) getSchema(ctx context.Context, schemaID int, schemaRegistryURL string) (string, error) {
@@ -105,7 +105,7 @@ func (src *SchemaRegistryConfig) unmarshalMessage(ctx context.Context, message [
 	}
 
 	// Unmarshal avro to Go type
-	return src.messageUnmarshaler.unmarshalKafkaMessageMap(decoded.(map[string]interface{}), target)
+	return src.messageUnmarshaler.unmarshalMessageMap(decoded.(map[string]interface{}), target)
 }
 
 // UnmarshalMessage Implements the KafkaMessageUnmarshaler interface.

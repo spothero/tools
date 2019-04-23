@@ -29,7 +29,7 @@ type MockKafkaConsumer struct {
 }
 
 // ConsumeTopic mocks the Kafka consumer ConsumeTopic method
-func (m *MockKafkaConsumer) ConsumeTopic(ctx context.Context, handler KafkaMessageHandler, topic string, offsets PartitionOffsets, readResult chan PartitionOffsets, catchupWg *sync.WaitGroup, exitAfterCaughtUp bool) error {
+func (m *MockKafkaConsumer) ConsumeTopic(ctx context.Context, handler MessageHandler, topic string, offsets PartitionOffsets, readResult chan PartitionOffsets, catchupWg *sync.WaitGroup, exitAfterCaughtUp bool) error {
 	catchupWg.Done()
 	m.Lock()
 	m.readResult = readResult
@@ -38,7 +38,7 @@ func (m *MockKafkaConsumer) ConsumeTopic(ctx context.Context, handler KafkaMessa
 }
 
 // ConsumeTopicFromBeginning mocks the Kafka consumer ConsumeTopicFromBeginning method
-func (m *MockKafkaConsumer) ConsumeTopicFromBeginning(ctx context.Context, handler KafkaMessageHandler, topic string, readResult chan PartitionOffsets, catchupWg *sync.WaitGroup, exitAfterCaughtUp bool) error {
+func (m *MockKafkaConsumer) ConsumeTopicFromBeginning(ctx context.Context, handler MessageHandler, topic string, readResult chan PartitionOffsets, catchupWg *sync.WaitGroup, exitAfterCaughtUp bool) error {
 	catchupWg.Done()
 	m.Lock()
 	m.readResult = readResult
@@ -47,7 +47,7 @@ func (m *MockKafkaConsumer) ConsumeTopicFromBeginning(ctx context.Context, handl
 }
 
 // ConsumeTopicFromLatest mocks the Kafka consumer ConsumeTopicFromLatest method
-func (m *MockKafkaConsumer) ConsumeTopicFromLatest(ctx context.Context, handler KafkaMessageHandler, topic string, readResult chan PartitionOffsets) error {
+func (m *MockKafkaConsumer) ConsumeTopicFromLatest(ctx context.Context, handler MessageHandler, topic string, readResult chan PartitionOffsets) error {
 	m.Lock()
 	m.readResult = readResult
 	m.Unlock()

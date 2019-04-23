@@ -27,10 +27,10 @@ import (
 )
 
 type jsonMessageUnmarshaler struct {
-	messageUnmarshaler kafkaMessageUnmarshaler
+	messageUnmarshaler messageUnmarshaler
 }
 
-// Implements the KafkaMessageUnmarshaler interface and decodes
+// UnmarshalUmessage implements the MessageUnmarshaler interface and decodes
 // Kafka messages from JSON
 func (jmu *jsonMessageUnmarshaler) UnmarshalMessage(
 	ctx context.Context,
@@ -43,7 +43,7 @@ func (jmu *jsonMessageUnmarshaler) UnmarshalMessage(
 	if err := json.Unmarshal(msg.Value, &message); err != nil {
 		return err
 	}
-	unmarshalErrs := jmu.messageUnmarshaler.unmarshalKafkaMessageMap(message, target)
+	unmarshalErrs := jmu.messageUnmarshaler.unmarshalMessageMap(message, target)
 	if len(unmarshalErrs) > 0 {
 		log.Get(ctx).Error(
 			"Unable to unmarshal from JSON", zap.Errors("errors", unmarshalErrs),
