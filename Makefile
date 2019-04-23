@@ -1,5 +1,7 @@
 .PHONY: default_target all build test coverage clean lint
 
+LINTER_INSTALLED := $(shell sh -c 'which golangci-lint')
+
 default_target: all
 
 all: lint test
