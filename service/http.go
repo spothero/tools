@@ -36,6 +36,7 @@ type HTTPConfig struct {
 // production-quality HTTP server. Note that this function returns the Default HTTP server for use
 // at SpotHero. Consumers of the tools libraries are free to define their own server entrypoints if
 // desired. This function is provided as a convenience function that should satisfy most use cases
+// Note that Version and GitSHA *must be specified* before calling this function.
 func (hc HTTPConfig) ServerCmd() *cobra.Command {
 	// HTTP Config
 	config := shHTTP.NewDefaultConfig(hc.Name)
@@ -58,7 +59,6 @@ func (hc HTTPConfig) ServerCmd() *cobra.Command {
 	sc := sentry.Config{
 		Environment: hc.Environment,
 		AppVersion:  hc.Version,
-		AppPackage:  hc.Package,
 	}
 	cmd := &cobra.Command{
 		Use:              hc.Name,
@@ -71,6 +71,9 @@ func (hc HTTPConfig) ServerCmd() *cobra.Command {
 				return err
 			}
 			if err := lc.InitializeLogger(); err != nil {
+				return err
+			}
+			if err := sc.InitializeRaven(); err != nil {
 				return err
 			}
 			config.NewServer().Run()

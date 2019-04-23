@@ -17,6 +17,7 @@ package sentry
 import (
 	"fmt"
 	"math"
+	"runtime/debug"
 	"time"
 
 	"github.com/getsentry/raven-go"
@@ -26,7 +27,6 @@ import (
 // Config defines the necessary configuration for instantiating a Sentry Reporter
 type Config struct {
 	DSN         string
-	AppPackage  string
 	Environment string
 	AppVersion  string
 }
@@ -42,7 +42,12 @@ func (c Config) InitializeRaven() error {
 	}
 	raven.SetEnvironment(c.Environment)
 	raven.SetRelease(c.AppVersion)
-	appPackage = c.AppPackage
+
+	buildInfo, ok := debug.ReadBuildInfo()
+	if !ok {
+		return fmt.Errorf("failed to discover package name from go build info")
+	}
+	appPackage = buildInfo.Main.Path
 	return nil
 }
 

@@ -64,9 +64,10 @@ func bestLanguage(w http.ResponseWriter, r *http.Request) {
 func main() {
 	serverCmd := service.HTTPConfig{
 		Config: service.Config{
-			Name:    "example_server",
-			Version: version,
-			GitSHA:  gitSHA,
+			Name:        "example_server",
+			Version:     version,
+			GitSHA:      gitSHA,
+			Environment: "local",
 		},
 		RegisterHandlers: registerHandlers,
 	}

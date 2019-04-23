@@ -28,7 +28,6 @@ func TestRegisterFlags(t *testing.T) {
 		Version:     "0.1.0",
 		GitSHA:      "abc123",
 		Environment: "test",
-		Package:     "github.com/spothero/tools/service",
 	}
 	c.RegisterFlags(flags)
 	assert.NoError(t, flags.Parse(nil))
@@ -37,21 +36,9 @@ func TestRegisterFlags(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, c.Name, n)
 
-	v, err := flags.GetString("version")
-	assert.NoError(t, err)
-	assert.Equal(t, c.Version, v)
-
-	s, err := flags.GetString("git-sha")
-	assert.NoError(t, err)
-	assert.Equal(t, c.GitSHA, s)
-
 	e, err := flags.GetString("environment")
 	assert.NoError(t, err)
 	assert.Equal(t, c.Environment, e)
-
-	p, err := flags.GetString("package")
-	assert.NoError(t, err)
-	assert.Equal(t, c.Package, p)
 }
 
 func TestCheckFlags(t *testing.T) {
@@ -72,7 +59,6 @@ func TestCheckFlags(t *testing.T) {
 				Version:     "0.1.0",
 				GitSHA:      "abc123",
 				Environment: "test",
-				Package:     "github.com/spothero/tools/service",
 			},
 			false,
 		},
