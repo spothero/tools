@@ -99,11 +99,11 @@ func TestMetricsHook(t *testing.T) {
 		),
 	}
 	metricsHookFunc := metricsHook(c.counter)
-	metricsHookFunc(zapcore.Entry{Level: zapcore.DebugLevel})
+	assert.NoError(t, metricsHookFunc(zapcore.Entry{Level: zapcore.DebugLevel}))
 	counter, err := c.counter.GetMetricWith(prometheus.Labels{"level": "DEBUG"})
 	assert.NoError(t, err)
 	pb := &dto.Metric{}
-	counter.Write(pb)
+	assert.NoError(t, counter.Write(pb))
 	assert.Equal(t, 1, int(pb.Counter.GetValue()))
 	prometheus.Unregister(c.counter)
 }

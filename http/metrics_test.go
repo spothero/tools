@@ -96,7 +96,7 @@ func TestMiddleware(t *testing.T) {
 	histogram, err := metrics.duration.GetMetricWith(labels)
 	assert.NoError(t, err)
 	pb := &dto.Metric{}
-	histogram.(prometheus.Histogram).Write(pb)
+	assert.NoError(t, histogram.(prometheus.Histogram).Write(pb))
 	buckets := pb.Histogram.GetBucket()
 	assert.NotEmpty(t, buckets)
 	for _, bucket := range pb.Histogram.GetBucket() {
@@ -115,7 +115,7 @@ func TestMiddleware(t *testing.T) {
 	counter, err := metrics.counter.GetMetricWith(labels)
 	assert.NoError(t, err)
 	pb = &dto.Metric{}
-	counter.Write(pb)
+	assert.NoError(t, counter.Write(pb))
 	assert.Equal(t, 1, int(pb.Counter.GetValue()))
 	prometheus.Unregister(metrics.counter)
 }

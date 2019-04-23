@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tools
+package tracing
 
 import (
 	"net/http"
@@ -25,7 +25,7 @@ import (
 	jaeger "github.com/uber/jaeger-client-go"
 )
 
-func TestTracingMiddleware(t *testing.T) {
+func TestMiddleware(t *testing.T) {
 	tests := []struct {
 		name              string
 		withExistingTrace bool
@@ -60,7 +60,7 @@ func TestTracingMiddleware(t *testing.T) {
 				rootSpanCtx = span.Context()
 				req = req.WithContext(spanCtx)
 			}
-			deferable, r := TracingMiddleware(&sr, req)
+			deferable, r := Middleware(&sr, req)
 			assert.NotNil(t, r)
 
 			sr.StatusCode = test.statusCode

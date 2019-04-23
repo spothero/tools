@@ -1,4 +1,4 @@
-// Copyright 2018 SpotHero
+// Copyright 2019 SpotHero
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,20 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tools
+package kafka
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"time"
 
+	"github.com/spothero/tools/log"
 	"go.uber.org/zap"
 )
 
-type kafkaMessageUnmarshaler interface {
-	unmarshalKafkaMessageMap(kafkaMessageMap map[string]interface{}, target interface{}) []error
+type messageUnmarshaler interface {
+	unmarshalMessageMap(messageMap map[string]interface{}, target interface{}) []error
 }
-type kafkaMessageDecoder struct{}
+type messageDecoder struct{}
 
 // Given a reflected interface value, recursively identify all fields and their related kafka tag
 func extractFieldsTags(value reflect.Value) ([]reflect.Value, []string) {
@@ -51,12 +53,12 @@ func extractFieldsTags(value reflect.Value) ([]reflect.Value, []string) {
 // make every number a float64.
 // Note: This function can currently handle all types of ints, bools, strings,
 // and time.Time types.
-func (kmd *kafkaMessageDecoder) unmarshalKafkaMessageMap(kafkaMessageMap map[string]interface{}, target interface{}) []error {
+func (kmd *messageDecoder) unmarshalMessageMap(messageMap map[string]interface{}, target interface{}) []error {
 	fields, tags := extractFieldsTags(reflect.ValueOf(target).Elem())
 	errs := make([]error, 0)
 	for i := 0; i < len(fields); i++ {
 		tag := tags[i]
-		kafkaValue, valueInMap := kafkaMessageMap[tag]
+		kafkaValue, valueInMap := messageMap[tag]
 		if !valueInMap {
 			continue
 		}
@@ -150,13 +152,13 @@ func (kmd *kafkaMessageDecoder) unmarshalKafkaMessageMap(kafkaMessageMap map[str
 			default:
 				err = fmt.Errorf(
 					"unhandled Avro type %s, field with tag %s will not be set", field.Type().String(), tag)
-				Logger.Error(
+				log.Get(context.Background()).Error(
 					"Unhandled Avro type! This field will not be set!",
 					zap.String("field_type", field.Type().String()), zap.String("field_tag", tag))
 			}
 		} else {
 			err = fmt.Errorf("cannot set invalid field with tag %s", tag)
-			Logger.Error(
+			log.Get(context.Background()).Error(
 				"Cannot set invalid field", zap.String("field_tag", tag),
 				zap.Bool("field_can_set", field.CanSet()),
 				zap.Bool("field_is_valid", field.IsValid()))

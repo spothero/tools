@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tools
+package tracing
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -31,8 +32,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// TracingConfig defines the necessary configuration for instantiating a Tracer
-type TracingConfig struct {
+// Config defines the necessary configuration for instantiating a Tracer
+type Config struct {
 	Enabled               bool
 	SamplerType           string
 	SamplerParam          float64
@@ -45,51 +46,52 @@ type TracingConfig struct {
 }
 
 // ConfigureTracer instantiates and configures the OpenTracer and returns the tracer closer
-func (tc *TracingConfig) ConfigureTracer() io.Closer {
+func (c Config) ConfigureTracer() io.Closer {
 	samplerConfig := jaegercfg.SamplerConfig{}
-	if tc.SamplerType == "" {
-		tc.SamplerType = jaeger.SamplerTypeConst
+	if c.SamplerType == "" {
+		c.SamplerType = jaeger.SamplerTypeConst
 	}
-	samplerConfig.Type = tc.SamplerType
-	samplerConfig.Param = tc.SamplerParam
+	samplerConfig.Type = c.SamplerType
+	samplerConfig.Param = c.SamplerParam
 
 	reporterConfig := jaegercfg.ReporterConfig{}
-	reporterConfig.LogSpans = tc.ReporterLogSpans
-	reporterConfig.QueueSize = tc.ReporterMaxQueueSize
-	reporterConfig.BufferFlushInterval = tc.ReporterFlushInterval
-	reporterConfig.LocalAgentHostPort = fmt.Sprintf("%s:%d", tc.AgentHost, tc.AgentPort)
+	reporterConfig.LogSpans = c.ReporterLogSpans
+	reporterConfig.QueueSize = c.ReporterMaxQueueSize
+	reporterConfig.BufferFlushInterval = c.ReporterFlushInterval
+	reporterConfig.LocalAgentHostPort = fmt.Sprintf("%s:%d", c.AgentHost, c.AgentPort)
 
 	jaegerConfig := jaegercfg.Configuration{
-		ServiceName: tc.ServiceName,
+		ServiceName: c.ServiceName,
 		Sampler:     &samplerConfig,
 		Reporter:    &reporterConfig,
-		Disabled:    !tc.Enabled,
+		Disabled:    !c.Enabled,
 	}
 
+	logger := log.Get(context.Background()).Named("jaeger")
 	tracer, closer, err := jaegerConfig.NewTracer(
-		jaegercfg.Logger(jaegerzap.NewLogger(Logger.Named("jaeger"))))
+		jaegercfg.Logger(jaegerzap.NewLogger(logger)))
 	if err != nil {
-		Logger.Error("Couldn't initialize Jaeger tracer", zap.Error(err))
+		logger.Error("Couldn't initialize Jaeger tracer", zap.Error(err))
 		return nil
 	}
-	if !tc.Enabled {
-		Logger.Info("Jaeger tracer configured but disabled")
+	if !c.Enabled {
+		logger.Info("Jaeger tracer configured but disabled")
 	} else {
-		Logger.Info("Configured Jaeger tracer")
+		logger.Info("Configured Jaeger tracer")
 	}
 	opentracing.SetGlobalTracer(tracer)
 	return closer
 }
 
 // TraceOutbound injects outbound HTTP requests with OpenTracing headers
-func TraceOutbound(r *http.Request, span opentracing.Span) {
-	opentracing.GlobalTracer().Inject(
+func TraceOutbound(r *http.Request, span opentracing.Span) error {
+	return opentracing.GlobalTracer().Inject(
 		span.Context(),
 		opentracing.HTTPHeaders,
 		opentracing.HTTPHeadersCarrier(r.Header))
 }
 
-// TracingMiddleware extracts the OpenTracing context on all incoming HTTP requests, if present. if
+// Middleware extracts the OpenTracing context on all incoming HTTP requests, if present. if
 // no trace ID is present in the headers, a trace is initiated.
 //
 // The following tags are placed on all incoming HTTP requests:
@@ -103,7 +105,7 @@ func TraceOutbound(r *http.Request, span opentracing.Span) {
 // * error (if the status code is >= 500)
 //
 // The returned HTTP Request includes the wrapped OpenTracing Span Context.
-func TracingMiddleware(sr *writer.StatusRecorder, r *http.Request) (func(), *http.Request) {
+func Middleware(sr *writer.StatusRecorder, r *http.Request) (func(), *http.Request) {
 	wireContext, err := opentracing.GlobalTracer().Extract(
 		opentracing.HTTPHeaders,
 		opentracing.HTTPHeadersCarrier(r.Header))

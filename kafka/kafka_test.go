@@ -1,4 +1,4 @@
-// Copyright 2018 SpotHero
+// Copyright 2019 SpotHero
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tools
+package kafka
 
 import (
 	"context"
@@ -37,7 +37,7 @@ type testHandler struct {
 func (tc *testHandler) HandleMessage(
 	ctx context.Context,
 	msg *sarama.ConsumerMessage,
-	unmarshaler KafkaMessageUnmarshaler,
+	unmarshaler MessageUnmarshaler,
 ) error {
 	tc.Called(ctx, msg, unmarshaler)
 	return nil
@@ -55,13 +55,13 @@ func (msc *mockSaramaClient) GetOffset(topic string, partitionID int32, time int
 	return msc.getOffsetReturn, msc.getOffsetErr
 }
 
-func setupTestConsumer(t *testing.T, clientGetOffsetReturn int, clientGetOffsetError error) (*testHandler, KafkaConsumer, *mocks.Consumer, context.Context, context.CancelFunc) {
+func setupTestConsumer(t *testing.T, clientGetOffsetReturn int, clientGetOffsetError error) (*testHandler, Consumer, *mocks.Consumer, context.Context, context.CancelFunc) {
 	ctx, cancel := context.WithCancel(context.Background())
 	mockConsumer := mocks.NewConsumer(t, nil)
-	config := KafkaConfig{ClientID: "test"}
+	config := Config{ClientID: "test"}
 	config.initKafkaMetrics(prometheus.NewRegistry())
 	mockClient := &mockSaramaClient{getOffsetReturn: int64(clientGetOffsetReturn), getOffsetErr: clientGetOffsetError}
-	consumer := KafkaConsumer{consumer: mockConsumer, KafkaClient: KafkaClient{KafkaConfig: config, client: mockClient}}
+	consumer := Consumer{consumer: mockConsumer, Client: Client{Config: config, client: mockClient}}
 	return &testHandler{}, consumer, consumer.consumer.(*mocks.Consumer), ctx, cancel
 }
 

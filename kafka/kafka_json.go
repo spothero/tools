@@ -1,4 +1,4 @@
-// Copyright 2018 SpotHero
+// Copyright 2019 SpotHero
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tools
+package kafka
 
 import (
 	"context"
@@ -22,14 +22,15 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/opentracing/opentracing-go"
+	"github.com/spothero/tools/log"
 	"go.uber.org/zap"
 )
 
 type jsonMessageUnmarshaler struct {
-	messageUnmarshaler kafkaMessageUnmarshaler
+	messageUnmarshaler messageUnmarshaler
 }
 
-// Implements the KafkaMessageUnmarshaler interface and decodes
+// UnmarshalUmessage implements the MessageUnmarshaler interface and decodes
 // Kafka messages from JSON
 func (jmu *jsonMessageUnmarshaler) UnmarshalMessage(
 	ctx context.Context,
@@ -42,9 +43,9 @@ func (jmu *jsonMessageUnmarshaler) UnmarshalMessage(
 	if err := json.Unmarshal(msg.Value, &message); err != nil {
 		return err
 	}
-	unmarshalErrs := jmu.messageUnmarshaler.unmarshalKafkaMessageMap(message, target)
+	unmarshalErrs := jmu.messageUnmarshaler.unmarshalMessageMap(message, target)
 	if len(unmarshalErrs) > 0 {
-		Logger.Error(
+		log.Get(ctx).Error(
 			"Unable to unmarshal from JSON", zap.Errors("errors", unmarshalErrs),
 			zap.String("type", reflect.TypeOf(target).String()))
 		return fmt.Errorf("unable to unmarshal from JSON")
