@@ -63,9 +63,11 @@ func bestLanguage(w http.ResponseWriter, r *http.Request) {
 // This is the main entrypoint of the program. Here we create our root command and then execute it.
 func main() {
 	serverCmd := service.HTTPConfig{
-		Name:             "example_server",
-		Version:          version,
-		GitSHA:           gitSHA,
+		Config: service.Config{
+			Name:    "example_server",
+			Version: version,
+			GitSHA:  gitSHA,
+		},
 		RegisterHandlers: registerHandlers,
 	}
 	if err := serverCmd.ServerCmd().Execute(); err != nil {

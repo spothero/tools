@@ -23,45 +23,22 @@ import (
 )
 
 func TestDefaultServer(t *testing.T) {
-	tests := []struct {
-		name string
-		c    HTTPConfig
-	}{
-		{
-			"when no port or address are specified, 0.0.0.0:8080 is used",
-			HTTPConfig{
-				Name:     "test",
-				Address:  "",
-				Port:     0,
-				Registry: prometheus.NewRegistry(),
-				Version:  "0.1.0",
-				GitSHA:   "abc123",
-			},
-		},
-		{
-			"when a port and address are specified, they are used",
-			HTTPConfig{
-				Name:     "test",
-				Address:  "127.0.0.1",
-				Port:     62000,
-				Registry: prometheus.NewRegistry(),
-				Version:  "0.1.0",
-				GitSHA:   "abc123",
-			},
+	c := HTTPConfig{
+		Config: Config{
+			Name:     "test",
+			Registry: prometheus.NewRegistry(),
+			Version:  "0.1.0",
+			GitSHA:   "abc123",
 		},
 	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			cmd := test.c.ServerCmd()
-			assert.NotNil(t, cmd)
-			assert.NotZero(t, cmd.Use)
-			assert.NotZero(t, cmd.Short)
-			assert.NotZero(t, cmd.Long)
-			assert.True(t, strings.Contains(cmd.Version, test.c.Version))
-			assert.True(t, strings.Contains(cmd.Version, test.c.GitSHA))
-			assert.NotNil(t, cmd.PersistentPreRun)
-			assert.NotNil(t, cmd.Run)
-			assert.True(t, cmd.Flags().HasFlags())
-		})
-	}
+	cmd := c.ServerCmd()
+	assert.NotNil(t, cmd)
+	assert.NotZero(t, cmd.Use)
+	assert.NotZero(t, cmd.Short)
+	assert.NotZero(t, cmd.Long)
+	assert.True(t, strings.Contains(cmd.Version, c.Version))
+	assert.True(t, strings.Contains(cmd.Version, c.GitSHA))
+	assert.NotNil(t, cmd.PersistentPreRun)
+	assert.NotNil(t, cmd.RunE)
+	assert.True(t, cmd.Flags().HasFlags())
 }
