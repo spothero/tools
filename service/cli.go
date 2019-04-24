@@ -50,7 +50,7 @@ func (c Config) CheckFlags() error {
 		errors = append(errors, "no version provided")
 	}
 	if c.GitSHA == "" {
-		errors = append(errors, "not git sha provided")
+		errors = append(errors, "no git sha provided")
 	}
 	if len(errors) > 0 {
 		return fmt.Errorf(strings.Join(errors, ", "))
