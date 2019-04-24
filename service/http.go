@@ -15,7 +15,9 @@
 package service
 
 import (
+	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/gorilla/mux"
 	"github.com/spf13/cobra"
@@ -29,7 +31,9 @@ import (
 
 type HTTPConfig struct {
 	Config
-	RegisterHandlers func(*mux.Router)
+	RegisterHandlers func(*mux.Router)                                                  // Callback function which registers gorilla mux routes
+	PreStart         func(ctx context.Context, router *mux.Router, server *http.Server) // A function to be called before starting the web server
+	PostShutdown     func(ctx context.Context)                                          // A function to be called before stopping the web server
 }
 
 // ServerCmd creates and returns a Cobra and Viper command preconfigured to run a
@@ -41,6 +45,8 @@ func (hc HTTPConfig) ServerCmd() *cobra.Command {
 	// HTTP Config
 	config := shHTTP.NewDefaultConfig(hc.Name)
 	config.RegisterHandlers = hc.RegisterHandlers
+	config.PreStart = hc.PreStart
+	config.PostShutdown = hc.PostShutdown
 	config.Middleware = shHTTP.Middleware{
 		tracing.Middleware,
 		shHTTP.NewMetrics(hc.Name, hc.Registry, true).Middleware,
