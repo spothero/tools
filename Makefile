@@ -6,13 +6,10 @@ LINTER_INSTALLED := $(shell sh -c 'which golangci-lint')
 
 all: lint test
 
-tidy: ## Prunes unneeded dependencies and adds any other needed dependencies
-	go mod tidy
-
-build: tidy ## Builds application artifacts
+build: ## Builds application artifacts
 	go build -ldflags="-X main.version=${VERSION} -X main.gitSHA=${GIT_SHA}" examples/example_server.go
 
-test: tidy ## Runs application tests
+test: ## Runs application tests
 	go test -race -v ./... -coverprofile=coverage.txt -covermode=atomic
 
 coverage: test ## Displays test coverage report
