@@ -7,7 +7,6 @@ jobs:
     steps:
       - checkout
       - run: curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b /go/bin latest
-      - run: make tidy
       - run: make lint
   test:
     docker:
@@ -15,7 +14,6 @@ jobs:
     working_directory: /tmp/tools
     steps:
       - checkout
-      - run: make tidy
       - run: mkdir -p /tmp/test-reports/unit # CircleCI likes test results to be in sub-directories for naming
       - run: gotestsum --junitfile /tmp/test-reports/unit/report.xml -- ./... -race -coverprofile=coverage.txt -covermode=atomic
       - store_test_results:
