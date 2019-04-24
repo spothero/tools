@@ -10,9 +10,6 @@ The SpotHero Tools Library is used internally at SpotHero across our Go programs
 collection of common utilities and functions that don't yet stand on their own as individual
 libraries.
 
-Additionally, an example server, template Makefile, and yeoman project generator are provided as a
-convenience for users.
-
 We welcome community usage and collaboration.
 
 #### Running the Example Server
