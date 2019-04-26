@@ -66,6 +66,8 @@ func (hc HTTPConfig) ServerCmd() *cobra.Command {
 		Environment: hc.Environment,
 		AppVersion:  hc.Version,
 	}
+	// Tracing Config
+	tc := tracing.Config{ServiceName: hc.Name}
 	cmd := &cobra.Command{
 		Use:              hc.Name,
 		Short:            "Starts and runs an HTTP Server",
@@ -82,6 +84,8 @@ func (hc HTTPConfig) ServerCmd() *cobra.Command {
 			if err := sc.InitializeRaven(); err != nil {
 				return err
 			}
+			closer := tc.ConfigureTracer()
+			defer closer.Close()
 			config.NewServer().Run()
 			return nil
 		},
@@ -92,5 +96,6 @@ func (hc HTTPConfig) ServerCmd() *cobra.Command {
 	config.RegisterFlags(flags)
 	lc.RegisterFlags(flags)
 	sc.RegisterFlags(flags)
+	tc.RegisterFlags(flags)
 	return cmd
 }
