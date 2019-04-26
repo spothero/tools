@@ -17,7 +17,7 @@ package tracing
 import "github.com/spf13/pflag"
 
 // RegisterFlags registers Tracer flags with pflags
-func (c *Config) RegisterFlags(flags *pflag.FlagSet, defaultTracerName string) {
+func (c Config) RegisterFlags(flags *pflag.FlagSet) {
 	flags.BoolVarP(&c.Enabled, "tracer-enabled", "t", true, "Enable tracing")
 	flags.StringVar(&c.SamplerType, "tracer-sampler-type", "", "Tracer sampler type")
 	flags.Float64Var(&c.SamplerParam, "tracer-sampler-param", 1.0, "Tracer sampler param")
@@ -26,5 +26,5 @@ func (c *Config) RegisterFlags(flags *pflag.FlagSet, defaultTracerName string) {
 	flags.DurationVar(&c.ReporterFlushInterval, "tracer-reporter-flush-interval", 1000000000, "Tracer Reporter Flush Interval in nanoseconds")
 	flags.StringVar(&c.AgentHost, "tracer-agent-host", "localhost", "Tracer Agent Host")
 	flags.IntVar(&c.AgentPort, "tracer-agent-port", 5775, "Tracer Agent Port")
-	flags.StringVar(&c.ServiceName, "tracer-service-name", defaultTracerName, "Determines the service name for the Tracer UI")
+	flags.StringVar(&c.ServiceName, "tracer-service-name", c.ServiceName, "Determines the service name for the Tracer UI")
 }
