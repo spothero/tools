@@ -40,10 +40,16 @@ func TestFetchRoutePathTemplate(t *testing.T) {
 		expectedOutcome string
 	}{
 		{
-			"when the path is registered we should receive the path template",
+			"when the bare path is registered we should receive the bare path template",
 			"/",
 			"/",
 			"/",
+		},
+		{
+			"when a path is registered we should receive the path template",
+			"/path/{param}",
+			"/path/1",
+			"/path/{param}",
 		},
 		{
 			"when the path is not registered we should receive an empty string",
