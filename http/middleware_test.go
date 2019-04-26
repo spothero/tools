@@ -36,7 +36,7 @@ func TestHandler(t *testing.T) {
 	httpRec := httptest.NewRecorder()
 	req, err := http.NewRequest("GET", "/", nil)
 	assert.NoError(t, err)
-	http.HandlerFunc(mw.handler(mux.NewRouter())).ServeHTTP(httpRec, req)
+	http.Handler(mw.handler(mux.NewRouter())).ServeHTTP(httpRec, req)
 	assert.True(t, middlewareCalled)
 	assert.True(t, deferableCalled)
 }

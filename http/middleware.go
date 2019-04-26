@@ -45,7 +45,7 @@ type Middleware []MiddlewareFunc
 // * Auth enforcement
 // * Checking for specific headers: version, content-type, etc
 // * Rate limiting
-func (m Middleware) handler(next http.Handler) http.HandlerFunc {
+func (m Middleware) handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Default to http.StatusOK which is the golang default if the status is not set.
 		wrappedWriter := &writer.StatusRecorder{ResponseWriter: w, StatusCode: http.StatusOK}

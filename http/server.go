@@ -78,6 +78,7 @@ func NewDefaultConfig(name string) Config {
 // NewServer uses the given http Config to create and return a server ready to be run.
 func (c Config) NewServer() Server {
 	router := mux.NewRouter()
+	router.Use(c.Middleware.handler)
 	if c.HealthHandler {
 		router.HandleFunc("/health", healthHandler)
 	}
@@ -97,7 +98,7 @@ func (c Config) NewServer() Server {
 	return Server{
 		httpServer: &http.Server{
 			Addr:         fmt.Sprintf("%s:%d", c.Address, c.Port),
-			Handler:      c.Middleware.handler(router),
+			Handler:      router,
 			ReadTimeout:  time.Duration(c.ReadTimeout) * time.Second,
 			WriteTimeout: time.Duration(c.WriteTimeout) * time.Second,
 		},
