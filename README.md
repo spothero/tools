@@ -24,6 +24,7 @@ We welcome community usage and collaboration.
 5. Open your browser to `http://localhost:8080`
 
 #### Overview
+
 This library contains common modules for use in all GoLang projects across SpotHero. To use this
 library simply import one of the packages in this library into your project and go modules will
 handle the rest.
@@ -65,4 +66,5 @@ Additionally, the [Makefile](Makefile) for this project serves as an example whi
 borrow for your own projects.
 
 ### License
+
 Apache 2.0
