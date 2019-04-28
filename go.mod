@@ -10,6 +10,8 @@ require (
 	github.com/getsentry/raven-go v0.2.0
 	github.com/gorilla/mux v1.7.1
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/jmoiron/sqlx v1.2.0
+	github.com/lib/pq v1.1.0
 	github.com/linkedin/goavro v2.1.0+incompatible
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/pkg/errors v0.8.1 // indirect
