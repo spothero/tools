@@ -58,7 +58,7 @@ func metricsHook(counter *prometheus.CounterVec) func(entry zapcore.Entry) error
 // InitializeLogger sets up the logger. This function should be called as soon
 // as possible. Any use of the logger provided by this package will be a nop
 // until this function is called.
-func (c *Config) InitializeLogger() error {
+func (c Config) InitializeLogger() error {
 	var err error
 	var logConfig zap.Config
 	var level zapcore.Level
@@ -66,7 +66,7 @@ func (c *Config) InitializeLogger() error {
 		c.Encoding = "json"
 	}
 	if err := level.Set(c.Level); err != nil {
-		fmt.Printf("invalid log level %s - using INFO", c.Level)
+		fmt.Printf("invalid log level %s - using INFO\n", c.Level)
 		level = zapcore.InfoLevel
 	}
 	if c.UseDevelopmentLogger {

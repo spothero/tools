@@ -17,7 +17,7 @@ package tracing
 import "github.com/spf13/pflag"
 
 // RegisterFlags registers Tracer flags with pflags
-func (c Config) RegisterFlags(flags *pflag.FlagSet) {
+func (c *Config) RegisterFlags(flags *pflag.FlagSet) {
 	flags.BoolVarP(&c.Enabled, "tracer-enabled", "t", true, "Enable tracing")
 	flags.StringVar(&c.SamplerType, "tracer-sampler-type", "", "Tracer sampler type")
 	flags.Float64Var(&c.SamplerParam, "tracer-sampler-param", 1.0, "Tracer sampler param")
