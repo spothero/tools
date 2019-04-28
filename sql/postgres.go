@@ -24,6 +24,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"github.com/spothero/tools/log"
+	"go.uber.org/zap"
 )
 
 // PostgresConfig defines Postgres SQL connection information
@@ -50,10 +51,11 @@ func NewPostgresConfig(dbName string) PostgresConfig {
 	}
 }
 
-// Connect uses the given Config object to establish a connection with the database
-func (pc PostgresConfig) Connect() (*sqlx.DB, error) {
+// buildURL transforms the PostgresConfig into a usable connection string for lib/pq. If a missing
+// or invalid field is provided, an error is returned.
+func (pc PostgresConfig) buildConnectionString() (string, error) {
 	if pc.Database == "" {
-		return nil, fmt.Errorf("postgres database name was not specified")
+		return "", fmt.Errorf("postgres database name was not specified")
 	}
 	auth := ""
 	if pc.Username != "" || pc.Password != "" {
@@ -88,13 +90,31 @@ func (pc PostgresConfig) Connect() (*sqlx.DB, error) {
 	if len(options) > 0 {
 		url = fmt.Sprintf("%s?%s", url, strings.Join(options, "&"))
 	}
+	return url, nil
+}
 
-	log.Get(context.Background()).Info("connecting to postgres")
-	db, err := sqlx.Connect("postgres", url)
+// Connect uses the given Config object to establish a connection with the database
+func (pc PostgresConfig) Connect(ctx context.Context) (*sqlx.DB, error) {
+	log.Get(ctx).Info(
+		"connecting to postgres",
+		zap.String("database", pc.Database),
+		zap.String("host", pc.Host),
+		zap.Uint16("port", pc.Port),
+	)
+	url, err := pc.buildConnectionString()
 	if err != nil {
-		log.Get(context.Background()).Error("unable to connect to postgres")
 		return nil, err
 	}
-	log.Get(context.Background()).Info("connected to postgres")
+	db, err := sqlx.ConnectContext(ctx, "postgres", url)
+	if err != nil {
+		log.Get(ctx).Error("unable to connect to postgres")
+		return nil, err
+	}
+	log.Get(ctx).Info(
+		"connected to postgres",
+		zap.String("database", pc.Database),
+		zap.String("host", pc.Host),
+		zap.Uint16("port", pc.Port),
+	)
 	return db, nil
 }
