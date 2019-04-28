@@ -5,10 +5,9 @@
 [![codecov](https://codecov.io/gh/spothero/tools/branch/master/graph/badge.svg)](https://codecov.io/gh/spothero/tools)
 [![Go Report Card](https://goreportcard.com/badge/github.com/spothero/tools)](https://goreportcard.com/report/github.com/spothero/tools)
 
-
 The SpotHero Tools Library is used internally at SpotHero across our Go programs. This library is a
-collection of common utilities and functions that don't yet stand on their own as individual
-libraries.
+collection of common utilities and functions that we use to ensure common functionality and best
+practices within our organization.
 
 We welcome community usage and collaboration.
 
@@ -26,7 +25,11 @@ We welcome community usage and collaboration.
 
 #### Overview
 This library contains common modules for use in all GoLang projects across SpotHero. To use this
-library simply add this as a dependency in your [dep Gopkg.toml](https://github.com/golang/dep/blob/master/docs/Gopkg.toml.md) using the latest release.
+library simply import one of the packages in this library into your project and go modules will
+handle the rest.
+
+Because this library is still under active development and is not yet 1.0, please
+expect that we may occasionally make backwards-incompatible changes.
 
 Currently, this library supports the following features:
 
@@ -36,13 +39,14 @@ Currently, this library supports the following features:
   * Support for goroutine-based callback functions where types are automatically deduced and
     unpacked
   * Schema Registry
+* Postgres
+  * CLI Support for SQL database configuration
 * Avro Decoding
 * HTTP Server with instrumentation
 * Prometheus Metrics
-* Kubernetes API Listeners
 * High-Performance Logging
 * Sentry Integration
-* OpenTracing/Jaeger Tracing Support
+* OpenTracing/Jaeger Support
 
 In addition, all the above packages may automatically be integrated with Cobra/Viper CLIs for
 12-factor application compatibility via the CLI module.
@@ -57,7 +61,7 @@ For production applications, we recommend separating the Cobra/Viper command por
 `cmd/` directory, and your application logic into a `pkg/` directory as is standard with most Go
 applications.
 
-Additionally, the [Makefile](Makefile) for this project is an excellent example which you can (and should)
+Additionally, the [Makefile](Makefile) for this project serves as an example which you can
 borrow for your own projects.
 
 ### License
