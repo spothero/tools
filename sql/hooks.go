@@ -50,30 +50,26 @@ func (m Middleware) Before(ctx context.Context, query string, args ...interface{
 
 // After satisfies the sqlhooks interface for hooks called after the query has completed
 func (m Middleware) After(ctx context.Context, query string, args ...interface{}) (context.Context, error) {
+	return m.end(ctx, nil, query, args)
+}
+
+// OnError satisfies the sqlhooks interface for hooks called when a query errors
+func (m Middleware) OnError(ctx context.Context, queryErr error, query string, args ...interface{}) error {
+	_, err := m.end(ctx, queryErr, query, args)
+	return err
+}
+
+// end provides a common function for closing out SQL query middleware
+func (m Middleware) end(ctx context.Context, queryErr error, query string, args ...interface{}) (context.Context, error) {
 	deferables, ok := ctx.Value(deferableKey).([]MiddlewareEnd)
 	if !ok {
 		return ctx, nil
 	}
 	var err error
 	for _, mw := range deferables {
-		if ctx, err = mw(ctx, query, nil, args); err != nil {
+		if ctx, err = mw(ctx, query, queryErr, args); err != nil {
 			return ctx, err
 		}
 	}
 	return ctx, nil
-}
-
-// OnError satisfies the sqlhooks interface for hooks called when a query errors
-func (m Middleware) OnError(ctx context.Context, queryErr error, query string, args ...interface{}) error {
-	deferables, ok := ctx.Value(deferableKey).([]MiddlewareEnd)
-	if !ok {
-		return nil
-	}
-	var err error
-	for _, mw := range deferables {
-		if ctx, err = mw(ctx, query, queryErr, args); err != nil {
-			return err
-		}
-	}
-	return nil
 }
