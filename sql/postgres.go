@@ -16,16 +16,24 @@ package sql
 
 import (
 	"context"
+	goSQL "database/sql"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/gchaincl/sqlhooks"
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 	"github.com/spothero/tools/log"
 	"go.uber.org/zap"
 )
+
+// pgDriverName is the name used to register the wrapped postgres SQL Driver with sql interface
+var pgDriverName = "instrumentedPostgres"
+
+// pgWrapped keeps track of whether or not the postgres client has already been wrapped
+var pgWrapped = false
 
 // PostgresConfig defines Postgres SQL connection information
 type PostgresConfig struct {
@@ -93,8 +101,20 @@ func (pc PostgresConfig) buildConnectionString() (string, error) {
 	return url, nil
 }
 
+// instrumentPostgres registers an instrumented and wrapped Postgres driver with the SQL library
+// so that all calls capture metrics, are traced, and capture debug logs.
+func instrumentPostgres() error {
+	if pgWrapped {
+		return fmt.Errorf("postgres already instrumented")
+	}
+	goSQL.Register(pgDriverName, sqlhooks.Wrap(&pq.Driver{}, &Middleware{}))
+	pgWrapped = true
+	return nil
+}
+
 // Connect uses the given Config object to establish a connection with the database
 func (pc PostgresConfig) Connect(ctx context.Context) (*sqlx.DB, error) {
+	instrumentPostgres()
 	log.Get(ctx).Info(
 		"connecting to postgres",
 		zap.String("database", pc.Database),
@@ -105,7 +125,7 @@ func (pc PostgresConfig) Connect(ctx context.Context) (*sqlx.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	db, err := sqlx.ConnectContext(ctx, "postgres", url)
+	db, err := sqlx.ConnectContext(ctx, pgDriverName, url)
 	if err != nil {
 		log.Get(ctx).Error("unable to connect to postgres")
 		return nil, err
