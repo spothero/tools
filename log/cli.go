@@ -17,7 +17,7 @@ package log
 import "github.com/spf13/pflag"
 
 // RegisterFlags register Logging flags with pflags
-func (c Config) RegisterFlags(flags *pflag.FlagSet) {
+func (c *Config) RegisterFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&c.UseDevelopmentLogger, "use-development-logger", true, "Whether to use the development logger")
 	flags.StringArrayVar(&c.OutputPaths, "log-output-paths", []string{}, "Log file path for standard logging. Logs always output to stdout.")
 	flags.StringArrayVar(&c.ErrorOutputPaths, "log-error-output-paths", []string{}, "Log file path for error logging. Error logs always output to stderr.")
