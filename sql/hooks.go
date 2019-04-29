@@ -25,7 +25,7 @@ type ctxKey int
 const deferableKey ctxKey = iota
 
 // MiddlewareEnd is called after the SQL query has completed
-type MiddlewareEnd func(ctx context.Context, query string, args ...interface{}) (context.Context, error)
+type MiddlewareEnd func(ctx context.Context, query string, queryErr error, args ...interface{}) (context.Context, error)
 
 // MiddlewareStart is called before the SQL query has started
 type MiddlewareStart func(ctx context.Context, query string, args ...interface{}) (context.Context, MiddlewareEnd, error)
@@ -56,9 +56,24 @@ func (m Middleware) After(ctx context.Context, query string, args ...interface{}
 	}
 	var err error
 	for _, mw := range deferables {
-		if ctx, err = mw(ctx, query, args); err != nil {
+		if ctx, err = mw(ctx, query, nil, args); err != nil {
 			return ctx, err
 		}
 	}
 	return ctx, nil
+}
+
+// OnError satisfies the sqlhooks interface for hooks called when a query errors
+func (m Middleware) OnError(ctx context.Context, queryErr error, query string, args ...interface{}) error {
+	deferables, ok := ctx.Value(deferableKey).([]MiddlewareEnd)
+	if !ok {
+		return nil
+	}
+	var err error
+	for _, mw := range deferables {
+		if ctx, err = mw(ctx, query, queryErr, args); err != nil {
+			return err
+		}
+	}
+	return nil
 }
