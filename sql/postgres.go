@@ -25,6 +25,7 @@ import (
 	"github.com/gchaincl/sqlhooks"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spothero/tools/log"
 	"go.uber.org/zap"
 )
@@ -112,9 +113,18 @@ func instrumentPostgres() error {
 	return nil
 }
 
-// Connect uses the given Config object to establish a connection with the database
-func (pc PostgresConfig) Connect(ctx context.Context) (*sqlx.DB, error) {
-	instrumentPostgres()
+// Connect uses the given Config object to establish a connection with the database.
+// Optionally, a prometheus registry may be provided. If no registry is provided, the global
+// registry will be used. Additionally, users may specify that failed registration should result in
+// a panic via the `mustRegister` flag.
+// The database connection, deferable close function, and error are returned
+func (pc PostgresConfig) Connect(ctx context.Context, registry prometheus.Registerer, mustRegister bool) (*sqlx.DB, func(), error) {
+	if err := instrumentPostgres(); err != nil {
+		log.Get(ctx).Warn(
+			"attempted to instrument sql.DB when it is already instrumented",
+			zap.Error(err),
+		)
+	}
 	log.Get(ctx).Info(
 		"connecting to postgres",
 		zap.String("database", pc.Database),
@@ -123,12 +133,12 @@ func (pc PostgresConfig) Connect(ctx context.Context) (*sqlx.DB, error) {
 	)
 	url, err := pc.buildConnectionString()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	db, err := sqlx.ConnectContext(ctx, pgDriverName, url)
 	if err != nil {
 		log.Get(ctx).Error("unable to connect to postgres")
-		return nil, err
+		return nil, nil, err
 	}
 	log.Get(ctx).Info(
 		"connected to postgres",
@@ -136,5 +146,9 @@ func (pc PostgresConfig) Connect(ctx context.Context) (*sqlx.DB, error) {
 		zap.String("host", pc.Host),
 		zap.Uint16("port", pc.Port),
 	)
-	return db, nil
+	dbMetricsChannel := newMetrics(registry, mustRegister).exportMetrics(db, pc.Database)
+	return db, func() {
+		dbMetricsChannel <- struct{}{}
+		db.Close()
+	}, nil
 }
