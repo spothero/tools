@@ -26,7 +26,7 @@ import (
 	"go.uber.org/zap/zaptest/observer"
 )
 
-func TestMiddleware(t *testing.T) {
+func TestHTTPMiddleware(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	sr := writer.StatusRecorder{ResponseWriter: recorder, StatusCode: http.StatusOK}
 	req, err := http.NewRequest("GET", "/", nil)
@@ -39,7 +39,7 @@ func TestMiddleware(t *testing.T) {
 	assert.NoError(t, err)
 	logger = zap.New(core)
 
-	deferable, r := Middleware(&sr, req)
+	deferable, r := HTTPMiddleware(&sr, req)
 
 	// Test that request parameters are appropriately logged to our standards
 	assert.NotNil(t, r)

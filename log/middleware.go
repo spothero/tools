@@ -21,7 +21,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// Middleware logs a series of standard attributes for every HTTP request.
+// HTTPMiddleware logs a series of standard attributes for every HTTP request.
 //
 //  On inbound request received these attributes include:
 // * The remote address of the client
@@ -31,7 +31,7 @@ import (
 //
 // On outbound response return these attributes include all of the above as well as:
 // * HTTP response code
-func Middleware(sr *writer.StatusRecorder, r *http.Request) (func(), *http.Request) {
+func HTTPMiddleware(sr *writer.StatusRecorder, r *http.Request) (func(), *http.Request) {
 	method := zap.String("http_method", r.Method)
 	path := zap.String("path", writer.FetchRoutePathTemplate(r))
 	query := zap.String("query_string", r.URL.Query().Encode())
