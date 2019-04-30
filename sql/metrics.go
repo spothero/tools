@@ -205,6 +205,10 @@ func (m metrics) exportMetrics(db *sqlx.DB, frequency time.Duration) chan<- stru
 	return kill
 }
 
+// Middleware defines SQL Middleware for capturing metrics around SQL queries. Using this
+// middleware will ensure that prometheus exports on a per-queryName basis a histogram of
+// duration, as well as a lifetime call counter. Query outcome is captured as a label on both
+// metrics.
 func (m metrics) Middleware(ctx context.Context, queryName, query string, args ...interface{}) (context.Context, MiddlewareEnd, error) {
 	startTime := time.Now()
 	mwEnd := func(ctx context.Context, queryName, query string, queryErr error, args ...interface{}) (context.Context, error) {
@@ -218,7 +222,7 @@ func (m metrics) Middleware(ctx context.Context, queryName, query string, args .
 			"outcome":    outcome,
 		}
 		m.queryCount.With(labels).Inc()
-		m.queryDuration.With(labels).Observe(time.Now().Sub(startTime).Seconds())
+		m.queryDuration.With(labels).Observe(time.Since(startTime).Seconds())
 		return ctx, nil
 	}
 	return ctx, mwEnd, nil
