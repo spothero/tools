@@ -106,11 +106,12 @@ func TestPostgresConfigBuildConnectionString(t *testing.T) {
 }
 
 func TestInstrumentPostgres(t *testing.T) {
+	pc := PostgresConfig{}
 	assert.False(t, pgWrapped)
-	err := instrumentPostgres()
+	err := pc.instrumentPostgres()
 	assert.NoError(t, err)
 	assert.True(t, pgWrapped)
-	err = instrumentPostgres()
+	err = pc.instrumentPostgres()
 	assert.Error(t, err)
 }
 

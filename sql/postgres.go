@@ -36,6 +36,12 @@ var pgDriverName = "instrumentedPostgres"
 // pgWrapped keeps track of whether or not the postgres client has already been wrapped
 var pgWrapped = false
 
+// defaultTimeout defines the default timeout for SQL connections to be established
+const defaultTimeout = 5 * time.Second
+
+// defaultMetricsFrequency defines the default core SQL metrics scrape frequency
+const defaultMetricsFrequency = 5 * time.Second
+
 // PostgresConfig defines Postgres SQL connection information
 type PostgresConfig struct {
 	Host             string        // The host where the database is located
@@ -49,6 +55,7 @@ type PostgresConfig struct {
 	SSLKey           string        // Path to the SSL Key, if any
 	SSLRootCert      string        // Path to the SSL Root Certificate, if any
 	MetricsFrequency time.Duration // How often to export core database metrics
+	Middleware       Middleware    // List of SQL Middlewares to apply, if any
 }
 
 // NewPostgresConfig creates and return a default postgres configuration.
@@ -57,13 +64,13 @@ func NewPostgresConfig(dbName string) PostgresConfig {
 		Host:             "localhost",
 		Port:             5432,
 		Database:         dbName,
-		ConnectTimeout:   5 * time.Second,
-		MetricsFrequency: 5 * time.Second,
+		ConnectTimeout:   defaultTimeout,
+		MetricsFrequency: defaultMetricsFrequency,
 	}
 }
 
-// buildURL transforms the PostgresConfig into a usable connection string for lib/pq. If a missing
-// or invalid field is provided, an error is returned.
+// buildConnectionString transforms the PostgresConfig into a usable connection string for lib/pq.
+// If a missing or invalid field is provided, an error is returned.
 func (pc PostgresConfig) buildConnectionString() (string, error) {
 	if pc.Database == "" {
 		return "", fmt.Errorf("postgres database name was not specified")
@@ -106,22 +113,23 @@ func (pc PostgresConfig) buildConnectionString() (string, error) {
 
 // instrumentPostgres registers an instrumented and wrapped Postgres driver with the SQL library
 // so that all calls capture metrics, are traced, and capture debug logs.
-func instrumentPostgres() error {
+func (pc PostgresConfig) instrumentPostgres() error {
 	if pgWrapped {
 		return fmt.Errorf("postgres already instrumented")
 	}
-	goSQL.Register(pgDriverName, sqlhooks.Wrap(&pq.Driver{}, &Middleware{}))
+	goSQL.Register(pgDriverName, sqlhooks.Wrap(&pq.Driver{}, &pc.Middleware))
 	pgWrapped = true
 	return nil
 }
 
-// Connect uses the given Config object to establish a connection with the database.
+// Connect uses the given Config struct to establish a connection with the database.
 // Optionally, a prometheus registry may be provided. If no registry is provided, the global
-// registry will be used. Additionally, users may specify that failed registration should result in
-// a panic via the `mustRegister` flag.
+// registry will be used. Additionally, users may specify that failed metrics registration should
+// result in a panic via the `mustRegister` flag.
+//
 // The database connection, deferable close function, and error are returned
 func (pc PostgresConfig) Connect(ctx context.Context, registry prometheus.Registerer, mustRegister bool) (*sqlx.DB, func(), error) {
-	if err := instrumentPostgres(); err != nil {
+	if err := pc.instrumentPostgres(); err != nil {
 		log.Get(ctx).Warn(
 			"attempted to instrument sql.DB when it is already instrumented",
 			zap.Error(err),
