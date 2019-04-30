@@ -147,8 +147,8 @@ func newMetrics(registry prometheus.Registerer, mustRegister bool) metrics {
 
 // exportMetrics creates a goroutine which periodically scrapes the core database driver for
 // connection details, exporting those metrics for prometheus scraping
-func (m metrics) exportMetrics(db *sqlx.DB, dbName string) chan<- struct{} {
-	ticker := time.NewTicker(5 * time.Second)
+func (m metrics) exportMetrics(db *sqlx.DB, dbName string, frequency time.Duration) chan<- struct{} {
+	ticker := time.NewTicker(frequency)
 	kill := make(chan struct{})
 	labels := prometheus.Labels{"db_name": dbName}
 	go func() {
@@ -161,7 +161,7 @@ func (m metrics) exportMetrics(db *sqlx.DB, dbName string) chan<- struct{} {
 				m.inUseConnections.With(labels).Set(float64(stats.InUse))
 				m.idleConnections.With(labels).Set(float64(stats.Idle))
 				m.waitCountConnections.With(labels).Set(float64(stats.WaitCount))
-				m.waitDurationConnections.With(labels).Set(float64(stats.WaitDuration))
+				m.waitDurationConnections.With(labels).Set(float64(stats.WaitDuration.Seconds()))
 				m.maxIdleClosedConnections.With(labels).Set(float64(stats.MaxIdleClosed))
 				m.maxLifetimeClosedConnections.With(labels).Set(float64(stats.MaxLifetimeClosed))
 			case <-kill:

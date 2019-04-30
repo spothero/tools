@@ -38,25 +38,27 @@ var pgWrapped = false
 
 // PostgresConfig defines Postgres SQL connection information
 type PostgresConfig struct {
-	Host           string        // The host where the database is located
-	Port           uint16        // The port on which the database is listening
-	Username       string        // The username for the database
-	Password       string        // The password for the database
-	Database       string        // The name of the database
-	ConnectTimeout time.Duration // Amount of time to wait before timing out
-	SSL            bool          // If true, connect to the database with SSL
-	SSLCert        string        // Path to the SSL Certificate, if any
-	SSLKey         string        // Path to the SSL Key, if any
-	SSLRootCert    string        // Path to the SSL Root Certificate, if any
+	Host             string        // The host where the database is located
+	Port             uint16        // The port on which the database is listening
+	Username         string        // The username for the database
+	Password         string        // The password for the database
+	Database         string        // The name of the database
+	ConnectTimeout   time.Duration // Amount of time to wait before timing out
+	SSL              bool          // If true, connect to the database with SSL
+	SSLCert          string        // Path to the SSL Certificate, if any
+	SSLKey           string        // Path to the SSL Key, if any
+	SSLRootCert      string        // Path to the SSL Root Certificate, if any
+	MetricsFrequency time.Duration // How often to export core database metrics
 }
 
 // NewPostgresConfig creates and return a default postgres configuration.
 func NewPostgresConfig(dbName string) PostgresConfig {
 	return PostgresConfig{
-		Host:           "localhost",
-		Port:           5432,
-		Database:       dbName,
-		ConnectTimeout: 5 * time.Second,
+		Host:             "localhost",
+		Port:             5432,
+		Database:         dbName,
+		ConnectTimeout:   5 * time.Second,
+		MetricsFrequency: 5 * time.Second,
 	}
 }
 
@@ -146,7 +148,7 @@ func (pc PostgresConfig) Connect(ctx context.Context, registry prometheus.Regist
 		zap.String("host", pc.Host),
 		zap.Uint16("port", pc.Port),
 	)
-	dbMetricsChannel := newMetrics(registry, mustRegister).exportMetrics(db, pc.Database)
+	dbMetricsChannel := newMetrics(registry, mustRegister).exportMetrics(db, pc.Database, pc.MetricsFrequency)
 	return db, func() {
 		dbMetricsChannel <- struct{}{}
 		db.Close()

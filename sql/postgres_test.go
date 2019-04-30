@@ -26,10 +26,11 @@ func TestNewPostgresConfig(t *testing.T) {
 		t,
 		NewPostgresConfig("testdb"),
 		PostgresConfig{
-			Host:           "localhost",
-			Port:           5432,
-			Database:       "testdb",
-			ConnectTimeout: 5 * time.Second,
+			Host:             "localhost",
+			Port:             5432,
+			Database:         "testdb",
+			ConnectTimeout:   5 * time.Second,
+			MetricsFrequency: 5 * time.Second,
 		},
 	)
 }
@@ -55,6 +56,17 @@ func TestPostgresConfigBuildConnectionString(t *testing.T) {
 			},
 			false,
 			"postgres://localhost:5432/test?sslmode=disable",
+		}, {
+			"username and password are encoded into the URL",
+			PostgresConfig{
+				Database: "test",
+				Host:     "localhost",
+				Port:     5432,
+				Username: "user",
+				Password: "pass",
+			},
+			false,
+			"postgres://user:pass@localhost:5432/test?sslmode=disable",
 		}, {
 			"ssl options are encoded",
 			PostgresConfig{
@@ -91,4 +103,17 @@ func TestPostgresConfigBuildConnectionString(t *testing.T) {
 			assert.Equal(t, test.expectedURL, url)
 		})
 	}
+}
+
+func TestInstrumentPostgres(t *testing.T) {
+	assert.False(t, pgWrapped)
+	err := instrumentPostgres()
+	assert.NoError(t, err)
+	assert.True(t, pgWrapped)
+	err = instrumentPostgres()
+	assert.Error(t, err)
+}
+
+func TestPostgresConfigConnect(t *testing.T) {
+
 }

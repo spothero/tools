@@ -4,6 +4,7 @@ go 1.12
 
 require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
+	github.com/DATA-DOG/go-sqlmock v1.3.3
 	github.com/Shopify/sarama v1.22.0
 	github.com/certifi/gocertifi v0.0.0-20190415143156-92f724a62f3e // indirect
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect

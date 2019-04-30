@@ -30,4 +30,5 @@ func (pc *PostgresConfig) RegisterFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&pc.SSLCert, "pg-ssl-cert", pc.SSLCert, "Path of the Postgres SSL Certificate on disk")
 	flags.StringVar(&pc.SSLKey, "pg-ssl-key", pc.SSLKey, "Path of the Postgres SSL Key on disk")
 	flags.StringVar(&pc.SSLRootCert, "pg-ssl-root-cert", pc.SSLRootCert, "Path of the Postgres SSL Root Cert on disk")
+	flags.DurationVar(&pc.MetricsFrequency, "pg-metrics-frequency", pc.MetricsFrequency, "Postgres metrics export frequency")
 }
