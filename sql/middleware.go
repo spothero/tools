@@ -16,36 +16,54 @@ package sql
 
 import (
 	"context"
+	"fmt"
 )
 
-// ctxKey is the type used to uniquely place the middleware within context.Context
-type ctxKey int
+// ctxCallbackKey is the type used to place the list of middleware within context.Context
+type ctxCallbackKey int
 
-// deferableKey is the value used to uniquely place the middleware end callback in context.Context
-const deferableKey ctxKey = iota
+// ctxCallbackValue is the value used to place the list of MiddlewareEnd in context.Context
+const ctxCallbackValue ctxCallbackKey = iota
+
+// ctxQueryNameKey is the type used to place the query name in context.Context
+type ctxQueryNameKey int
+
+// ctxQueryNameValue is the value used to place the query name in context.Context
+const ctxQueryNameValue ctxQueryNameKey = iota
 
 // MiddlewareEnd is called after the SQL query has completed
-type MiddlewareEnd func(ctx context.Context, query string, queryErr error, args ...interface{}) (context.Context, error)
+type MiddlewareEnd func(ctx context.Context, queryName, query string, queryErr error, args ...interface{}) (context.Context, error)
 
 // MiddlewareStart is called before the SQL query has started
-type MiddlewareStart func(ctx context.Context, query string, args ...interface{}) (context.Context, MiddlewareEnd, error)
+type MiddlewareStart func(ctx context.Context, queryName, query string, args ...interface{}) (context.Context, MiddlewareEnd, error)
 
 // Middleware aliases a list of SQL Middleware
 type Middleware []MiddlewareStart
 
+// NewContext returns a SQL middleware context with the query name embedded in it for downstream
+// middleware. All contexts passed into the SQL middleware chain must have first called this
+// function
+func NewContext(ctx context.Context, queryName string) context.Context {
+	return context.WithValue(ctx, ctxQueryNameValue, queryName)
+}
+
 // Before satisfies the sqlhooks interface for hooks called before the query is executed
 func (m Middleware) Before(ctx context.Context, query string, args ...interface{}) (context.Context, error) {
+	queryName, ok := ctx.Value(ctxQueryNameValue).(string)
+	if !ok {
+		return ctx, fmt.Errorf("no query name found on SQL query")
+	}
 	var err error
-	var deferableFunc MiddlewareEnd
-	deferables := make([]MiddlewareEnd, len(m))
+	var mwEnd MiddlewareEnd
+	mwEndCallbacks := make([]MiddlewareEnd, len(m))
 	for idx, mw := range m {
-		ctx, deferableFunc, err = mw(ctx, query, args)
+		ctx, mwEnd, err = mw(ctx, queryName, query, args)
 		if err != nil {
 			return ctx, err
 		}
-		deferables[idx] = deferableFunc
+		mwEndCallbacks[idx] = mwEnd
 	}
-	return context.WithValue(ctx, deferableKey, deferables), nil
+	return context.WithValue(ctx, ctxCallbackValue, mwEndCallbacks), nil
 }
 
 // After satisfies the sqlhooks interface for hooks called after the query has completed
@@ -61,13 +79,17 @@ func (m Middleware) OnError(ctx context.Context, queryErr error, query string, a
 
 // end provides a common function for closing out SQL query middleware
 func (m Middleware) end(ctx context.Context, queryErr error, query string, args ...interface{}) (context.Context, error) {
-	deferables, ok := ctx.Value(deferableKey).([]MiddlewareEnd)
+	queryName, ok := ctx.Value(ctxQueryNameValue).(string)
+	if !ok {
+		return ctx, fmt.Errorf("no query name found on SQL query")
+	}
+	mwEndCallbacks, ok := ctx.Value(ctxCallbackValue).([]MiddlewareEnd)
 	if !ok {
 		return ctx, nil
 	}
 	var err error
-	for _, mw := range deferables {
-		if ctx, err = mw(ctx, query, queryErr, args); err != nil {
+	for _, mw := range mwEndCallbacks {
+		if ctx, err = mw(ctx, queryName, query, queryErr, args); err != nil {
 			return ctx, err
 		}
 	}

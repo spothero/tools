@@ -23,7 +23,7 @@ import (
 )
 
 func generateStartMiddleware(callCount *int, returnErr bool) MiddlewareStart {
-	return func(ctx context.Context, query string, args ...interface{}) (context.Context, MiddlewareEnd, error) {
+	return func(ctx context.Context, queryName, query string, args ...interface{}) (context.Context, MiddlewareEnd, error) {
 		*callCount += 1
 		var err error
 		if returnErr {
@@ -34,7 +34,7 @@ func generateStartMiddleware(callCount *int, returnErr bool) MiddlewareStart {
 }
 
 func generateEndMiddleware(callCount *int, returnErr bool) MiddlewareEnd {
-	return func(ctx context.Context, query string, queryErr error, args ...interface{}) (context.Context, error) {
+	return func(ctx context.Context, queryName, query string, queryErr error, args ...interface{}) (context.Context, error) {
 		var err error
 		if returnErr {
 			err = fmt.Errorf("fake error")
@@ -44,21 +44,38 @@ func generateEndMiddleware(callCount *int, returnErr bool) MiddlewareEnd {
 	}
 }
 
+func TestNewContext(t *testing.T) {
+	ctx := context.Background()
+	ctx = NewContext(ctx, "query-name")
+	value, ok := ctx.Value(ctxQueryNameValue).(string)
+	assert.True(t, ok)
+	assert.Equal(t, "query-name", value)
+}
+
 func TestBefore(t *testing.T) {
 	tests := []struct {
-		name      string
-		numMW     int
-		expectErr bool
+		name            string
+		numMW           int
+		supplyQueryName bool
+		expectErr       bool
 	}{
 		{
 			"middleware is called successfully and callbacks are added to the context",
 			2,
+			true,
 			false,
 		},
 		{
 			"errors in middleware are propagated immediately",
 			1,
 			true,
+			true,
+		},
+		{
+			"missing query name results in an error",
+			1,
+			false,
+			false,
 		},
 	}
 	for _, test := range tests {
@@ -69,12 +86,15 @@ func TestBefore(t *testing.T) {
 				mw = append(mw, generateStartMiddleware(&callCounters[idx], test.expectErr))
 			}
 			ctx := context.Background()
+			if test.supplyQueryName {
+				ctx = context.WithValue(ctx, ctxQueryNameValue, "test-query")
+			}
 			ctx, err := mw.Before(ctx, "query", "arg1", "arg2")
-			if test.expectErr {
+			if test.expectErr || !test.supplyQueryName {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				deferables, ok := ctx.Value(deferableKey).([]MiddlewareEnd)
+				deferables, ok := ctx.Value(ctxCallbackValue).([]MiddlewareEnd)
 				assert.True(t, ok)
 				assert.Len(t, deferables, 2)
 				for _, count := range callCounters {
@@ -88,6 +108,7 @@ func TestBefore(t *testing.T) {
 
 func TestAfter(t *testing.T) {
 	startCtx := context.Background()
+	startCtx = context.WithValue(startCtx, ctxQueryNameValue, "test-query")
 	endCtx, err := Middleware{}.After(startCtx, "", "")
 	assert.NoError(t, err)
 	assert.Equal(t, startCtx, endCtx)
@@ -95,24 +116,34 @@ func TestAfter(t *testing.T) {
 
 func TestOnError(t *testing.T) {
 	startCtx := context.Background()
+	startCtx = context.WithValue(startCtx, ctxQueryNameValue, "test-query")
 	assert.NoError(t, Middleware{}.OnError(startCtx, nil, "", ""))
 }
 
 func TestEnd(t *testing.T) {
 	tests := []struct {
-		name      string
-		numMW     int
-		expectErr bool
+		name            string
+		numMW           int
+		expectErr       bool
+		supplyQueryName bool
 	}{
 		{
 			"middlewares are called successfully from context",
 			2,
 			false,
+			true,
 		},
 		{
 			"errors in middleware are propagated immediately",
 			1,
 			true,
+			true,
+		},
+		{
+			"missing query name results in an error",
+			1,
+			false,
+			false,
 		},
 	}
 	for _, test := range tests {
@@ -123,13 +154,16 @@ func TestEnd(t *testing.T) {
 				mw = append(mw, generateEndMiddleware(&callCounters[idx], test.expectErr))
 			}
 			ctx := context.Background()
-			ctx = context.WithValue(ctx, deferableKey, mw)
+			if test.supplyQueryName {
+				ctx = context.WithValue(ctx, ctxQueryNameValue, "test-query")
+			}
+			ctx = context.WithValue(ctx, ctxCallbackValue, mw)
 			ctx, err := Middleware{}.end(ctx, nil, "query", "arg1", "arg2")
-			if test.expectErr {
+			if test.expectErr || !test.supplyQueryName {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				deferables, ok := ctx.Value(deferableKey).([]MiddlewareEnd)
+				deferables, ok := ctx.Value(ctxCallbackValue).([]MiddlewareEnd)
 				assert.True(t, ok)
 				assert.Len(t, deferables, 2)
 				for _, count := range callCounters {

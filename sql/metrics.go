@@ -33,11 +33,15 @@ type metrics struct {
 	waitDurationConnections      *prometheus.GaugeVec
 	maxIdleClosedConnections     *prometheus.GaugeVec
 	maxLifetimeClosedConnections *prometheus.GaugeVec
+	queryDuration                *prometheus.HistogramVec
+	queryCount                   *prometheus.CounterVec
+	dbName                       string
 }
 
 // newMetrics initializes and returns a metrics object
-func newMetrics(registry prometheus.Registerer, mustRegister bool) metrics {
+func newMetrics(dbName string, registry prometheus.Registerer, mustRegister bool) metrics {
 	labelNames := []string{"db_name"}
+	queryLabelNames := append(labelNames, "query_name", "outcome")
 	maxOpenConnections := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "db_max_open_connections_count",
@@ -94,6 +98,23 @@ func newMetrics(registry prometheus.Registerer, mustRegister bool) metrics {
 		},
 		labelNames,
 	)
+	queryDuration := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "db_query_duration_seconds",
+			Help: "Total duration histgoram for the DB Query",
+			// Power of 2 time - 1ms, 2ms, 4ms, ... 32768ms, +Inf ms
+			Buckets: prometheus.ExponentialBuckets(0.001, 2.0, 16),
+		},
+		queryLabelNames,
+	)
+	queryCount := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "db_query_count",
+			Help: "Total number of times the query has executed",
+		},
+		queryLabelNames,
+	)
+
 	// If the user hasnt provided a Prometheus Registry, use the global Registry
 	if registry == nil {
 		registry = prometheus.DefaultRegisterer
@@ -107,6 +128,8 @@ func newMetrics(registry prometheus.Registerer, mustRegister bool) metrics {
 		registry.MustRegister(waitDurationConnections)
 		registry.MustRegister(maxIdleClosedConnections)
 		registry.MustRegister(maxLifetimeClosedConnections)
+		registry.MustRegister(queryDuration)
+		registry.MustRegister(queryCount)
 	} else {
 		if err := registry.Register(maxOpenConnections); err != nil {
 			log.Get(context.Background()).Error("failed to register db max open connections")
@@ -132,8 +155,15 @@ func newMetrics(registry prometheus.Registerer, mustRegister bool) metrics {
 		if err := registry.Register(maxLifetimeClosedConnections); err != nil {
 			log.Get(context.Background()).Error("failed to register db max lifetime closed connections")
 		}
+		if err := registry.Register(queryDuration); err != nil {
+			log.Get(context.Background()).Error("failed to register db query duration")
+		}
+		if err := registry.Register(queryCount); err != nil {
+			log.Get(context.Background()).Error("failed to register db query count")
+		}
 	}
 	return metrics{
+		dbName:                       dbName,
 		maxOpenConnections:           maxOpenConnections,
 		openConnections:              openConnections,
 		inUseConnections:             inUseConnections,
@@ -142,15 +172,17 @@ func newMetrics(registry prometheus.Registerer, mustRegister bool) metrics {
 		waitDurationConnections:      waitDurationConnections,
 		maxIdleClosedConnections:     maxIdleClosedConnections,
 		maxLifetimeClosedConnections: maxLifetimeClosedConnections,
+		queryDuration:                queryDuration,
+		queryCount:                   queryCount,
 	}
 }
 
 // exportMetrics creates a goroutine which periodically scrapes the core database driver for
 // connection details, exporting those metrics for prometheus scraping
-func (m metrics) exportMetrics(db *sqlx.DB, dbName string, frequency time.Duration) chan<- struct{} {
+func (m metrics) exportMetrics(db *sqlx.DB, frequency time.Duration) chan<- struct{} {
 	ticker := time.NewTicker(frequency)
 	kill := make(chan struct{})
-	labels := prometheus.Labels{"db_name": dbName}
+	labels := prometheus.Labels{"db_name": m.dbName}
 	go func() {
 		for {
 			select {
@@ -171,4 +203,23 @@ func (m metrics) exportMetrics(db *sqlx.DB, dbName string, frequency time.Durati
 		}
 	}()
 	return kill
+}
+
+func (m metrics) Middleware(ctx context.Context, queryName, query string, args ...interface{}) (context.Context, MiddlewareEnd, error) {
+	startTime := time.Now()
+	mwEnd := func(ctx context.Context, queryName, query string, queryErr error, args ...interface{}) (context.Context, error) {
+		outcome := "success"
+		if queryErr != nil {
+			outcome = "error"
+		}
+		labels := prometheus.Labels{
+			"db_name":    m.dbName,
+			"query_name": queryName,
+			"outcome":    outcome,
+		}
+		m.queryCount.With(labels).Inc()
+		m.queryDuration.With(labels).Observe(time.Now().Sub(startTime).Seconds())
+		return ctx, nil
+	}
+	return ctx, mwEnd, nil
 }

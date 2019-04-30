@@ -156,7 +156,7 @@ func (pc PostgresConfig) Connect(ctx context.Context, registry prometheus.Regist
 		zap.String("host", pc.Host),
 		zap.Uint16("port", pc.Port),
 	)
-	dbMetricsChannel := newMetrics(registry, mustRegister).exportMetrics(db, pc.Database, pc.MetricsFrequency)
+	dbMetricsChannel := newMetrics(pc.Database, registry, mustRegister).exportMetrics(db, pc.MetricsFrequency)
 	return db, func() {
 		dbMetricsChannel <- struct{}{}
 		db.Close()
