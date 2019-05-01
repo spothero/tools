@@ -36,7 +36,6 @@ import (
 // * http.method
 // * http.hostname
 // * http.port
-// * http.remote_address
 //
 // Outbound responses will be tagged with the following tags, if applicable:
 // * http.status_code
