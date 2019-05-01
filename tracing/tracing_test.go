@@ -16,70 +16,48 @@ package tracing
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/spothero/tools/http/writer"
 	"github.com/stretchr/testify/assert"
-	jaeger "github.com/uber/jaeger-client-go"
 )
 
-func TestMiddleware(t *testing.T) {
+func TestConfigureTracer(t *testing.T) {
 	tests := []struct {
-		name              string
-		withExistingTrace bool
-		statusCode        int
+		name      string
+		c         Config
+		expectErr bool
 	}{
 		{
-			"tracing middleware without an incoming trace creates a new trace",
+			"service name provided leads to no error",
+			Config{ServiceName: "service-name"},
 			false,
-			http.StatusOK,
 		},
 		{
-			"tracing middleware with an incoming trace reuses the trace",
+			"no service name provided leads to an error",
+			Config{Enabled: true},
 			true,
-			http.StatusInternalServerError,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			recorder := httptest.NewRecorder()
-			sr := writer.StatusRecorder{ResponseWriter: recorder, StatusCode: http.StatusOK}
-			req, err := http.NewRequest("GET", "/", nil)
-			assert.NoError(t, err)
-
-			tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
-			defer closer.Close()
-			opentracing.SetGlobalTracer(tracer)
-
-			// Configure a preset span and place in request context
-			var rootSpanCtx opentracing.SpanContext
-			if test.withExistingTrace {
-				span, spanCtx := opentracing.StartSpanFromContext(req.Context(), "test")
-				rootSpanCtx = span.Context()
-				req = req.WithContext(spanCtx)
-			}
-			deferable, r := Middleware(&sr, req)
-			assert.NotNil(t, r)
-
-			sr.StatusCode = test.statusCode
-			deferable()
-
-			// Test that the span context is returned
-			requestSpan := opentracing.SpanFromContext(r.Context())
-			if spanCtx, ok := requestSpan.Context().(jaeger.SpanContext); ok {
-				if test.withExistingTrace {
-					assert.NotNil(t, rootSpanCtx)
-					if rootJaegerSpanCtx, ok := rootSpanCtx.(jaeger.SpanContext); ok {
-						assert.Equal(t, rootJaegerSpanCtx.TraceID(), spanCtx.TraceID())
-					} else {
-						assert.FailNow(t, "unable to extract root jaeger span from span context")
-					}
-				}
+			closer := test.c.ConfigureTracer()
+			if test.expectErr {
+				assert.Equal(t, &opentracing.NoopTracer{}, opentracing.GlobalTracer())
 			} else {
-				assert.FailNow(t, "unable to extract jaeger span from span context")
+				assert.NotNil(t, closer)
+				defer closer.Close()
+				assert.NotNil(t, opentracing.GlobalTracer())
 			}
 		})
 	}
+}
+
+func TestTraceOutbound(t *testing.T) {
+	req, err := http.NewRequest("GET", "/fake", nil)
+	assert.NoError(t, err)
+	span := opentracing.StartSpan("test-span")
+	defer span.Finish()
+	err = TraceOutbound(req, span)
+	assert.NoError(t, err)
 }
