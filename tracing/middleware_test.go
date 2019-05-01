@@ -15,6 +15,8 @@
 package tracing
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -77,6 +79,73 @@ func TestHTTPMiddleware(t *testing.T) {
 						assert.FailNow(t, "unable to extract root jaeger span from span context")
 					}
 				}
+			} else {
+				assert.FailNow(t, "unable to extract jaeger span from span context")
+			}
+		})
+	}
+}
+
+func TestSQLMiddleware(t *testing.T) {
+	tests := []struct {
+		name      string
+		queryName string
+		query     string
+		expectErr bool
+	}{
+		{
+			"non-errored no queryname requests are successfully traced",
+			"",
+			"SELECT * FROM tests",
+			false,
+		},
+		{
+			"non-errored with queryname requests are successfully traced",
+			"getAllTests",
+			"SELECT * FROM tests",
+			false,
+		},
+		{
+			"errored requests are successfully traced and marked as errored",
+			"",
+			"SELECT * FROM tests",
+			true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
+			defer closer.Close()
+			opentracing.SetGlobalTracer(tracer)
+
+			// Create a span and span context
+			span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "test")
+			jaegerSpanCtxStart, ok := span.Context().(jaeger.SpanContext)
+			if !ok {
+				assert.FailNow(t, "unable to convert opentracing to jaeger span")
+			}
+			expectedTraceID := jaegerSpanCtxStart.TraceID()
+
+			// Invoke the middleware
+			spanCtx, mwEnd, err := SQLMiddleware(spanCtx, test.queryName, test.query)
+			assert.NotNil(t, spanCtx)
+			assert.NotNil(t, mwEnd)
+			assert.Nil(t, err)
+
+			// Invoke the middleware end
+			var queryErr error
+			if test.expectErr {
+				queryErr = fmt.Errorf("query error")
+			}
+			spanCtx, err = mwEnd(spanCtx, test.queryName, test.query, queryErr)
+			assert.NotNil(t, spanCtx)
+			assert.Nil(t, err)
+
+			// Test that the span context is returned
+			span = opentracing.SpanFromContext(spanCtx)
+			if jaegerSpanCtxEnd, ok := span.Context().(jaeger.SpanContext); ok {
+
+				assert.Equal(t, expectedTraceID, jaegerSpanCtxEnd.TraceID())
 			} else {
 				assert.FailNow(t, "unable to extract jaeger span from span context")
 			}

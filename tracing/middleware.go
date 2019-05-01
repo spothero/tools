@@ -16,6 +16,7 @@ package tracing
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -73,15 +74,29 @@ func HTTPMiddleware(sr *writer.StatusRecorder, r *http.Request) (func(), *http.R
 
 // SQLMiddleware traces requests made against SQL databases.
 //
+// Span names always start with "db". If a queryName is provided (highly recommended), the span
+// name will include the queryname in the format "db_<queryName>"
+//
 // The following tags are placed on all SQL traces:
-// * TODO
-// * TODO
-// * TODO
+// * component - Always set to "tracing"
+// * db.type - Always set to "sql"
+// * db.statement - Always set to the query statement
+// * error - Set to true only if an error was encountered with the query
 func SQLMiddleware(ctx context.Context, queryName, query string, args ...interface{}) (context.Context, sql.MiddlewareEnd, error) {
-	// TODO
+	spanName := "db"
+	if queryName != "" {
+		spanName = fmt.Sprintf("%s_%s", spanName, queryName)
+	}
+	span, spanCtx := opentracing.StartSpanFromContext(ctx, spanName)
+	span = span.SetTag("component", "tracing")
+	span = span.SetTag("db.type", "sql")
+	span = span.SetTag("db.statement", query)
 	mwEnd := func(ctx context.Context, queryName, query string, queryErr error, args ...interface{}) (context.Context, error) {
-		// TODO
+		defer span.Finish()
+		if queryErr != nil {
+			span = span.SetTag("error", true)
+		}
 		return ctx, nil
 	}
-	return ctx, mwEnd, nil
+	return spanCtx, mwEnd, nil
 }
