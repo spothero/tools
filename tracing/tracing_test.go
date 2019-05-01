@@ -13,3 +13,51 @@
 // limitations under the License.
 
 package tracing
+
+import (
+	"net/http"
+	"testing"
+
+	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestConfigureTracer(t *testing.T) {
+	tests := []struct {
+		name      string
+		c         Config
+		expectErr bool
+	}{
+		{
+			"service name provided leads to no error",
+			Config{ServiceName: "service-name"},
+			false,
+		},
+		{
+			"no service name provided leads to an error",
+			Config{Enabled: true},
+			true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			closer := test.c.ConfigureTracer()
+			if test.expectErr {
+				assert.Equal(t, &opentracing.NoopTracer{}, opentracing.GlobalTracer())
+			} else {
+				assert.NotNil(t, closer)
+				defer closer.Close()
+				assert.NotNil(t, opentracing.GlobalTracer())
+			}
+		})
+	}
+}
+
+func TestTraceOutbound(t *testing.T) {
+	req, err := http.NewRequest("GET", "/fake", nil)
+	assert.NoError(t, err)
+	span := opentracing.StartSpan("test-span")
+	defer span.Finish()
+	err = TraceOutbound(req, span)
+	assert.NoError(t, err)
+}
