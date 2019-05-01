@@ -68,14 +68,10 @@ func (c Config) ConfigureTracer() io.Closer {
 	tracer, closer, err := jaegerConfig.NewTracer(
 		jaegercfg.Logger(jaegerzap.NewLogger(logger)))
 	if err != nil {
-		logger.Error("Couldn't initialize Jaeger tracer", zap.Error(err))
+		logger.Error("couldnt initialize jaeger tracer", zap.Error(err))
 		return nil
 	}
-	if !c.Enabled {
-		logger.Info("Jaeger tracer configured but disabled")
-	} else {
-		logger.Info("Configured Jaeger tracer")
-	}
+	logger.Info("jaeger tracer configured", zap.Bool("enabled", c.Enabled))
 	opentracing.SetGlobalTracer(tracer)
 	return closer
 }
