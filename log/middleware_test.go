@@ -123,6 +123,16 @@ func TestSQLMiddleware(t *testing.T) {
 			1,
 			true,
 		},
+		{
+			"unnamed logs are warned on in the end middleware",
+			zapcore.DebugLevel,
+			"",
+			"test-query",
+			2,
+			1,
+			0,
+			false,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -178,8 +188,9 @@ func TestSQLMiddleware(t *testing.T) {
 			expectedLogs := test.numLogsStartExpect + test.numLogsEndExpect + test.numErrLogsEndExpect
 			assert.Len(t, currLogs, expectedLogs)
 			if expectedLogs > 1 {
-				assert.Equal(t, expectedLevel, currLogs[1].Entry.Level)
-				foundLogKeysRequest := make([]string, len(currLogs[1].Context))
+				logIdx := test.numLogsStartExpect
+				assert.Equal(t, expectedLevel, currLogs[logIdx].Entry.Level)
+				foundLogKeysRequest := make([]string, len(currLogs[logIdx].Context))
 				for idx, field := range currLogs[1].Context {
 					foundLogKeysRequest[idx] = field.Key
 				}
