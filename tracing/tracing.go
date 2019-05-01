@@ -68,7 +68,7 @@ func (c Config) ConfigureTracer() io.Closer {
 	tracer, closer, err := jaegerConfig.NewTracer(
 		jaegercfg.Logger(jaegerzap.NewLogger(logger)))
 	if err != nil {
-		logger.Error("couldnt initialize jaeger tracer", zap.Error(err))
+		logger.Error("could not initialize jaeger tracer", zap.Error(err))
 		return nil
 	}
 	logger.Info("jaeger tracer configured", zap.Bool("enabled", c.Enabled))
