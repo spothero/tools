@@ -15,6 +15,7 @@
 package tracing
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
@@ -22,6 +23,7 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/spothero/tools/http/writer"
 	"github.com/spothero/tools/log"
+	sql "github.com/spothero/tools/sql/middleware"
 	"github.com/uber/jaeger-client-go"
 	"go.uber.org/zap"
 )
@@ -67,4 +69,19 @@ func HTTPMiddleware(sr *writer.StatusRecorder, r *http.Request) (func(), *http.R
 		}
 		span.Finish()
 	}, r.WithContext(spanCtx)
+}
+
+// SQLMiddleware traces requests made against SQL databases.
+//
+// The following tags are placed on all SQL traces:
+// * TODO
+// * TODO
+// * TODO
+func SQLMiddleware(ctx context.Context, queryName, query string, args ...interface{}) (context.Context, sql.MiddlewareEnd, error) {
+	// TODO
+	mwEnd := func(ctx context.Context, queryName, query string, queryErr error, args ...interface{}) (context.Context, error) {
+		// TODO
+		return ctx, nil
+	}
+	return ctx, mwEnd, nil
 }

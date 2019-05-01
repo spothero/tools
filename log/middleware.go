@@ -15,9 +15,11 @@
 package log
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/spothero/tools/http/writer"
+	sqlMiddleware "github.com/spothero/tools/sql/middleware"
 	"go.uber.org/zap"
 )
 
@@ -44,4 +46,31 @@ func HTTPMiddleware(sr *writer.StatusRecorder, r *http.Request) (func(), *http.R
 			"returning response",
 			hostname, port, zap.Int("response_code", sr.StatusCode))
 	}, r
+}
+
+// SQLMiddleware debug logs requests made against SQL databases.
+func SQLMiddleware(ctx context.Context, queryName, query string, args ...interface{}) (context.Context, sqlMiddleware.MiddlewareEnd, error) {
+	Get(ctx).Debug(
+		"attempting sql query",
+		zap.String("query_name", queryName),
+		zap.String("query", query),
+	)
+	mwEnd := func(ctx context.Context, queryName, query string, queryErr error, args ...interface{}) (context.Context, error) {
+		if queryErr != nil {
+			Get(ctx).Error(
+				"failed sql query",
+				zap.String("query_name", queryName),
+				zap.String("query", query),
+				zap.Error(queryErr),
+			)
+		} else {
+			Get(ctx).Debug(
+				"completed sql query",
+				zap.String("query_name", queryName),
+				zap.String("query", query),
+			)
+		}
+		return ctx, nil
+	}
+	return ctx, mwEnd, nil
 }

@@ -27,6 +27,7 @@ import (
 	"github.com/lib/pq"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spothero/tools/log"
+	"github.com/spothero/tools/sql/middleware"
 	"go.uber.org/zap"
 )
 
@@ -44,18 +45,18 @@ const defaultMetricsFrequency = 5 * time.Second
 
 // PostgresConfig defines Postgres SQL connection information
 type PostgresConfig struct {
-	Host             string        // The host where the database is located
-	Port             uint16        // The port on which the database is listening
-	Username         string        // The username for the database
-	Password         string        // The password for the database
-	Database         string        // The name of the database
-	ConnectTimeout   time.Duration // Amount of time to wait before timing out
-	SSL              bool          // If true, connect to the database with SSL
-	SSLCert          string        // Path to the SSL Certificate, if any
-	SSLKey           string        // Path to the SSL Key, if any
-	SSLRootCert      string        // Path to the SSL Root Certificate, if any
-	MetricsFrequency time.Duration // How often to export core database metrics
-	Middleware       Middleware    // List of SQL Middlewares to apply, if any
+	Host             string                // The host where the database is located
+	Port             uint16                // The port on which the database is listening
+	Username         string                // The username for the database
+	Password         string                // The password for the database
+	Database         string                // The name of the database
+	ConnectTimeout   time.Duration         // Amount of time to wait before timing out
+	SSL              bool                  // If true, connect to the database with SSL
+	SSLCert          string                // Path to the SSL Certificate, if any
+	SSLKey           string                // Path to the SSL Key, if any
+	SSLRootCert      string                // Path to the SSL Root Certificate, if any
+	MetricsFrequency time.Duration         // How often to export core database metrics
+	Middleware       middleware.Middleware // List of SQL Middlewares to apply, if any
 }
 
 // NewPostgresConfig creates and return a default postgres configuration.
