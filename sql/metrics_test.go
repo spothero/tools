@@ -85,7 +85,7 @@ func TestExportMetrics(t *testing.T) {
 		cancelChannel := metrics.exportMetrics(&sqlx.DB{DB: db, Mapper: nil}, 5*time.Millisecond)
 		timer := time.NewTimer(10 * time.Millisecond)
 		<-timer.C
-		cancelChannel <- struct{}{}
+		cancelChannel <- true
 	})
 }
 

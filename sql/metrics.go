@@ -179,9 +179,9 @@ func newMetrics(dbName string, registry prometheus.Registerer, mustRegister bool
 
 // exportMetrics creates a goroutine which periodically scrapes the core database driver for
 // connection details, exporting those metrics for prometheus scraping
-func (m metrics) exportMetrics(db *sqlx.DB, frequency time.Duration) chan<- struct{} {
+func (m metrics) exportMetrics(db *sqlx.DB, frequency time.Duration) chan<- bool {
 	ticker := time.NewTicker(frequency)
-	kill := make(chan struct{})
+	kill := make(chan bool)
 	labels := prometheus.Labels{"db_name": m.dbName}
 	go func() {
 		for {

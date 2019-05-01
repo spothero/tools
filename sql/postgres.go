@@ -58,8 +58,8 @@ type PostgresConfig struct {
 	Middleware       Middleware    // List of SQL Middlewares to apply, if any
 }
 
-// NewPostgresConfig creates and return a default postgres configuration.
-func NewPostgresConfig(dbName string) PostgresConfig {
+// NewDefaultPostgresConfig creates and return a default postgres configuration.
+func NewDefaultPostgresConfig(dbName string) PostgresConfig {
 	return PostgresConfig{
 		Host:             "localhost",
 		Port:             5432,
@@ -158,7 +158,7 @@ func (pc PostgresConfig) Connect(ctx context.Context, registry prometheus.Regist
 	)
 	dbMetricsChannel := newMetrics(pc.Database, registry, mustRegister).exportMetrics(db, pc.MetricsFrequency)
 	return db, func() {
-		dbMetricsChannel <- struct{}{}
+		dbMetricsChannel <- true
 		db.Close()
 	}, nil
 }

@@ -21,10 +21,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewPostgresConfig(t *testing.T) {
+func TestNewDefaultPostgresConfig(t *testing.T) {
 	assert.Equal(
 		t,
-		NewPostgresConfig("testdb"),
+		NewDefaultPostgresConfig("testdb"),
 		PostgresConfig{
 			Host:             "localhost",
 			Port:             5432,
