@@ -72,8 +72,8 @@ func TestBefore(t *testing.T) {
 			true,
 		},
 		{
-			"missing query name results in an error",
-			1,
+			"missing query name is handled",
+			2,
 			false,
 			false,
 		},
@@ -90,7 +90,7 @@ func TestBefore(t *testing.T) {
 				ctx = context.WithValue(ctx, ctxQueryNameValue, "test-query")
 			}
 			ctx, err := mw.Before(ctx, "query", "arg1", "arg2")
-			if test.expectErr || !test.supplyQueryName {
+			if test.expectErr {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)

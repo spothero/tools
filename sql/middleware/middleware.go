@@ -49,10 +49,7 @@ func NewContext(ctx context.Context, queryName string) context.Context {
 
 // Before satisfies the sqlhooks interface for hooks called before the query is executed
 func (m Middleware) Before(ctx context.Context, query string, args ...interface{}) (context.Context, error) {
-	queryName, ok := ctx.Value(ctxQueryNameValue).(string)
-	if !ok {
-		return ctx, fmt.Errorf("no query name found on SQL query")
-	}
+	queryName, _ := ctx.Value(ctxQueryNameValue).(string)
 	var err error
 	var mwEnd MiddlewareEnd
 	mwEndCallbacks := make([]MiddlewareEnd, len(m))

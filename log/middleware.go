@@ -55,6 +55,13 @@ func SQLMiddleware(ctx context.Context, queryName, query string, args ...interfa
 		zap.String("query_name", queryName),
 		zap.String("query", query),
 	)
+	if queryName == "" {
+		Get(ctx).Warn(
+			"unnamed sql query provided",
+			zap.String("query_name", queryName),
+			zap.String("query", query),
+		)
+	}
 	mwEnd := func(ctx context.Context, queryName, query string, queryErr error, args ...interface{}) (context.Context, error) {
 		if queryErr != nil {
 			Get(ctx).Error(
