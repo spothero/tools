@@ -119,6 +119,4 @@ func TestRun(t *testing.T) {
 	s.Run()
 	assert.True(t, preStartCalled)
 	assert.True(t, postShutdownCalled)
-	// TODO:
-	// TODO: Mock signal?
 }
