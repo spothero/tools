@@ -49,7 +49,7 @@ func (hc HTTPConfig) ServerCmd() *cobra.Command {
 	config.PostShutdown = hc.PostShutdown
 	config.Middleware = shHTTP.Middleware{
 		tracing.HTTPMiddleware,
-		shHTTP.NewMetrics(hc.Name, hc.Registry, true).Middleware,
+		shHTTP.NewMetrics(hc.Registry, true).Middleware,
 		log.HTTPMiddleware,
 	}
 	// Logging Config
