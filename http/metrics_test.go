@@ -56,15 +56,14 @@ func TestNewMetrics(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			registry := prometheus.NewRegistry()
-			metrics := NewMetrics("test", registry, test.mustRegister)
+			metrics := NewMetrics(registry, test.mustRegister)
 			if test.duplicate {
 				if test.mustRegister {
-					assert.Panics(t, func() { NewMetrics("test2", registry, test.mustRegister) })
+					assert.Panics(t, func() { NewMetrics( registry, test.mustRegister) })
 				} else {
-					assert.NotPanics(t, func() { _ = NewMetrics("test2", registry, test.mustRegister) })
+					assert.NotPanics(t, func() { _ = NewMetrics(registry, test.mustRegister) })
 				}
 			}
-			assert.Equal(t, "test", metrics.serverName)
 			assert.NotNil(t, metrics.counter)
 			assert.NotNil(t, metrics.duration)
 		})
@@ -76,7 +75,7 @@ func TestMiddleware(t *testing.T) {
 	assert.NoError(t, err)
 	httpRec := httptest.NewRecorder()
 
-	metrics := NewMetrics("test", nil, true)
+	metrics := NewMetrics(nil, true)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		sr := &writer.StatusRecorder{ResponseWriter: w, StatusCode: http.StatusOK}
 		deferableFunc, _ := metrics.Middleware(sr, r)

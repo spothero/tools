@@ -27,16 +27,15 @@ import (
 
 // Metrics is a bundle of prometheus HTTP metrics recorders
 type Metrics struct {
-	serverName string
 	counter    *prometheus.CounterVec
 	duration   *prometheus.HistogramVec
 }
 
-// NewMetrics creates and returns a metrics bundle given a server name. The user may optionally
+// NewMetrics creates and returns a metrics bundle. The user may optionally
 // specify an existing Prometheus Registry. If no Registry is provided, the global Prometheus
 // Registry is used. Finally, if mustRegister is true, and a registration error is encountered,
 // the application will panic.
-func NewMetrics(serverName string, registry prometheus.Registerer, mustRegister bool) Metrics {
+func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 	histogram := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "http_request_duration_seconds",
@@ -79,7 +78,6 @@ func NewMetrics(serverName string, registry prometheus.Registerer, mustRegister 
 		}
 	}
 	return Metrics{
-		serverName,
 		counter,
 		histogram,
 	}
