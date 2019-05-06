@@ -53,7 +53,7 @@ func TestHTTPMiddleware(t *testing.T) {
 	}
 	assert.ElementsMatch(
 		t,
-		[]string{"http_method", "path", "query_string", "hostname", "port"},
+		[]string{"http_method", "path", "query_string", "hostname", "port", "correlation_id"},
 		foundLogKeysRequest,
 	)
 
@@ -67,7 +67,7 @@ func TestHTTPMiddleware(t *testing.T) {
 	}
 	assert.ElementsMatch(
 		t,
-		[]string{"hostname", "port", "response_code"},
+		[]string{"hostname", "port", "response_code", "correlation_id"},
 		foundLogKeysResponse,
 	)
 }
