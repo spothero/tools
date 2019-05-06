@@ -18,10 +18,8 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/opentracing/opentracing-go"
 	"github.com/spothero/tools/http/writer"
 	sqlMiddleware "github.com/spothero/tools/sql/middleware"
-	"github.com/uber/jaeger-client-go"
 	"go.uber.org/zap"
 )
 
@@ -36,13 +34,6 @@ import (
 // On outbound response return these attributes include all of the above as well as:
 // * HTTP response code
 func HTTPMiddleware(sr *writer.StatusRecorder, r *http.Request) (func(), *http.Request) {
-	traceID := ""
-	if span := opentracing.SpanFromContext(r.Context()); span != nil {
-		if sc, ok := span.Context().(jaeger.SpanContext); ok {
-			traceID = sc.TraceID().String()
-		}
-	}
-	r = r.WithContext(NewContext(r.Context(), zap.String("correlation_id", traceID)))
 	method := zap.String("http_method", r.Method)
 	path := zap.String("path", writer.FetchRoutePathTemplate(r))
 	query := zap.String("query_string", r.URL.Query().Encode())

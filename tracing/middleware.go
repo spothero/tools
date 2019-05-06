@@ -59,7 +59,7 @@ func HTTPMiddleware(sr *writer.StatusRecorder, r *http.Request) (func(), *http.R
 	// See: https://github.com/opentracing/specification/issues/123
 	if sc, ok := span.Context().(jaeger.SpanContext); ok {
 		// Embed the Trace ID in the logging context for all future requests
-		spanCtx = log.NewContext(spanCtx, zap.String("trace_id", sc.TraceID().String()))
+		spanCtx = log.NewContext(spanCtx, zap.String("correlation_id", sc.TraceID().String()))
 	}
 	return func() {
 		span.SetTag("http.status_code", strconv.Itoa(sr.StatusCode))
