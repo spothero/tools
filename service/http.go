@@ -57,7 +57,7 @@ func (hc HTTPConfig) ServerCmd() *cobra.Command {
 		UseDevelopmentLogger: true,
 		Fields: map[string]interface{}{
 			"version": hc.Version,
-			"git_sha": hc.GitSHA,
+			"git_sha": hc.GitSHA[len(hc.GitSHA)-6:], // Log only the last 6 digits of the Git SHA
 		},
 		Cores: []zapcore.Core{&sentry.Core{}},
 	}

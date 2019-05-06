@@ -34,8 +34,7 @@ import (
 //
 // The following tags are placed on all incoming HTTP requests:
 // * http.method
-// * http.hostname
-// * http.port
+// * http.url
 //
 // Outbound responses will be tagged with the following tags, if applicable:
 // * http.status_code

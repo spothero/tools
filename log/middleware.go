@@ -28,8 +28,6 @@ import (
 //  On inbound request received these attributes include:
 // * The remote address of the client
 // * The HTTP Method utilized
-// * The hostname specified on this request
-// * The port specified on this request
 //
 // On outbound response return these attributes include all of the above as well as:
 // * HTTP response code
@@ -37,14 +35,12 @@ func HTTPMiddleware(sr *writer.StatusRecorder, r *http.Request) (func(), *http.R
 	method := zap.String("http_method", r.Method)
 	path := zap.String("path", writer.FetchRoutePathTemplate(r))
 	query := zap.String("query_string", r.URL.Query().Encode())
-	hostname := zap.String("hostname", r.URL.Hostname())
-	port := zap.String("port", r.URL.Port())
-	Get(r.Context()).Info("request received", method, path, query, hostname, port)
+	Get(r.Context()).Info("request received", method, path, query)
 	Get(r.Context()).Debug("request headers", zap.Reflect("Headers", r.Header))
 	return func() {
 		Get(r.Context()).Info(
 			"returning response",
-			hostname, port, zap.Int("response_code", sr.StatusCode))
+			zap.Int("response_code", sr.StatusCode))
 	}, r
 }
 
