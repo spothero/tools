@@ -64,7 +64,7 @@ type Server struct {
 func NewDefaultConfig(name string) Config {
 	return Config{
 		Name:           name,
-		Address:        "0.0.0.0",
+		Address:        "127.0.0.1",
 		Port:           8080,
 		ReadTimeout:    5,
 		WriteTimeout:   30,
