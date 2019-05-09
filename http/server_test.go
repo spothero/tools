@@ -31,7 +31,7 @@ func TestNewDefaultConfig(t *testing.T) {
 	// Ensure that the remaining fields are correctly configured
 	assert.Equal(t, Config{
 		Name:           "test",
-		Address:        "0.0.0.0",
+		Address:        "127.0.0.1",
 		Port:           8080,
 		ReadTimeout:    5,
 		WriteTimeout:   30,
