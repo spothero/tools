@@ -30,7 +30,10 @@ func TestHandler(t *testing.T) {
 	mw := Middleware{
 		func(sr *writer.StatusRecorder, r *http.Request) (func(), *http.Request) {
 			middlewareCalled = true
-			return func() { deferableCalled = true }, r
+			return func() {
+				deferableCalled = true
+				assert.IsType(t, &writer.StatusRecorder{}, sr)
+			}, r
 		},
 	}
 	httpRec := httptest.NewRecorder()

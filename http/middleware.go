@@ -54,6 +54,6 @@ func (m Middleware) handler(next http.Handler) http.Handler {
 			deferable, r = mw(wrappedWriter, r)
 			defer deferable()
 		}
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(wrappedWriter, r)
 	})
 }
