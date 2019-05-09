@@ -45,6 +45,7 @@ const defaultMetricsFrequency = 5 * time.Second
 
 // PostgresConfig defines Postgres SQL connection information
 type PostgresConfig struct {
+	ApplicationName  string                // The name of the application connecting. Useful for attributing db load.
 	Host             string                // The host where the database is located
 	Port             uint16                // The port on which the database is listening
 	Username         string                // The username for the database
@@ -60,8 +61,9 @@ type PostgresConfig struct {
 }
 
 // NewDefaultPostgresConfig creates and return a default postgres configuration.
-func NewDefaultPostgresConfig(dbName string) PostgresConfig {
+func NewDefaultPostgresConfig(appName, dbName string) PostgresConfig {
 	return PostgresConfig{
+		ApplicationName:  appName,
 		Host:             "localhost",
 		Port:             5432,
 		Database:         dbName,
@@ -76,6 +78,9 @@ func (pc PostgresConfig) buildConnectionString() (string, error) {
 	if pc.Database == "" {
 		return "", fmt.Errorf("postgres database name was not specified")
 	}
+	if pc.ApplicationName == "" {
+		return "", fmt.Errorf("application name must be specified to connect to postgres")
+	}
 	auth := ""
 	if pc.Username != "" || pc.Password != "" {
 		auth = fmt.Sprintf("%s:%s@", pc.Username, pc.Password)
@@ -87,7 +92,7 @@ func (pc PostgresConfig) buildConnectionString() (string, error) {
 		pc.Port,
 		pc.Database,
 	)
-	options := make([]string, 0)
+	options := []string{fmt.Sprintf("application_name=%s", pc.ApplicationName)}
 	if pc.SSL {
 		options = append(options, "sslmode=verify-full")
 		if pc.SSLCert != "" {
@@ -106,10 +111,7 @@ func (pc PostgresConfig) buildConnectionString() (string, error) {
 		timeoutStr := strconv.Itoa(int(pc.ConnectTimeout.Seconds()))
 		options = append(options, fmt.Sprintf("connect_timeout=%s", timeoutStr))
 	}
-	if len(options) > 0 {
-		url = fmt.Sprintf("%s?%s", url, strings.Join(options, "&"))
-	}
-	return url, nil
+	return fmt.Sprintf("%s?%s", url, strings.Join(options, "&")), nil
 }
 
 // instrumentPostgres registers an instrumented and wrapped Postgres driver with the SQL library
