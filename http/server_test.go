@@ -70,7 +70,7 @@ func TestNewServer(t *testing.T) {
 	// walk routes to ensure default routes are registered
 	expectedRoutes := map[string]bool{
 		"/health":              true,
-		"/debug/pprof":         true,
+		"/debug/pprof/":         true,
 		"/debug/pprof/cmdline": true,
 		"/debug/pprof/profile": true,
 		"/debug/pprof/symbol":  true,
