@@ -83,6 +83,7 @@ func (c Config) NewServer() Server {
 		router.HandleFunc("/health", healthHandler)
 	}
 	if c.PprofHandler {
+		router.PathPrefix("/debug/").Handler(http.DefaultServeMux)
 		router.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
 		router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 		router.HandleFunc("/debug/pprof/profile", pprof.Profile)
