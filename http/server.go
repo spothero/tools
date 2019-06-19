@@ -21,7 +21,6 @@ import (
 	"net/http/pprof"
 	"os"
 	"os/signal"
-	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -120,35 +119,27 @@ func (c Config) NewServer() Server {
 func (s Server) Run() {
 	// Setup a context to send cancellation signals to goroutines
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	// Call any existing pre-start callback
 	if s.preStart != nil {
 		s.preStart(ctx, s.router, s.httpServer)
 	}
 
-	// Start all configured servers
-	var wg sync.WaitGroup
-	wg.Add(1)
 	go func() {
-		defer wg.Done()
-		go func() {
-			log.Get(ctx).Info(fmt.Sprintf("HTTP server started on %s", s.httpServer.Addr))
-			if err := s.httpServer.ListenAndServe(); err != nil {
-				log.Get(ctx).Info("HTTP server shutdown", zap.Error(err))
-			}
-		}()
-		<-ctx.Done()
+		log.Get(ctx).Info(fmt.Sprintf("HTTP server started on %s", s.httpServer.Addr))
+		if err := s.httpServer.ListenAndServe(); err != nil {
+			log.Get(ctx).Info("HTTP server shutdown", zap.Error(err))
+		}
 	}()
 
-	// Capture cancellation signal and deliver to running goroutines
+	// Capture cancellation signal and gracefully shutdown goroutines
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, s.cancelSignals...)
 	<-signals
 	log.Get(ctx).Info("Received interrupt, shutting down")
-	cancel()
 
 	// Wait for servers to finish exiting and initiate shutdown
-	wg.Wait()
 	shutdown, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	if err := s.httpServer.Shutdown(shutdown); err != nil {
