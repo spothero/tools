@@ -9,7 +9,7 @@ all: lint test
 build: ## Builds application artifacts
 	go build -ldflags="-X main.version=${VERSION} -X main.gitSHA=${GIT_SHA}" examples/example_server.go
 
-test: ## Runs application tests
+test: build ## Runs application tests
 	go test -race -v ./... -coverprofile=coverage.txt -covermode=atomic
 
 coverage: test ## Displays test coverage report
