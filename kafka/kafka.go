@@ -612,6 +612,9 @@ func (p Producer) RunProducer(messages <-chan *sarama.ProducerMessage, done chan
 	// Handle errors returned by the producer
 	go func() {
 		defer closeWg.Done()
+		if p.Errors != nil {
+			defer close(p.Errors)
+		}
 		for err := range p.producer.Errors() {
 			var key []byte
 			if err.Msg.Key != nil {
@@ -640,6 +643,9 @@ func (p Producer) RunProducer(messages <-chan *sarama.ProducerMessage, done chan
 	// Handle successes returned by the producer
 	go func() {
 		defer closeWg.Done()
+		if p.Successes != nil {
+			defer close(p.Successes)
+		}
 		for msg := range p.producer.Successes() {
 			promLabels["partition"] = fmt.Sprintf("%d", msg.Partition)
 			promLabels["topic"] = msg.Topic
