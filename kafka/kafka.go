@@ -82,7 +82,9 @@ type Consumer struct {
 // Producer contains a sarama client and async producer
 type Producer struct {
 	Client
-	producer sarama.AsyncProducer
+	producer  sarama.AsyncProducer
+	Successes chan<- *sarama.ProducerMessage
+	Errors    chan<- *sarama.ProducerError
 }
 
 // ConsumerIface is an interface for consuming messages from a Kafka topic
@@ -200,8 +202,10 @@ func (c Client) NewConsumer() (Consumer, error) {
 	return kafkaConsumer, nil
 }
 
-// NewProducer creates a sarama producer from a client
-func (c Client) NewProducer() (Producer, error) {
+// NewProducer creates a sarama producer from a client. If the returnMessages flag is true,
+// messages from the producer will be produced on the Success or Errors channel depending
+// on the outcome of the produced message.
+func (c Client) NewProducer(returnMessages bool) (Producer, error) {
 	producer, err := sarama.NewAsyncProducerFromClient(c.client)
 	if err != nil {
 		if closeErr := producer.Close(); closeErr != nil {
@@ -210,10 +214,15 @@ func (c Client) NewProducer() (Producer, error) {
 		return Producer{}, err
 	}
 
-	return Producer{
+	p := Producer{
 		Client:   c,
 		producer: producer,
-	}, nil
+	}
+	if returnMessages {
+		p.Successes = make(chan<- *sarama.ProducerMessage)
+		p.Errors = make(chan<- *sarama.ProducerError)
+	}
+	return p, nil
 }
 
 // Close the underlying Kafka client
@@ -622,6 +631,9 @@ func (p Producer) RunProducer(messages <-chan *sarama.ProducerMessage, done chan
 			promLabels["partition"] = fmt.Sprintf("%d", err.Msg.Partition)
 			promLabels["topic"] = err.Msg.Topic
 			p.Config.errorsProduced.With(promLabels).Add(1)
+			if p.Errors != nil {
+				p.Errors <- err
+			}
 		}
 	}()
 
@@ -632,6 +644,9 @@ func (p Producer) RunProducer(messages <-chan *sarama.ProducerMessage, done chan
 			promLabels["partition"] = fmt.Sprintf("%d", msg.Partition)
 			promLabels["topic"] = msg.Topic
 			p.Config.messagesProduced.With(promLabels).Add(1)
+			if p.Successes != nil {
+				p.Successes <- msg
+			}
 		}
 	}()
 }
