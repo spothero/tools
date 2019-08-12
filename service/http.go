@@ -31,20 +31,28 @@ import (
 
 type HTTPConfig struct {
 	Config
-	RegisterHandlers func(*mux.Router)                                                  // Callback function which registers gorilla mux routes
-	PreStart         func(ctx context.Context, router *mux.Router, server *http.Server) // A function to be called before starting the web server
-	PostShutdown     func(ctx context.Context)                                          // A function to be called before stopping the web server
+	PreStart     func(ctx context.Context, router *mux.Router, server *http.Server) // A function to be called before starting the web server
+	PostShutdown func(ctx context.Context)                                          // A function to be called before stopping the web server
+}
+
+// HTTPService implementers register HTTP routes with a mux router.
+type HTTPService interface {
+	RegisterHandlers(router *mux.Router)
 }
 
 // ServerCmd creates and returns a Cobra and Viper command preconfigured to run a
-// production-quality HTTP server. Note that this function returns the Default HTTP server for use
+// production-quality HTTP server. This method takes a function that instantiates a HTTPService interface
+// that passes through the HTTPConfig object to the constructor after all values are populated from
+// the CLI and/or environment variables so that values configured by this package are accessible
+// downstream.
+//
+// Note that this function returns the Default HTTP server for use
 // at SpotHero. Consumers of the tools libraries are free to define their own server entrypoints if
 // desired. This function is provided as a convenience function that should satisfy most use cases
 // Note that Version and GitSHA *must be specified* before calling this function.
-func (hc HTTPConfig) ServerCmd() *cobra.Command {
+func (hc HTTPConfig) ServerCmd(newService func(HTTPConfig) HTTPService) *cobra.Command {
 	// HTTP Config
 	config := shHTTP.NewDefaultConfig(hc.Name)
-	config.RegisterHandlers = hc.RegisterHandlers
 	config.PreStart = hc.PreStart
 	config.PostShutdown = hc.PostShutdown
 	config.Middleware = shHTTP.Middleware{
@@ -86,6 +94,8 @@ func (hc HTTPConfig) ServerCmd() *cobra.Command {
 			}
 			closer := tc.ConfigureTracer()
 			defer closer.Close()
+			httpService := newService(hc)
+			config.RegisterHandlers = httpService.RegisterHandlers
 			config.NewServer().Run()
 			return nil
 		},
