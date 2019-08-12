@@ -80,7 +80,7 @@ func main() {
 			Environment: "local",
 		},
 	}
-	if err := serverCmd.ServerCmd(func(hc service.HTTPConfig) service.HTTPService {
+	if err := serverCmd.ServerCmd("", "", func(hc service.HTTPConfig) service.HTTPService {
 		return handler{
 			environment: hc.Environment,
 		}

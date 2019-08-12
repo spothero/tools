@@ -36,7 +36,7 @@ func TestDefaultServer(t *testing.T) {
 			GitSHA:   "abc123",
 		},
 	}
-	cmd := c.ServerCmd(func(HTTPConfig) HTTPService { return mockService{} })
+	cmd := c.ServerCmd("", "", func(HTTPConfig) HTTPService { return mockService{} })
 	assert.NotNil(t, cmd)
 	assert.NotZero(t, cmd.Use)
 	assert.NotZero(t, cmd.Short)

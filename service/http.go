@@ -50,7 +50,7 @@ type HTTPService interface {
 // at SpotHero. Consumers of the tools libraries are free to define their own server entrypoints if
 // desired. This function is provided as a convenience function that should satisfy most use cases
 // Note that Version and GitSHA *must be specified* before calling this function.
-func (hc HTTPConfig) ServerCmd(newService func(HTTPConfig) HTTPService) *cobra.Command {
+func (hc HTTPConfig) ServerCmd(shortDescript, longDescript string, newService func(HTTPConfig) HTTPService) *cobra.Command {
 	// HTTP Config
 	config := shHTTP.NewDefaultConfig(hc.Name)
 	config.PreStart = hc.PreStart
@@ -78,8 +78,8 @@ func (hc HTTPConfig) ServerCmd(newService func(HTTPConfig) HTTPService) *cobra.C
 	tc := tracing.Config{ServiceName: hc.Name}
 	cmd := &cobra.Command{
 		Use:              hc.Name,
-		Short:            "Starts and runs an HTTP Server",
-		Long:             "Starts and runs an HTTP Server",
+		Short:            shortDescript,
+		Long:             longDescript,
 		Version:          fmt.Sprintf("%s (%s)", hc.Version, hc.GitSHA),
 		PersistentPreRun: cli.CobraBindEnvironmentVariables(hc.Name),
 		RunE: func(cmd *cobra.Command, args []string) error {
