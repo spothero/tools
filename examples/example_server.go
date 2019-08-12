@@ -49,13 +49,15 @@ func (h handler) helloWorld(w http.ResponseWriter, r *http.Request) {
 	defer span.Finish()
 
 	// NOTE: Here we write out some artisanal HTML. There are many other (better) ways to output data.
-	fmt.Fprintf(
-		w, `
+	fmt.Fprintf(w,
+		`
 <html>
 Hello World. What's the <a href='/best-language'>best language?</a></br>
 (I'm running in the %s environment)
 </html>
-`, h.environment)
+		`,
+		h.environment,
+	)
 }
 
 // bestLanguage tells the caller what the best language is. It is inteded for use as an HTTP callback.
