@@ -29,23 +29,35 @@ import (
 var gitSHA = "not-set"
 var version = "not-set"
 
+type handler struct {
+	environment string
+}
+
 // registerHandlers is a callback used to register HTTP endpoints to the default server
 // NOTE: The HTTP server automatically registers /health and /metrics -- Have a look in your
 // browser!
-func registerHandlers(router *mux.Router) {
-	router.HandleFunc("/", helloWorld)
+func (h handler) RegisterHandlers(router *mux.Router) {
+	router.HandleFunc("/", h.helloWorld)
 	router.HandleFunc("/best-language", bestLanguage)
 }
 
 // helloWorld simply writes "hello world" to the caller. It is ended for use as an HTTP callback.
-func helloWorld(w http.ResponseWriter, r *http.Request) {
+func (h handler) helloWorld(w http.ResponseWriter, r *http.Request) {
 	// NOTE: This is an example of an opentracing span
 	span, _ := opentracing.StartSpanFromContext(r.Context(), "example-hello-world")
 	span = span.SetTag("Key", "Value")
 	defer span.Finish()
 
 	// NOTE: Here we write out some artisanal HTML. There are many other (better) ways to output data.
-	fmt.Fprintf(w, "<html>Hello World. What's the <a href='/best-language'>best language?</a></html>")
+	fmt.Fprintf(w,
+		`
+<html>
+Hello World. What's the <a href='/best-language'>best language?</a></br>
+(I'm running in the %s environment)
+</html>
+		`,
+		h.environment,
+	)
 }
 
 // bestLanguage tells the caller what the best language is. It is inteded for use as an HTTP callback.
@@ -57,7 +69,7 @@ func bestLanguage(w http.ResponseWriter, r *http.Request) {
 	defer span.Finish()
 
 	// NOTE: Here we write out some artisanal HTML. There are many other (better) ways to output data.
-	fmt.Fprintf(w, "<html><a href='//golang.org/'>Golang</a>, of course! \\ʕ◔ϖ◔ʔ/</br> Say <a href='/'>hello</a> again.</html>")
+	fmt.Fprintf(w, "<html><a href='//golang.org/'>Go</a>, of course! \\ʕ◔ϖ◔ʔ/</br> Say <a href='/'>hello</a> again.</html>")
 }
 
 // This is the main entrypoint of the program. Here we create our root command and then execute it.
@@ -69,9 +81,12 @@ func main() {
 			GitSHA:      gitSHA,
 			Environment: "local",
 		},
-		RegisterHandlers: registerHandlers,
 	}
-	if err := serverCmd.ServerCmd().Execute(); err != nil {
+	if err := serverCmd.ServerCmd("", "", func(hc service.HTTPConfig) service.HTTPService {
+		return handler{
+			environment: hc.Environment,
+		}
+	}).Execute(); err != nil {
 		os.Exit(1)
 	}
 }

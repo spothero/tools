@@ -18,9 +18,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 )
+
+type mockService struct{}
+
+func (ms mockService) RegisterHandlers(_ *mux.Router) {}
 
 func TestDefaultServer(t *testing.T) {
 	c := HTTPConfig{
@@ -31,7 +36,7 @@ func TestDefaultServer(t *testing.T) {
 			GitSHA:   "abc123",
 		},
 	}
-	cmd := c.ServerCmd()
+	cmd := c.ServerCmd("short", "long", func(HTTPConfig) HTTPService { return mockService{} })
 	assert.NotNil(t, cmd)
 	assert.NotZero(t, cmd.Use)
 	assert.NotZero(t, cmd.Short)
