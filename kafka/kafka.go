@@ -83,8 +83,8 @@ type Consumer struct {
 type Producer struct {
 	Client
 	producer  sarama.AsyncProducer
-	Successes chan<- *sarama.ProducerMessage
-	Errors    chan<- *sarama.ProducerError
+	Successes chan *sarama.ProducerMessage
+	Errors    chan *sarama.ProducerError
 }
 
 // ConsumerIface is an interface for consuming messages from a Kafka topic
@@ -219,8 +219,8 @@ func (c Client) NewProducer(returnMessages bool) (Producer, error) {
 		producer: producer,
 	}
 	if returnMessages {
-		p.Successes = make(chan<- *sarama.ProducerMessage)
-		p.Errors = make(chan<- *sarama.ProducerError)
+		p.Successes = make(chan *sarama.ProducerMessage)
+		p.Errors = make(chan *sarama.ProducerError)
 	}
 	return p, nil
 }
