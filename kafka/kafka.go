@@ -72,6 +72,12 @@ type Client struct {
 	client sarama.Client
 }
 
+// ClientIface is an interface for creating consumers and producers
+type ClientIface interface {
+	NewConsumer() (ConsumerIface, error)
+	NewProducer(returnMessages bool) (ProducerIface, error)
+}
+
 // Consumer contains a sarama client, consumer, and implementation of the MessageUnmarshaler interface
 type Consumer struct {
 	Client
@@ -93,6 +99,11 @@ type ConsumerIface interface {
 	ConsumeTopicFromBeginning(ctx context.Context, handler MessageHandler, topic string, readResult chan PartitionOffsets, catchupWg *sync.WaitGroup, exitAfterCaughtUp bool) error
 	ConsumeTopicFromLatest(ctx context.Context, handler MessageHandler, topic string, readResult chan PartitionOffsets) error
 	Close()
+}
+
+// ProducerIface is an interface for producing Kafka messages
+type ProducerIface interface {
+	RunProducer(messages <-chan *sarama.ProducerMessage, done chan bool)
 }
 
 // NewClient creates a Kafka client with metrics exporting and optional
@@ -178,7 +189,7 @@ func (c Config) NewClient(ctx context.Context) (Client, error) {
 }
 
 // NewConsumer sets up a Kafka consumer
-func (c Client) NewConsumer() (Consumer, error) {
+func (c Client) NewConsumer() (ConsumerIface, error) {
 	consumer, err := sarama.NewConsumerFromClient(c.client)
 	if err != nil {
 		if closeErr := c.client.Close(); closeErr != nil {
@@ -205,7 +216,7 @@ func (c Client) NewConsumer() (Consumer, error) {
 // NewProducer creates a sarama producer from a client. If the returnMessages flag is true,
 // messages from the producer will be produced on the Success or Errors channel depending
 // on the outcome of the produced message.
-func (c Client) NewProducer(returnMessages bool) (Producer, error) {
+func (c Client) NewProducer(returnMessages bool) (ProducerIface, error) {
 	producer, err := sarama.NewAsyncProducerFromClient(c.client)
 	if err != nil {
 		if closeErr := producer.Close(); closeErr != nil {

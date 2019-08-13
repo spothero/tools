@@ -18,6 +18,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/Shopify/sarama"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -62,4 +63,40 @@ func (m *MockKafkaConsumer) Close() {
 // EmitReadResult allows tests to send values through the readResult channel passed into the mock consumer.
 func (m *MockKafkaConsumer) EmitReadResult(offsets PartitionOffsets) {
 	m.readResult <- offsets
+}
+
+// MockClient implements ClientIface for testingn purposes
+type MockClient struct {
+	mock.Mock
+}
+
+// NewConsumer creates a new mock consumer
+func (m *MockClient) NewConsumer() (ConsumerIface, error) {
+	args := m.Called()
+	return args.Get(0).(ConsumerIface), args.Error(1)
+}
+
+// NewProducer creates a new mock producer
+func (m *MockClient) NewProducer(returnMessages bool) (ProducerIface, error) {
+	args := m.Called(returnMessages)
+	return args.Get(0).(ProducerIface), args.Error(1)
+}
+
+type MockProducer struct {
+	mock.Mock
+	Messages chan *sarama.ProducerMessage
+	Success  chan *sarama.ProducerMessage
+	Errors   chan *sarama.ProducerError
+}
+
+func NewMockProducer(wg *sync.WaitGroup) *MockProducer {
+	return &MockProducer{
+		Messages: make(chan *sarama.ProducerMessage),
+		Success:  make(chan *sarama.ProducerMessage),
+		Errors:   make(chan *sarama.ProducerError),
+	}
+}
+
+func (m *MockProducer) RunProducer(messages <-chan *sarama.ProducerMessage, done chan bool) {
+	m.Called(messages, done)
 }
