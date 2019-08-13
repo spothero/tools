@@ -85,6 +85,7 @@ func (m *MockClient) NewProducer(returnMessages bool) (ProducerIface, error) {
 // MockProducer implements the producer interface for testing and includes channels for mocking out messages
 type MockProducer struct {
 	mock.Mock
+	Messages  chan *sarama.ProducerMessage
 	successes chan *sarama.ProducerMessage
 	errors    chan *sarama.ProducerError
 }
@@ -92,14 +93,17 @@ type MockProducer struct {
 // NewMockProducer creates a new mock producer
 func NewMockProducer() *MockProducer {
 	return &MockProducer{
+		Messages:  make(chan *sarama.ProducerMessage),
 		successes: make(chan *sarama.ProducerMessage),
 		errors:    make(chan *sarama.ProducerError),
 	}
 }
 
-// RunProducer mocks the RunProducer call
-func (m *MockProducer) RunProducer(messages <-chan *sarama.ProducerMessage, done chan bool) {
+// RunProducer mocks the RunProducer call. This method has the side effect of setting the
+// Messages channel on the mock producer to the channel that was passed into the method.
+func (m *MockProducer) RunProducer(messages chan *sarama.ProducerMessage, done chan bool) {
 	m.Called(messages, done)
+	m.Messages = messages
 }
 
 // Successes returns the channel on which successfully published messages will be returned

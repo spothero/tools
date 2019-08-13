@@ -103,7 +103,7 @@ type ConsumerIface interface {
 
 // ProducerIface is an interface for producing Kafka messages
 type ProducerIface interface {
-	RunProducer(messages <-chan *sarama.ProducerMessage, done chan bool)
+	RunProducer(messages chan *sarama.ProducerMessage, done chan bool)
 	Successes() chan *sarama.ProducerMessage
 	Errors() chan *sarama.ProducerError
 }
@@ -599,7 +599,7 @@ func (c Consumer) consumePartition(
 // to the producer. To stop the producer, close the messages channel; when the producer is shutdown a signal will
 // be emitted on the done channel. If the messages channel is unbuffered, each message sent to the producer is
 // guaranteed to at least have been attempted to be produced to Kafka.
-func (p Producer) RunProducer(messages <-chan *sarama.ProducerMessage, done chan bool) {
+func (p Producer) RunProducer(messages chan *sarama.ProducerMessage, done chan bool) {
 	promLabels := prometheus.Labels{
 		"client": p.Config.ClientID,
 	}
