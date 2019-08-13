@@ -91,7 +91,7 @@ type MockProducer struct {
 }
 
 // NewMockProducer creates a new mock producer
-func NewMockProducer(wg *sync.WaitGroup) *MockProducer {
+func NewMockProducer() *MockProducer {
 	return &MockProducer{
 		Messages:  make(chan *sarama.ProducerMessage),
 		successes: make(chan *sarama.ProducerMessage),
