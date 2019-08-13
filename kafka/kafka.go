@@ -89,8 +89,8 @@ type Consumer struct {
 type Producer struct {
 	Client
 	producer  sarama.AsyncProducer
-	Successes chan *sarama.ProducerMessage
-	Errors    chan *sarama.ProducerError
+	successes chan *sarama.ProducerMessage
+	errors    chan *sarama.ProducerError
 }
 
 // ConsumerIface is an interface for consuming messages from a Kafka topic
@@ -104,6 +104,8 @@ type ConsumerIface interface {
 // ProducerIface is an interface for producing Kafka messages
 type ProducerIface interface {
 	RunProducer(messages <-chan *sarama.ProducerMessage, done chan bool)
+	Successes() chan *sarama.ProducerMessage
+	Errors() chan *sarama.ProducerError
 }
 
 // NewClient creates a Kafka client with metrics exporting and optional
@@ -230,8 +232,8 @@ func (c Client) NewProducer(returnMessages bool) (ProducerIface, error) {
 		producer: producer,
 	}
 	if returnMessages {
-		p.Successes = make(chan *sarama.ProducerMessage)
-		p.Errors = make(chan *sarama.ProducerError)
+		p.successes = make(chan *sarama.ProducerMessage)
+		p.errors = make(chan *sarama.ProducerError)
 	}
 	return p, nil
 }
@@ -623,8 +625,8 @@ func (p Producer) RunProducer(messages <-chan *sarama.ProducerMessage, done chan
 	// Handle errors returned by the producer
 	go func() {
 		defer closeWg.Done()
-		if p.Errors != nil {
-			defer close(p.Errors)
+		if p.errors != nil {
+			defer close(p.errors)
 		}
 		for err := range p.producer.Errors() {
 			var key []byte
@@ -645,8 +647,8 @@ func (p Producer) RunProducer(messages <-chan *sarama.ProducerMessage, done chan
 			promLabels["partition"] = fmt.Sprintf("%d", err.Msg.Partition)
 			promLabels["topic"] = err.Msg.Topic
 			p.Config.errorsProduced.With(promLabels).Add(1)
-			if p.Errors != nil {
-				p.Errors <- err
+			if p.errors != nil {
+				p.errors <- err
 			}
 		}
 	}()
@@ -654,16 +656,26 @@ func (p Producer) RunProducer(messages <-chan *sarama.ProducerMessage, done chan
 	// Handle successes returned by the producer
 	go func() {
 		defer closeWg.Done()
-		if p.Successes != nil {
-			defer close(p.Successes)
+		if p.successes != nil {
+			defer close(p.successes)
 		}
 		for msg := range p.producer.Successes() {
 			promLabels["partition"] = fmt.Sprintf("%d", msg.Partition)
 			promLabels["topic"] = msg.Topic
 			p.Config.messagesProduced.With(promLabels).Add(1)
-			if p.Successes != nil {
-				p.Successes <- msg
+			if p.successes != nil {
+				p.successes <- msg
 			}
 		}
 	}()
+}
+
+// Successes returns the channel on which successfully published messages will be returned
+func (p Producer) Successes() chan *sarama.ProducerMessage {
+	return p.successes
+}
+
+// Errors returns the channel on which messages that could not be published will be returned
+func (p Producer) Errors() chan *sarama.ProducerError {
+	return p.errors
 }
