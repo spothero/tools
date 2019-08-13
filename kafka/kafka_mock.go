@@ -85,7 +85,6 @@ func (m *MockClient) NewProducer(returnMessages bool) (ProducerIface, error) {
 // MockProducer implements the producer interface for testing and includes channels for mocking out messages
 type MockProducer struct {
 	mock.Mock
-	Messages  chan *sarama.ProducerMessage
 	successes chan *sarama.ProducerMessage
 	errors    chan *sarama.ProducerError
 }
@@ -93,7 +92,6 @@ type MockProducer struct {
 // NewMockProducer creates a new mock producer
 func NewMockProducer() *MockProducer {
 	return &MockProducer{
-		Messages:  make(chan *sarama.ProducerMessage),
 		successes: make(chan *sarama.ProducerMessage),
 		errors:    make(chan *sarama.ProducerError),
 	}
