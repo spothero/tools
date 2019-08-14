@@ -88,6 +88,7 @@ type MockProducer struct {
 	Messages  chan *sarama.ProducerMessage
 	successes chan *sarama.ProducerMessage
 	errors    chan *sarama.ProducerError
+	Done      chan bool
 }
 
 // NewMockProducer creates a new mock producer
@@ -100,10 +101,11 @@ func NewMockProducer() *MockProducer {
 }
 
 // RunProducer mocks the RunProducer call. This method has the side effect of setting the
-// Messages channel on the mock producer to the channel that was passed into the method.
+// Messages and Done channels on the mock producer to the channel that was passed into the method.
 func (m *MockProducer) RunProducer(messages chan *sarama.ProducerMessage, done chan bool) {
 	m.Called(messages, done)
 	m.Messages = messages
+	m.Done = done
 }
 
 // Successes returns the channel on which successfully published messages will be returned
