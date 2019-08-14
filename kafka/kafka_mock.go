@@ -18,6 +18,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/Shopify/sarama"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -62,4 +63,55 @@ func (m *MockKafkaConsumer) Close() {
 // EmitReadResult allows tests to send values through the readResult channel passed into the mock consumer.
 func (m *MockKafkaConsumer) EmitReadResult(offsets PartitionOffsets) {
 	m.readResult <- offsets
+}
+
+// MockClient implements ClientIface for testingn purposes
+type MockClient struct {
+	mock.Mock
+}
+
+// NewConsumer creates a new mock consumer
+func (m *MockClient) NewConsumer() (ConsumerIface, error) {
+	args := m.Called()
+	return args.Get(0).(ConsumerIface), args.Error(1)
+}
+
+// NewProducer creates a new mock producer
+func (m *MockClient) NewProducer(returnMessages bool) (ProducerIface, error) {
+	args := m.Called(returnMessages)
+	return args.Get(0).(ProducerIface), args.Error(1)
+}
+
+// MockProducer implements the producer interface for testing and includes channels for mocking out messages
+type MockProducer struct {
+	mock.Mock
+	Messages  chan *sarama.ProducerMessage
+	successes chan *sarama.ProducerMessage
+	errors    chan *sarama.ProducerError
+}
+
+// NewMockProducer creates a new mock producer
+func NewMockProducer() *MockProducer {
+	return &MockProducer{
+		Messages:  make(chan *sarama.ProducerMessage),
+		successes: make(chan *sarama.ProducerMessage),
+		errors:    make(chan *sarama.ProducerError),
+	}
+}
+
+// RunProducer mocks the RunProducer call. This method has the side effect of setting the
+// Messages channel on the mock producer to the channel that was passed into the method.
+func (m *MockProducer) RunProducer(messages chan *sarama.ProducerMessage, done chan bool) {
+	m.Called(messages, done)
+	m.Messages = messages
+}
+
+// Successes returns the channel on which successfully published messages will be returned
+func (m *MockProducer) Successes() chan *sarama.ProducerMessage {
+	return m.successes
+}
+
+// Errors returns the channel on which messages that could not be published will be returned
+func (m *MockProducer) Errors() chan *sarama.ProducerError {
+	return m.errors
 }
