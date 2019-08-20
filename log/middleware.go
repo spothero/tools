@@ -32,13 +32,14 @@ import (
 // On outbound response return these attributes include all of the above as well as:
 // * HTTP response code
 func HTTPMiddleware(sr *writer.StatusRecorder, r *http.Request) (func(), *http.Request) {
+	logger := Get(r.Context()).Named("http")
 	method := zap.String("http_method", r.Method)
 	path := zap.String("path", writer.FetchRoutePathTemplate(r))
 	query := zap.String("query_string", r.URL.Query().Encode())
-	Get(r.Context()).Info("request received", method, path, query)
-	Get(r.Context()).Debug("request headers", zap.Reflect("Headers", r.Header))
+	logger.Info("request received", method, path, query)
+	logger.Debug("request headers", zap.Reflect("Headers", r.Header))
 	return func() {
-		Get(r.Context()).Info(
+		logger.Info(
 			"returning response",
 			zap.Int("response_code", sr.StatusCode))
 	}, r
