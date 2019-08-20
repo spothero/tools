@@ -53,28 +53,26 @@ func TestGet(t *testing.T) {
 }
 
 func TestNewContext(t *testing.T) {
+	l := zap.NewNop()
 	tests := []struct {
 		name            string
 		ctx             context.Context
-		fields          []zapcore.Field
+		logger          *zap.Logger
 		expectedOutcome context.Context
 	}{
 		{
-			"no fields leads to a default logger context",
+			"no logger leads to a default logger context",
 			context.Background(),
 			nil,
 			context.WithValue(context.Background(), logKey, logger),
 		}, {
-			"providing fields leads to a new context with a new logger with the provided fields",
+			"providing logger leads to a new context with provided logger",
 			context.Background(),
-			[]zapcore.Field{
-				zap.Int("zero", 0),
-				zap.Int("one", 1),
-			},
+			l.With(zap.Int("zero", 0), zap.Int("one", 1)),
 			context.WithValue(
 				context.Background(),
 				logKey,
-				logger.With(
+				l.With(
 					zap.Int("zero", 0),
 					zap.Int("one", 1),
 				),
@@ -83,7 +81,7 @@ func TestNewContext(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.expectedOutcome, NewContext(test.ctx, test.fields...))
+			assert.Equal(t, test.expectedOutcome, NewContext(test.ctx, test.logger))
 		})
 	}
 }
