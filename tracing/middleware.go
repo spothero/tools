@@ -42,11 +42,12 @@ import (
 //
 // The returned HTTP Request includes the wrapped OpenTracing Span Context.
 func HTTPMiddleware(sr *writer.StatusRecorder, r *http.Request) (func(), *http.Request) {
+	logger := log.Get(r.Context())
 	wireContext, err := opentracing.GlobalTracer().Extract(
 		opentracing.HTTPHeaders,
 		opentracing.HTTPHeadersCarrier(r.Header))
 	if err != nil {
-		log.Get(r.Context()).Debug("failed to extract opentracing context on an incoming http request")
+		logger.Debug("failed to extract opentracing context on an incoming http request")
 	}
 	span, spanCtx := opentracing.StartSpanFromContext(r.Context(), writer.FetchRoutePathTemplate(r), ext.RPCServerOption(wireContext))
 	span = span.SetTag("http.method", r.Method)
@@ -58,7 +59,7 @@ func HTTPMiddleware(sr *writer.StatusRecorder, r *http.Request) (func(), *http.R
 	// See: https://github.com/opentracing/specification/issues/123
 	if sc, ok := span.Context().(jaeger.SpanContext); ok {
 		// Embed the Trace ID in the logging context for all future requests
-		spanCtx = log.NewContext(spanCtx, zap.String("correlation_id", sc.TraceID().String()))
+		spanCtx = log.NewContext(spanCtx, logger.With(zap.String("correlation_id", sc.TraceID().String())))
 	}
 	return func() {
 		span.SetTag("http.status_code", strconv.Itoa(sr.StatusCode))

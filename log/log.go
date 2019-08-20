@@ -115,13 +115,16 @@ func (c Config) InitializeLogger() error {
 	return nil
 }
 
-// NewContext creates and returns a new context with a wrapped logger. If fields are specified,
-// all future invocations of the context logger will include those fields as well. This concept is
+// NewContext creates and returns a new context with a wrapped logger. If a logger is not
+// provided, the context returned will contain the global logger. This concept is
 // useful if you wish for all downstream logs from the site of a given context to include some
-// contextual information. For example, once your application has unpacked the Trace ID, you may
-// wish to log that information with every future request.
-func NewContext(ctx context.Context, fields ...zapcore.Field) context.Context {
-	return context.WithValue(ctx, logKey, Get(ctx).With(fields...))
+// contextual fields or use a sub-logger. For example, once your application has
+// unpacked the Trace ID, you may wish to log that information with every future request.
+func NewContext(ctx context.Context, l *zap.Logger) context.Context {
+	if l == nil {
+		return context.WithValue(ctx, logKey, logger)
+	}
+	return context.WithValue(ctx, logKey, l)
 }
 
 // Get returns the logger wrapped with the given context. This function is intended to be
