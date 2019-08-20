@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 // Create a mock message handler
@@ -61,7 +62,11 @@ func setupTestConsumer(t *testing.T, clientGetOffsetReturn int, clientGetOffsetE
 	config := Config{ClientID: "test"}
 	config.initKafkaMetrics(prometheus.NewRegistry())
 	mockClient := &mockSaramaClient{getOffsetReturn: int64(clientGetOffsetReturn), getOffsetErr: clientGetOffsetError}
-	consumer := Consumer{consumer: mockConsumer, Client: Client{Config: config, client: mockClient}}
+	consumer := Consumer{
+		consumer: mockConsumer,
+		Client:   Client{Config: config, client: mockClient},
+		logger:   zap.NewNop(),
+	}
 	return &testHandler{}, consumer, consumer.consumer.(*mocks.Consumer), ctx, cancel
 }
 
