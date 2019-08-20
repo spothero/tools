@@ -74,8 +74,8 @@ type Client struct {
 
 // ClientIface is an interface for creating consumers and producers
 type ClientIface interface {
-	NewConsumer() (ConsumerIface, error)
-	NewProducer(returnMessages bool) (ProducerIface, error)
+	NewConsumer(logger *zap.Logger) (ConsumerIface, error)
+	NewProducer(logger *zap.Logger, returnMessages bool) (ProducerIface, error)
 }
 
 // Consumer contains a sarama client, consumer, and implementation of the MessageUnmarshaler interface
@@ -83,6 +83,7 @@ type Consumer struct {
 	Client
 	consumer           sarama.Consumer
 	messageUnmarshaler MessageUnmarshaler
+	logger             *zap.Logger
 }
 
 // Producer contains a sarama client and async producer
@@ -91,6 +92,7 @@ type Producer struct {
 	producer  sarama.AsyncProducer
 	successes chan *sarama.ProducerMessage
 	errors    chan *sarama.ProducerError
+	logger    *zap.Logger
 }
 
 // ConsumerIface is an interface for consuming messages from a Kafka topic
@@ -191,7 +193,7 @@ func (c Config) NewClient(ctx context.Context) (Client, error) {
 }
 
 // NewConsumer sets up a Kafka consumer
-func (c Client) NewConsumer() (ConsumerIface, error) {
+func (c Client) NewConsumer(logger *zap.Logger) (ConsumerIface, error) {
 	consumer, err := sarama.NewConsumerFromClient(c.client)
 	if err != nil {
 		if closeErr := c.client.Close(); closeErr != nil {
@@ -199,7 +201,6 @@ func (c Client) NewConsumer() (ConsumerIface, error) {
 		}
 		return Consumer{}, err
 	}
-
 	kafkaConsumer := Consumer{
 		Client:   c,
 		consumer: consumer,
@@ -212,13 +213,18 @@ func (c Client) NewConsumer() (ConsumerIface, error) {
 		c.Config.SchemaRegistry.messageUnmarshaler = messageUnmarshaler
 		kafkaConsumer.messageUnmarshaler = c.Config.SchemaRegistry
 	}
+	if logger != nil {
+		kafkaConsumer.logger = logger
+	} else {
+		kafkaConsumer.logger = zap.NewNop()
+	}
 	return kafkaConsumer, nil
 }
 
 // NewProducer creates a sarama producer from a client. If the returnMessages flag is true,
 // messages from the producer will be produced on the Success or Errors channel depending
 // on the outcome of the produced message.
-func (c Client) NewProducer(returnMessages bool) (ProducerIface, error) {
+func (c Client) NewProducer(logger *zap.Logger, returnMessages bool) (ProducerIface, error) {
 	producer, err := sarama.NewAsyncProducerFromClient(c.client)
 	if err != nil {
 		if closeErr := producer.Close(); closeErr != nil {
@@ -234,6 +240,11 @@ func (c Client) NewProducer(returnMessages bool) (ProducerIface, error) {
 	if returnMessages {
 		p.successes = make(chan *sarama.ProducerMessage)
 		p.errors = make(chan *sarama.ProducerError)
+	}
+	if logger != nil {
+		p.logger = logger
+	} else {
+		p.logger = zap.NewNop()
 	}
 	return p, nil
 }
@@ -360,7 +371,7 @@ func (c *Config) initKafkaMetrics(registry prometheus.Registerer) {
 func (c Consumer) Close() {
 	err := c.consumer.Close()
 	if err != nil {
-		log.Get(context.Background()).Error("Error closing Kafka consumer", zap.Error(err))
+		c.logger.Error("Error closing Kafka consumer", zap.Error(err))
 	}
 }
 
@@ -385,7 +396,7 @@ func (c Consumer) ConsumeTopic(
 	catchupWg *sync.WaitGroup,
 	exitAfterCaughtUp bool,
 ) error {
-	log.Get(ctx).Info("Starting Kafka consumer", zap.String("topic", topic))
+	c.logger.Info("Starting Kafka consumer", zap.String("topic", topic))
 	var partitionsCatchupWg sync.WaitGroup
 	partitions, err := c.consumer.Partitions(topic)
 	if err != nil {
@@ -416,12 +427,12 @@ func (c Consumer) ConsumeTopic(
 		partitionsCatchupWg.Wait()
 		if catchupWg != nil {
 			catchupWg.Done()
-			log.Get(ctx).Info("All partitions caught up", zap.String("topic", topic))
+			c.logger.Info("All partitions caught up", zap.String("topic", topic))
 		}
 
 		readToOffsets := make(PartitionOffsets)
 		defer func() {
-			log.Get(ctx).Info("All partition consumers closed", zap.String("topic", topic))
+			c.logger.Info("All partition consumers closed", zap.String("topic", topic))
 			if readResult != nil {
 				readResult <- readToOffsets
 			}
@@ -505,7 +516,7 @@ func (c Consumer) consumePartition(
 ) {
 	partitionConsumer, err := c.consumer.ConsumePartition(topic, partition, startOffset)
 	if err != nil {
-		log.Get(ctx).Panic(
+		c.logger.Panic(
 			"Failed to create Kafka partition consumer",
 			zap.String("topic", topic), zap.Int32("partition", partition),
 			zap.Int64("start_offset", startOffset), zap.Error(err))
@@ -516,11 +527,11 @@ func (c Consumer) consumePartition(
 	defer func() {
 		err := partitionConsumer.Close()
 		if err != nil {
-			log.Get(ctx).Error(
+			c.logger.Error(
 				"Error closing Kafka partition consumer",
 				zap.Error(err), zap.String("topic", topic), zap.Int32("partition", partition))
 		} else {
-			log.Get(ctx).Debug(
+			c.logger.Debug(
 				"Kafka partition consumer closed", zap.String("topic", topic),
 				zap.Int32("partition", partition))
 		}
@@ -550,7 +561,7 @@ func (c Consumer) consumePartition(
 			curOffset = msg.Offset
 			if !ok {
 				c.Config.messageErrors.With(promLabels).Add(1)
-				log.Get(ctx).Error(
+				c.logger.Error(
 					"Unable to process message from Kafka",
 					zap.ByteString("key", msg.Key), zap.Int64("offset", msg.Offset),
 					zap.Int32("partition", msg.Partition), zap.String("topic", msg.Topic),
@@ -559,7 +570,7 @@ func (c Consumer) consumePartition(
 			}
 			timer := prometheus.NewTimer(c.Config.messageProcessingTime.With(promLabels))
 			if err := handler.HandleMessage(ctx, msg, c.messageUnmarshaler); err != nil {
-				log.Get(ctx).Error(
+				c.logger.Error(
 					"Error handling message",
 					zap.String("topic", topic),
 					zap.Int32("partition", partition),
@@ -573,7 +584,7 @@ func (c Consumer) consumePartition(
 			if msg.Offset == caughtUpOffset {
 				caughtUp = true
 				catchupWg.Done()
-				log.Get(ctx).Debug(
+				c.logger.Debug(
 					"Successfully read to target Kafka offset",
 					zap.String("topic", topic), zap.Int32("partition", partition),
 					zap.Int64("offset", msg.Offset))
@@ -583,7 +594,7 @@ func (c Consumer) consumePartition(
 			}
 		case err := <-partitionConsumer.Errors():
 			c.Config.errorsProcessed.With(promLabels).Add(1)
-			log.Get(ctx).Error("Encountered an error from Kafka", zap.Error(err))
+			c.logger.Error("Encountered an error from Kafka", zap.Error(err))
 		case <-ctx.Done():
 			if !caughtUp {
 				// signal to the catchup wg that we're done if there's been a cancellation request
@@ -610,11 +621,11 @@ func (p Producer) RunProducer(messages chan *sarama.ProducerMessage, done chan b
 	go func() {
 		defer func() {
 			// channel closed, initiate producer shutdown
-			log.Get(context.Background()).Debug("closing kafka producer")
+			p.logger.Debug("closing kafka producer")
 			// wait for error and successes channels to close
 			p.producer.AsyncClose()
 			closeWg.Wait()
-			log.Get(context.Background()).Debug("kafka producer closed")
+			p.logger.Debug("kafka producer closed")
 			done <- true
 		}()
 		for message := range messages {
@@ -634,10 +645,10 @@ func (p Producer) RunProducer(messages chan *sarama.ProducerMessage, done chan b
 				if _key, err := err.Msg.Key.Encode(); err == nil {
 					key = _key
 				} else {
-					log.Get(context.Background()).Error("could not encode produced message key", zap.Error(err))
+					p.logger.Error("could not encode produced message key", zap.Error(err))
 				}
 			}
-			log.Get(context.Background()).Error(
+			p.logger.Error(
 				"Error producing Kafka message",
 				zap.String("topic", err.Msg.Topic),
 				zap.String("key", string(key)),
