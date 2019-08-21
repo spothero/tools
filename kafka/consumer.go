@@ -56,7 +56,7 @@ type ConsumerMetrics struct {
 // and schema registry configuration.
 type ConsumerConfig struct {
 	JSONEnabled    bool
-	SchemaRegistry SchemaRegistryConfig
+	SchemaRegistry *SchemaRegistryConfig
 }
 
 // Registers high-level consumer flags with pflags
@@ -94,7 +94,7 @@ func (c Client) NewConsumer(config ConsumerConfig, logger *zap.Logger) (Consumer
 	} else {
 		config.SchemaRegistry.client = &schemaRegistryClient{}
 		config.SchemaRegistry.messageUnmarshaler = messageUnmarshaler
-		kafkaConsumer.messageUnmarshaler = &config.SchemaRegistry
+		kafkaConsumer.messageUnmarshaler = config.SchemaRegistry
 	}
 	if logger != nil {
 		kafkaConsumer.logger = logger
