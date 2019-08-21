@@ -20,6 +20,7 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/spf13/pflag"
 	"go.uber.org/zap"
 )
 
@@ -46,11 +47,24 @@ type ProducerIface interface {
 	Errors() chan *sarama.ProducerError
 }
 
+// ProducerConfig contains producer-specific configuration information
+type ProducerConfig struct {
+	ProducerCompressionCodec string
+	ProducerCompressionLevel int
+}
+
+// Registers producer flags with pflags
+func (c *ProducerConfig) RegisterFlags(flags *pflag.FlagSet) {
+	flags.StringVar(&c.ProducerCompressionCodec, "kafka-producer-compression-codec", "none", "Compression codec to use when producing messages, one of: \"none\", \"zstd\", \"snappy\", \"lz4\", \"zstd\", \"gzip\"")
+	flags.IntVar(&c.ProducerCompressionLevel, "kafka-producer-compression-level", -1000, "Compression level to use on produced messages, -1000 signifies to use the default level.")
+}
+
 // NewProducer creates a sarama producer from a client. If the returnMessages flag is true,
 // messages from the producer will be produced on the Success or Errors channel depending
 // on the outcome of the produced message. This method also registers producer metrics with the default
-// Prometheus registerer.
-func (c Client) NewProducer(logger *zap.Logger, returnMessages bool) (ProducerIface, error) {
+// Prometheus registerer. Note that this method has the side effect of setting the compression level and
+// codec on the provided client's underlying configuration.
+func (c Client) NewProducer(config ProducerConfig, logger *zap.Logger, returnMessages bool) (ProducerIface, error) {
 	saramaProducer, err := sarama.NewAsyncProducerFromClient(c.SaramaClient)
 	if err != nil {
 		return Producer{}, err
@@ -69,6 +83,23 @@ func (c Client) NewProducer(logger *zap.Logger, returnMessages bool) (ProducerIf
 	} else {
 		producer.logger = zap.NewNop()
 	}
+	var compressionCodec sarama.CompressionCodec
+	switch config.ProducerCompressionCodec {
+	case "zstd":
+		compressionCodec = sarama.CompressionZSTD
+	case "snappy":
+		compressionCodec = sarama.CompressionSnappy
+	case "lz4":
+		compressionCodec = sarama.CompressionLZ4
+	case "gzip":
+		compressionCodec = sarama.CompressionGZIP
+	case "none":
+		compressionCodec = sarama.CompressionNone
+	default:
+		return Producer{}, fmt.Errorf("unknown compression codec %v", config.ProducerCompressionCodec)
+	}
+	c.SaramaClient.Config().Producer.Compression = compressionCodec
+	c.SaramaClient.Config().Producer.CompressionLevel = config.ProducerCompressionLevel
 	return producer, nil
 }
 

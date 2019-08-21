@@ -18,7 +18,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
 	"io/ioutil"
 	"reflect"
 	"strings"
@@ -36,15 +35,13 @@ import (
 
 // ClientConfig contains connection settings and configuration for communicating with a Kafka cluster
 type ClientConfig struct {
-	Broker                   string
-	ClientID                 string
-	TLSCaCrtPath             string
-	TLSCrtPath               string
-	TLSKeyPath               string
-	Verbose                  bool
-	KafkaVersion             string
-	ProducerCompressionCodec string
-	ProducerCompressionLevel int
+	Broker       string
+	ClientID     string
+	TLSCaCrtPath string
+	TLSCrtPath   string
+	TLSKeyPath   string
+	Verbose      bool
+	KafkaVersion string
 }
 
 // Registers Kafka client flags with pflags
@@ -56,14 +53,12 @@ func (c *ClientConfig) RegisterFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&c.TLSKeyPath, "kafka-client-key-path", "", "Kafka Client TLS Key Path")
 	flags.BoolVar(&c.Verbose, "kafka-verbose", false, "When this flag is set Kafka will log verbosely")
 	flags.StringVar(&c.KafkaVersion, "kafka-version", "2.1.0", "Kafka broker version")
-	flags.StringVar(&c.ProducerCompressionCodec, "kafka-producer-compression-codec", "none", "Compression codec to use when producing messages, one of: \"none\", \"zstd\", \"snappy\", \"lz4\", \"zstd\", \"gzip\"")
-	flags.IntVar(&c.ProducerCompressionLevel, "kafka-producer-compression-level", -1000, "Compression level to use on produced messages, -1000 signifies to use the default level.")
 }
 
 // ClientIface is an interface for creating consumers and producers
 type ClientIface interface {
 	NewConsumer(config ConsumerConfig, logger *zap.Logger) (ConsumerIface, error)
-	NewProducer(logger *zap.Logger, returnMessages bool) (ProducerIface, error)
+	NewProducer(config ProducerConfig, logger *zap.Logger, returnMessages bool) (ProducerIface, error)
 }
 
 // Client wraps a sarama client and Kafka configuration and can be used to create producers and consumers
@@ -74,7 +69,12 @@ type Client struct {
 }
 
 // NewClient creates a Sarama client from configuration and starts a periodic task for capturing
-// Kafka broker metrics.
+// Kafka broker metrics. The client is instantiated with configuration from the ClientConfiguration
+// and the following options are turned on:
+// * The Consumer returns errors
+// * The Producer RequiredAcks is set to WaitForAll
+// * The Producer returns successes
+// * The Producer returns errors
 func (c ClientConfig) NewClient(ctx context.Context) (Client, error) {
 	if c.Verbose {
 		saramaLogger, err := zap.NewStdLogAt(log.Get(ctx).Named("sarama"), zapcore.InfoLevel)
@@ -94,23 +94,6 @@ func (c ClientConfig) NewClient(ctx context.Context) (Client, error) {
 	kafkaConfig.Producer.RequiredAcks = sarama.WaitForAll
 	kafkaConfig.Producer.Return.Successes = true
 	kafkaConfig.Producer.Return.Errors = true
-	var compressionCodec sarama.CompressionCodec
-	switch c.ProducerCompressionCodec {
-	case "zstd":
-		compressionCodec = sarama.CompressionZSTD
-	case "snappy":
-		compressionCodec = sarama.CompressionSnappy
-	case "lz4":
-		compressionCodec = sarama.CompressionLZ4
-	case "gzip":
-		compressionCodec = sarama.CompressionGZIP
-	case "none":
-		compressionCodec = sarama.CompressionNone
-	default:
-		return Client{}, fmt.Errorf("unknown compression codec %v", c.ProducerCompressionCodec)
-	}
-	kafkaConfig.Producer.Compression = compressionCodec
-	kafkaConfig.Producer.CompressionLevel = c.ProducerCompressionLevel
 
 	if c.TLSCrtPath != "" && c.TLSKeyPath != "" {
 		cer, err := tls.LoadX509KeyPair(c.TLSCrtPath, c.TLSKeyPath)

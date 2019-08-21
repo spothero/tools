@@ -78,8 +78,8 @@ func (m *MockClient) NewConsumer(config ConsumerConfig, logger *zap.Logger) (Con
 }
 
 // NewProducer creates a new mock producer
-func (m *MockClient) NewProducer(logger *zap.Logger, returnMessages bool) (ProducerIface, error) {
-	args := m.Called(logger, returnMessages)
+func (m *MockClient) NewProducer(config ProducerConfig, logger *zap.Logger, returnMessages bool) (ProducerIface, error) {
+	args := m.Called(config, logger, returnMessages)
 	return args.Get(0).(ProducerIface), args.Error(1)
 }
 
