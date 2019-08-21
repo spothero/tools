@@ -29,10 +29,6 @@ type ProducerMetrics struct {
 	ErrorsProduced   *prometheus.GaugeVec
 }
 
-// ProducerConfig contains producer-specific configuration. At present, there are no producer-specific
-// configuration options.
-type ProducerConfig struct{}
-
 // Producer is a wrapped Sarama producer that tracks producer metrics and provides optional logging.
 type Producer struct {
 	metrics   ProducerMetrics
@@ -53,7 +49,7 @@ type ProducerIface interface {
 // NewProducer creates a sarama producer from a client. If the returnMessages flag is true,
 // messages from the producer will be produced on the Success or Errors channel depending
 // on the outcome of the produced message.
-func (c Client) NewProducer(config ProducerConfig, logger *zap.Logger, returnMessages bool) (ProducerIface, error) {
+func (c Client) NewProducer(logger *zap.Logger, returnMessages bool) (ProducerIface, error) {
 	saramaProducer, err := sarama.NewAsyncProducerFromClient(c.SaramaClient)
 	if err != nil {
 		return Producer{}, err

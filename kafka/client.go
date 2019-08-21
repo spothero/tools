@@ -63,7 +63,7 @@ func (c *ClientConfig) RegisterFlags(flags *pflag.FlagSet) {
 // ClientIface is an interface for creating consumers and producers
 type ClientIface interface {
 	NewConsumer(config ConsumerConfig, logger *zap.Logger) (ConsumerIface, error)
-	NewProducer(config ProducerConfig, logger *zap.Logger, returnMessages bool) (ProducerIface, error)
+	NewProducer(logger *zap.Logger, returnMessages bool) (ProducerIface, error)
 }
 
 // Client wraps a sarama client and Kafka configuration and can be used to create producers and consumers
