@@ -48,7 +48,8 @@ type ProducerIface interface {
 
 // NewProducer creates a sarama producer from a client. If the returnMessages flag is true,
 // messages from the producer will be produced on the Success or Errors channel depending
-// on the outcome of the produced message.
+// on the outcome of the produced message. This method also registers producer metrics with the default
+// Prometheus registerer.
 func (c Client) NewProducer(logger *zap.Logger, returnMessages bool) (ProducerIface, error) {
 	saramaProducer, err := sarama.NewAsyncProducerFromClient(c.SaramaClient)
 	if err != nil {
@@ -71,6 +72,8 @@ func (c Client) NewProducer(logger *zap.Logger, returnMessages bool) (ProducerIf
 	return producer, nil
 }
 
+// RegisterProducerMetrics registers Kafka producer metrics with the provided registerer and returns
+// a struct containing gauges for the number of messages and errors produced.
 func RegisterProducerMetrics(registerer prometheus.Registerer) ProducerMetrics {
 	promLabels := []string{"topic", "partition", "client"}
 	p := ProducerMetrics{
@@ -93,9 +96,9 @@ func RegisterProducerMetrics(registerer prometheus.Registerer) ProducerMetrics {
 	return p
 }
 
-// RunProducer wraps the sarama AsyncProducer and adds metrics, logging, and a shutdown procedure
-// to the producer. To stop the producer, close the messages channel; when the producer is shutdown a signal will
-// be emitted on the done channel. If the messages channel is unbuffered, each message sent to the producer is
+// RunProducer wraps the sarama AsyncProducer and adds metrics and optional logging
+// to the producer. To stop the producer, close the messages channel; when the producer is shutdown the done
+// channel will be closed. If the messages channel is unbuffered, each message sent to the producer is
 // guaranteed to at least have been attempted to be produced to Kafka.
 func (p Producer) RunProducer(messages chan *sarama.ProducerMessage, done chan bool) {
 	promLabels := prometheus.Labels{
@@ -113,7 +116,7 @@ func (p Producer) RunProducer(messages chan *sarama.ProducerMessage, done chan b
 			p.producer.AsyncClose()
 			closeWg.Wait()
 			p.logger.Debug("kafka producer closed")
-			done <- true
+			close(done)
 		}()
 		for message := range messages {
 			p.producer.Input() <- message

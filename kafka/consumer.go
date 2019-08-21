@@ -75,7 +75,9 @@ type Consumer struct {
 	logger             *zap.Logger
 }
 
-// NewConsumer sets up a Kafka consumer
+// NewConsumer sets up a high-level Kafka consumer that can be used for reading all partitions
+// of a given topic a given offset. NewConsumer also sets up Prometheus metrics with the default
+// registerer and configures schema registry if set in the configuration.
 func (c Client) NewConsumer(config ConsumerConfig, logger *zap.Logger) (ConsumerIface, error) {
 	consumer, err := sarama.NewConsumerFromClient(c.SaramaClient)
 	if err != nil {
@@ -102,6 +104,8 @@ func (c Client) NewConsumer(config ConsumerConfig, logger *zap.Logger) (Consumer
 	return kafkaConsumer, nil
 }
 
+// RegisterConsumerMetrics registers Kafka consumer metrics with the provided registerer and returns
+// a struct containing consumer Prometheus metrics.
 func RegisterConsumerMetrics(registerer prometheus.Registerer) ConsumerMetrics {
 	promLabels := []string{"topic", "partition", "client"}
 	c := ConsumerMetrics{
