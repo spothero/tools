@@ -64,7 +64,7 @@ func setupTestConsumer(t *testing.T, clientGetOffsetReturn int, clientGetOffsetE
 	mockClient := &mockSaramaClient{getOffsetReturn: int64(clientGetOffsetReturn), getOffsetErr: clientGetOffsetError}
 	consumer := Consumer{
 		consumer: mockConsumer,
-		Client:   Client{Config: config, client: mockClient},
+		Client:   Client{Config: config, SaramaClient: mockClient},
 		logger:   zap.NewNop(),
 	}
 	return &testHandler{}, consumer, consumer.consumer.(*mocks.Consumer), ctx, cancel

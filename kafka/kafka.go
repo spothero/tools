@@ -69,7 +69,7 @@ type Config struct {
 // Client wraps a sarama client and Kafka configuration and can be used to create producers and consumers
 type Client struct {
 	Config
-	client sarama.Client
+	SaramaClient sarama.Client
 }
 
 // ClientIface is an interface for creating consumers and producers
@@ -187,16 +187,16 @@ func (c Config) NewClient(ctx context.Context) (Client, error) {
 	}
 
 	return Client{
-		Config: c,
-		client: saramaClient,
+		Config:       c,
+		SaramaClient: saramaClient,
 	}, nil
 }
 
 // NewConsumer sets up a Kafka consumer
 func (c Client) NewConsumer(logger *zap.Logger) (ConsumerIface, error) {
-	consumer, err := sarama.NewConsumerFromClient(c.client)
+	consumer, err := sarama.NewConsumerFromClient(c.SaramaClient)
 	if err != nil {
-		if closeErr := c.client.Close(); closeErr != nil {
+		if closeErr := c.SaramaClient.Close(); closeErr != nil {
 			log.Get(context.Background()).Error("Error closing Kafka client", zap.Error(err))
 		}
 		return Consumer{}, err
@@ -225,7 +225,7 @@ func (c Client) NewConsumer(logger *zap.Logger) (ConsumerIface, error) {
 // messages from the producer will be produced on the Success or Errors channel depending
 // on the outcome of the produced message.
 func (c Client) NewProducer(logger *zap.Logger, returnMessages bool) (ProducerIface, error) {
-	producer, err := sarama.NewAsyncProducerFromClient(c.client)
+	producer, err := sarama.NewAsyncProducerFromClient(c.SaramaClient)
 	if err != nil {
 		if closeErr := producer.Close(); closeErr != nil {
 			log.Get(context.Background()).Error("Error closing Kafka producer", zap.Error(err))
@@ -251,7 +251,7 @@ func (c Client) NewProducer(logger *zap.Logger, returnMessages bool) (ProducerIf
 
 // Close the underlying Kafka client
 func (c Client) Close() {
-	if err := c.client.Close(); err != nil {
+	if err := c.SaramaClient.Close(); err != nil {
 		log.Get(context.Background()).Error("Error closing Kafka client", zap.Error(err))
 	}
 }
@@ -410,7 +410,7 @@ func (c Consumer) ConsumeTopic(
 			return fmt.Errorf("start offset not found for partition %d, topic %s", partition, topic)
 		}
 		partitionsCatchupWg.Add(1)
-		newestOffset, err := c.client.GetOffset(topic, partition, sarama.OffsetNewest)
+		newestOffset, err := c.SaramaClient.GetOffset(topic, partition, sarama.OffsetNewest)
 		if err != nil {
 			return err
 		}
