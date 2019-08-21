@@ -59,13 +59,14 @@ func (msc *mockSaramaClient) GetOffset(topic string, partitionID int32, time int
 func setupTestConsumer(t *testing.T, clientGetOffsetReturn int, clientGetOffsetError error) (*testHandler, Consumer, *mocks.Consumer, context.Context, context.CancelFunc) {
 	ctx, cancel := context.WithCancel(context.Background())
 	mockConsumer := mocks.NewConsumer(t, nil)
-	config := Config{ClientID: "test"}
-	config.initKafkaMetrics(prometheus.NewRegistry())
+	config := ClientConfig{ClientID: "test"}
+
 	mockClient := &mockSaramaClient{getOffsetReturn: int64(clientGetOffsetReturn), getOffsetErr: clientGetOffsetError}
 	consumer := Consumer{
 		consumer: mockConsumer,
-		Client:   Client{Config: config, SaramaClient: mockClient},
+		client:   Client{ClientConfig: config, SaramaClient: mockClient},
 		logger:   zap.NewNop(),
+		metrics:  RegisterConsumerMetrics(prometheus.NewRegistry()),
 	}
 	return &testHandler{}, consumer, consumer.consumer.(*mocks.Consumer), ctx, cancel
 }
@@ -312,4 +313,13 @@ func TestConsumePartition_handleError(t *testing.T) {
 	<-readStatus
 	handler.AssertNotCalled(t, "HandleMessage")
 	partitionConsumer.ExpectErrorsDrainedOnClose()
+}
+
+func TestRegisterConsumerMetrics(t *testing.T) {
+	registry := prometheus.NewRegistry()
+	metrics := RegisterConsumerMetrics(registry)
+	assert.NotNil(t, metrics.MessageProcessingTime)
+	assert.NotNil(t, metrics.MessagesProcessed)
+	assert.NotNil(t, metrics.MessageErrors)
+	assert.NotNil(t, metrics.ErrorsProcessed)
 }

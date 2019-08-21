@@ -20,7 +20,6 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/stretchr/testify/mock"
-	"go.uber.org/zap"
 )
 
 // MockKafkaConsumer implements KafkaConsumerIface for testing purposes
@@ -64,23 +63,6 @@ func (m *MockKafkaConsumer) Close() {
 // EmitReadResult allows tests to send values through the readResult channel passed into the mock consumer.
 func (m *MockKafkaConsumer) EmitReadResult(offsets PartitionOffsets) {
 	m.readResult <- offsets
-}
-
-// MockClient implements ClientIface for testingn purposes
-type MockClient struct {
-	mock.Mock
-}
-
-// NewConsumer creates a new mock consumer
-func (m *MockClient) NewConsumer(logger *zap.Logger) (ConsumerIface, error) {
-	args := m.Called(logger)
-	return args.Get(0).(ConsumerIface), args.Error(1)
-}
-
-// NewProducer creates a new mock producer
-func (m *MockClient) NewProducer(logger *zap.Logger, returnMessages bool) (ProducerIface, error) {
-	args := m.Called(logger, returnMessages)
-	return args.Get(0).(ProducerIface), args.Error(1)
 }
 
 // MockProducer implements the producer interface for testing and includes channels for mocking out messages
