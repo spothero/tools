@@ -165,8 +165,7 @@ type PartitionOffsets map[int32]int64
 // from the given offset on each partition to the latest offset when the consumer was started, then notify the caller
 // via catchupWg. If exitAfterCaughtUp is true, the consumer will exit after it reads message at the latest offset
 // when it started up. When all partition consumers are closed, it will send the last offset read on each partition
-// through the readResult channel. If exitAfterCaughtUp is true, the consumer will exit
-// after reading to the latest offset.
+// through the readResult channel.
 func (c Consumer) ConsumeTopic(
 	ctx context.Context,
 	handler MessageHandler,
