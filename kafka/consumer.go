@@ -76,23 +76,23 @@ type Consumer struct {
 }
 
 // NewConsumer sets up a Kafka consumer
-func (c ConsumerConfig) NewConsumer(client Client, logger *zap.Logger) (ConsumerIface, error) {
-	consumer, err := sarama.NewConsumerFromClient(client.SaramaClient)
+func (c Client) NewConsumer(config ConsumerConfig, logger *zap.Logger) (ConsumerIface, error) {
+	consumer, err := sarama.NewConsumerFromClient(c.SaramaClient)
 	if err != nil {
 		return Consumer{}, err
 	}
 	kafkaConsumer := Consumer{
-		client:   client,
+		client:   c,
 		consumer: consumer,
 		metrics:  RegisterConsumerMetrics(prometheus.DefaultRegisterer),
 	}
 	messageUnmarshaler := &messageDecoder{}
-	if c.JSONEnabled {
+	if config.JSONEnabled {
 		kafkaConsumer.messageUnmarshaler = &jsonMessageUnmarshaler{messageUnmarshaler: messageUnmarshaler}
 	} else {
-		c.SchemaRegistry.client = &schemaRegistryClient{}
-		c.SchemaRegistry.messageUnmarshaler = messageUnmarshaler
-		kafkaConsumer.messageUnmarshaler = &c.SchemaRegistry
+		config.SchemaRegistry.client = &schemaRegistryClient{}
+		config.SchemaRegistry.messageUnmarshaler = messageUnmarshaler
+		kafkaConsumer.messageUnmarshaler = &config.SchemaRegistry
 	}
 	if logger != nil {
 		kafkaConsumer.logger = logger

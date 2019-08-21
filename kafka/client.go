@@ -60,6 +60,12 @@ func (c *ClientConfig) RegisterFlags(flags *pflag.FlagSet) {
 	flags.IntVar(&c.ProducerCompressionLevel, "kafka-producer-compression-level", -1000, "Compression level to use on produced messages, -1000 signifies to use the default level.")
 }
 
+// ClientIface is an interface for creating consumers and producers
+type ClientIface interface {
+	NewConsumer(config ConsumerConfig, logger *zap.Logger) (ConsumerIface, error)
+	NewProducer(config ProducerConfig, logger *zap.Logger, returnMessages bool) (ProducerIface, error)
+}
+
 // Client wraps a sarama client and Kafka configuration and can be used to create producers and consumers
 type Client struct {
 	ClientConfig

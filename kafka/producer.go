@@ -53,13 +53,13 @@ type ProducerIface interface {
 // NewProducer creates a sarama producer from a client. If the returnMessages flag is true,
 // messages from the producer will be produced on the Success or Errors channel depending
 // on the outcome of the produced message.
-func (p ProducerConfig) NewProducer(client Client, logger *zap.Logger, returnMessages bool) (ProducerIface, error) {
-	saramaProducer, err := sarama.NewAsyncProducerFromClient(client.SaramaClient)
+func (c Client) NewProducer(config ProducerConfig, logger *zap.Logger, returnMessages bool) (ProducerIface, error) {
+	saramaProducer, err := sarama.NewAsyncProducerFromClient(c.SaramaClient)
 	if err != nil {
 		return Producer{}, err
 	}
 	producer := Producer{
-		client:   client,
+		client:   c,
 		producer: saramaProducer,
 		metrics:  RegisterProducerMetrics(prometheus.DefaultRegisterer),
 	}
