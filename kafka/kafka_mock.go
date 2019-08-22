@@ -66,20 +66,20 @@ func (m *MockKafkaConsumer) EmitReadResult(offsets PartitionOffsets) {
 	m.readResult <- offsets
 }
 
-// MockClient implements ClientIface for testingn purposes
+// MockClient implements ClientIface for testing purposes
 type MockClient struct {
 	mock.Mock
 }
 
 // NewConsumer creates a new mock consumer
-func (m *MockClient) NewConsumer(logger *zap.Logger) (ConsumerIface, error) {
-	args := m.Called(logger)
+func (m *MockClient) NewConsumer(config ConsumerConfig, logger *zap.Logger) (ConsumerIface, error) {
+	args := m.Called(config, logger)
 	return args.Get(0).(ConsumerIface), args.Error(1)
 }
 
 // NewProducer creates a new mock producer
-func (m *MockClient) NewProducer(logger *zap.Logger, returnMessages bool) (ProducerIface, error) {
-	args := m.Called(logger, returnMessages)
+func (m *MockClient) NewProducer(config ProducerConfig, logger *zap.Logger, returnMessages bool) (ProducerIface, error) {
+	args := m.Called(config, logger, returnMessages)
 	return args.Get(0).(ProducerIface), args.Error(1)
 }
 

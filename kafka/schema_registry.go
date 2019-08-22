@@ -26,6 +26,7 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/linkedin/goavro"
 	"github.com/opentracing/opentracing-go"
+	"github.com/spf13/pflag"
 	"github.com/spothero/tools/log"
 	"go.uber.org/zap"
 )
@@ -42,6 +43,11 @@ type SchemaRegistryConfig struct {
 	schemas            sync.Map
 	client             schemaRegistry
 	messageUnmarshaler messageUnmarshaler
+}
+
+// RegisterFlags registers Kafka flags with pflags
+func (src *SchemaRegistryConfig) RegisterFlags(flags *pflag.FlagSet) {
+	flags.StringVarP(&src.SchemaRegistryURL, "kafka-schema-registry", "r", "http://localhost:8081", "Kafka Schema Registry Address")
 }
 
 func (src *schemaRegistryClient) getSchema(ctx context.Context, schemaID int, schemaRegistryURL string) (string, error) {
