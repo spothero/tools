@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/spf13/cobra"
@@ -81,7 +82,7 @@ func (hc HTTPConfig) ServerCmd(shortDescript, longDescript string, newService fu
 		Short:            shortDescript,
 		Long:             longDescript,
 		Version:          fmt.Sprintf("%s (%s)", hc.Version, hc.GitSHA),
-		PersistentPreRun: cli.CobraBindEnvironmentVariables(hc.Name),
+		PersistentPreRun: cli.CobraBindEnvironmentVariables(strings.Replace(hc.Name, "-", "_", -1)),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := hc.CheckFlags(); err != nil {
 				return err
