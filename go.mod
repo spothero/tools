@@ -23,6 +23,7 @@ require (
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/pflag v1.0.3
 	github.com/spf13/viper v1.3.2
+	github.com/square/go-jose v2.3.1+incompatible
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.3.0
 	github.com/uber-go/atomic v1.3.2 // indirect
@@ -35,4 +36,5 @@ require (
 	golang.org/x/sys v0.0.0-20190422165155-953cdadca894 // indirect
 	golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7
 	gopkg.in/linkedin/goavro.v1 v1.0.5 // indirect
+	gopkg.in/square/go-jose.v2 v2.3.1
 )

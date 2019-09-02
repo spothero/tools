@@ -1,4 +1,4 @@
-.PHONY: default_target all build test coverage lint help
+.PHONY: default_target all build test coverage lint help example-server jwt-cli
 
 VERSION ?= $(shell git describe --abbrev=0 --tags | sed 's/v//g')
 GIT_SHA ?= $(shell git rev-parse HEAD)
@@ -6,8 +6,13 @@ LINTER_INSTALLED := $(shell sh -c 'which golangci-lint')
 
 all: lint test
 
-build: ## Builds application artifacts
-	go build -ldflags="-X main.version=${VERSION} -X main.gitSHA=${GIT_SHA}" examples/example_server.go
+build: example-server jwt-cli
+
+example-server:
+	go build -ldflags="-X main.version=${VERSION} -X main.gitSHA=${GIT_SHA}" -o example-server examples/http/server.go
+
+jwt-cli:
+	go build -ldflags="-X main.version=${VERSION} -X main.gitSHA=${GIT_SHA}" -o jwt-cli examples/jose/jwt.go
 
 test: build ## Runs application tests
 	go test -race -v ./... -coverprofile=coverage.txt -covermode=atomic
