@@ -72,7 +72,6 @@ type Client struct {
 // Kafka broker metrics. The client is instantiated with configuration from the ClientConfiguration
 // and the following options are turned on:
 // * The Consumer returns errors
-// * The Producer RequiredAcks is set to WaitForAll
 // * The Producer returns successes
 // * The Producer returns errors
 func (c ClientConfig) NewClient(ctx context.Context) (Client, error) {
@@ -91,7 +90,6 @@ func (c ClientConfig) NewClient(ctx context.Context) (Client, error) {
 	kafkaConfig.Version = kafkaVersion
 	kafkaConfig.Consumer.Return.Errors = true
 	kafkaConfig.ClientID = c.ClientID
-	kafkaConfig.Producer.RequiredAcks = sarama.WaitForAll
 	kafkaConfig.Producer.Return.Successes = true
 	kafkaConfig.Producer.Return.Errors = true
 
