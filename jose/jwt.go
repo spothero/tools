@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"time"
 
+	"golang.org/x/xerrors"
 	"gopkg.in/square/go-jose.v2"
 	"gopkg.in/square/go-jose.v2/jwt"
 )
@@ -53,18 +54,18 @@ func (c Config) NewJOSE() (JOSE, error) {
 	// Fetch JSON Web Key Sets from the specified URL
 	resp, err := http.Get(c.JSONWebKeySetURL)
 	if err != nil {
-		return JOSE{}, err
+		return JOSE{}, xerrors.Errorf("failed to retrieve jwks from url: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return JOSE{}, fmt.Errorf("received non-200 response from jwks url `%v`", resp.Status)
+		return JOSE{}, xerrors.Errorf("received non-200 response from jwks url `%v`", resp.Status)
 	}
 
 	// Decode the response body into a JSONWebKeySet
 	jwks := &jose.JSONWebKeySet{}
-	err = json.NewDecoder(resp.Body).Decode(&jwks)
+	err = json.NewDecoder(resp.Body).Decode(jwks)
 	if err != nil {
-		return JOSE{}, err
+		return JOSE{}, xerrors.Errorf("failed to decoded jwks json: %w", err)
 	}
 
 	return JOSE{
@@ -77,17 +78,17 @@ func (c Config) NewJOSE() (JOSE, error) {
 // If you wish to inspect other components of the payload, you may supply one or more claims
 // structs which will be populated if the JWT is valid. Claims must be structs with json fields
 // that match the keys in the payload field, or a map[string]interface{}. Use of
-// map]string]interface{} is strongly discouraged.
+// map[string]interface{} is strongly discouraged.
 func (j JOSE) ParseJWT(input string, claims ...interface{}) error {
 	tok, err := jwt.ParseSigned(input)
 	if err != nil {
-		return err
+		return xerrors.Errorf("failed to parse jwt token: %w", err)
 	}
 
 	// Extract Token Claims from the payload and ensure that the signing signature is valid
 	publicClaims := jwt.Claims{}
 	if err = tok.Claims(j.jwks, append(claims, &publicClaims)...); err != nil {
-		return err
+		return xerrors.Errorf("failed to extract claims from jwt: %w", err)
 	}
 
 	// Validate that the claims were issued by a trusted source and are not expired

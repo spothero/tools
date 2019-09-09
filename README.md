@@ -48,6 +48,7 @@ Currently, this library supports the following features:
 * High-Performance Logging
 * Sentry Integration
 * OpenTracing/Jaeger Support
+* JSON Web Token (JWT) and Javascript Object Signing and Encryption (JOSE) Support
 
 In addition, all the above packages may automatically be integrated with Cobra/Viper CLIs for
 12-factor application compatibility via the CLI module.
