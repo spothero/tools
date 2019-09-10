@@ -13,3 +13,5 @@
 vendor/
 example_server
 coverage.txt
+jwt-cli
+example-server
