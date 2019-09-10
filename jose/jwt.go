@@ -16,7 +16,6 @@ package jose
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -48,7 +47,7 @@ type CognitoClaim struct {
 // NewJOSE creates and returns a JOSE client for use.
 func (c Config) NewJOSE() (JOSE, error) {
 	if len(c.JSONWebKeySetURL) == 0 {
-		return JOSE{}, fmt.Errorf("no jwks url specified and jwt signature verification enabled")
+		return JOSE{}, xerrors.Errorf("no jwks url specified and jwt signature verification enabled")
 	}
 
 	// Fetch JSON Web Key Sets from the specified URL
@@ -74,12 +73,12 @@ func (c Config) NewJOSE() (JOSE, error) {
 	}, nil
 }
 
-// ParseJWT accepts a string containing a JWT token and attempts to parse and validate the token.
-// If you wish to inspect other components of the payload, you may supply one or more claims
-// structs which will be populated if the JWT is valid. Claims must be structs with json fields
-// that match the keys in the payload field, or a map[string]interface{}. Use of
+// ParseValidateJWT accepts a string containing a JWT token and attempts to parse and validate the
+// token. If you wish to inspect other components of the payload, you may supply one or more
+// claims structs which will be populated if the JWT is valid. Claims must be structs with json
+// fields that match the keys in the payload field, or a map[string]interface{}. Use of
 // map[string]interface{} is strongly discouraged.
-func (j JOSE) ParseJWT(input string, claims ...interface{}) error {
+func (j JOSE) ParseValidateJWT(input string, claims ...interface{}) error {
 	tok, err := jwt.ParseSigned(input)
 	if err != nil {
 		return xerrors.Errorf("failed to parse jwt token: %w", err)

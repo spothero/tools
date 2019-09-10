@@ -57,7 +57,7 @@ func TestNewJOSE(t *testing.T) {
 	}
 }
 
-func TestParseJWT(t *testing.T) {
+func TestParseValidateJWT(t *testing.T) {
 	// The following is taken from the tests in Square's go-jose
 	// See: https://github.com/square/go-jose/tree/8bad6148bd0a8da57f9840693f6f611ac4483d09/jwt
 	privateRSAKey := `-----BEGIN PRIVATE KEY-----
@@ -124,7 +124,7 @@ b9Ym/nxaqyTu0PxajXkKm5Q=
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			jose := JOSE{jwks: test.jwks, validIssuer: test.issuer}
-			err := jose.ParseJWT(test.jwt)
+			err := jose.ParseValidateJWT(test.jwt)
 			if test.expectError {
 				assert.Error(t, err)
 			} else {
