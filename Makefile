@@ -1,25 +1,30 @@
-.PHONY: default_target all build test coverage lint help example-server jwt-cli
-
 VERSION ?= $(shell git describe --abbrev=0 --tags | sed 's/v//g')
 GIT_SHA ?= $(shell git rev-parse HEAD)
 LINTER_INSTALLED := $(shell sh -c 'which golangci-lint')
 
+.PHONY: all
 all: lint test
 
+.PHONY: build
 build: example-server jwt-cli
 
+.PHONY: example-server
 example-server:
 	go build -ldflags="-X main.version=${VERSION} -X main.gitSHA=${GIT_SHA}" -o example-server examples/http/server.go
 
+.PHONY: jwt-cli
 jwt-cli:
 	go build -ldflags="-X main.version=${VERSION} -X main.gitSHA=${GIT_SHA}" -o jwt-cli examples/jose/jwt.go
 
+.PHONY: test
 test: build ## Runs application tests
 	go test -race -v ./... -coverprofile=coverage.txt -covermode=atomic
 
+.PHONY: coverage
 coverage: test ## Displays test coverage report
 	go tool cover -html=coverage.txt
 
+.PHONY: lint
 lint: ## Runs the go code linter
 ifdef LINTER_INSTALLED
 	golangci-lint run
@@ -27,6 +32,7 @@ else
 	$(error golangci-lint not found, skipping linting. Installation instructions: https://github.com/golangci/golangci-lint#ci-installation)
 endif
 
+.PHONY: help
 help: ## Prints this help command
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) |\
 		sort | \

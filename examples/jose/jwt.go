@@ -54,7 +54,7 @@ func test(c jose.Config, jwt string) {
 
 	cognitoClaim := &jose.CognitoClaim{}
 	if err := client.ParseJWT(jwt, cognitoClaim); err != nil {
-		fmt.Printf("failed to parse token: %+v\n", err)
+		fmt.Fprintf(os.Stderr, "failed to parse token: %+v\n", err)
 		os.Exit(1)
 	}
 	fmt.Printf("successfully parsed token: %+v\n", cognitoClaim)
