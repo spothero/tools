@@ -18,11 +18,11 @@ import (
 	"context"
 )
 
-// cogntioCtxKey is the type used to uniquely place the cognito claim in the context
-type cognitoCtxKey int
+// CognitoCtxKey is the type used to uniquely place the cognito claim in the context
+type CognitoCtxKey int
 
 // CognitoClaimKey is the value used to uniquely place the cognito claim within the context
-const CognitoClaimKey cognitoCtxKey = iota
+const CognitoClaimKey CognitoCtxKey = iota
 
 // CognitoGenerator satisfies the ClaimGenerator interface, allowing middleware to create
 // intermediate Claim objects without specific knowledge of the underlying implementing types.
