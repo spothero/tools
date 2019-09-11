@@ -14,26 +14,48 @@ import (
 
 func TestNewJOSE(t *testing.T) {
 	tests := []struct {
-		name       string
-		keyData    []byte
-		statusCode int
-		expectErr  bool
+		name        string
+		keyData     []byte
+		statusCode  int
+		expectErr   bool
+		provideURL  bool
+		urlOverride string
 	}{
 		{
 			"empty keys array is parsed correctly",
 			[]byte("{\"keys\": []}"),
 			http.StatusOK,
 			false,
+			true,
+			"",
 		}, {
 			"non-200 responses return an error",
 			[]byte("{\"keys\": []}"),
 			http.StatusNotFound,
 			true,
+			true,
+			"",
 		}, {
 			"bad JSON data causes an error",
 			[]byte("not json data"),
 			http.StatusOK,
 			true,
+			true,
+			"",
+		}, {
+			"missing JWKS URL results in an error",
+			[]byte("{\"keys\": []}"),
+			http.StatusOK,
+			true,
+			false,
+			"",
+		}, {
+			"bad jwks url results in an error",
+			[]byte("{\"keys\": []}"),
+			http.StatusOK,
+			true,
+			true,
+			"badurl",
 		},
 	}
 	for _, test := range tests {
@@ -44,7 +66,14 @@ func TestNewJOSE(t *testing.T) {
 				assert.Equal(t, "GET", r.Method)
 			}))
 			defer ts.Close()
-			c := &Config{JSONWebKeySetURL: ts.URL}
+			url := ts.URL
+			if !test.provideURL {
+				url = ""
+			}
+			if len(test.urlOverride) > 0 {
+				url = test.urlOverride
+			}
+			c := &Config{JSONWebKeySetURL: url}
 			jose, err := c.NewJOSE()
 			if test.expectErr {
 				assert.Error(t, err)
@@ -55,6 +84,13 @@ func TestNewJOSE(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGenerateClaims(t *testing.T) {
+	j := JOSE{
+		claimGenerators: []ClaimGenerator{MockGenerator{}},
+	}
+	assert.Equal(t, []Claim{&MockClaim{}}, j.GetClaims())
 }
 
 func TestParseValidateJWT(t *testing.T) {

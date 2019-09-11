@@ -16,18 +16,51 @@ package jose
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/spothero/tools/http/writer"
 	"github.com/spothero/tools/log"
+	"go.uber.org/zap"
 )
 
+// authHeader defines the name of the header containing the JWT authorization data
+const authHeader = "Authorization"
+
+// bearerPrefix defines the standard expected form for OIDC JWT Tokens in Authorization headers.
+// Eg `Authorization: Bearer <JWT>`
+const bearerPrefix string = "Bearer "
+
 // HTTPMiddleware extracts the Authorization header, if present, on all incoming HTTP requests.
-// If an Authorization header is found, it is attempted to be parsed as a JWT with the configured
-// Credential types for the given JOSE provider.
-func HTTPMiddleware(sr *writer.StatusRecorder, r *http.Request) (func(), *http.Request) {
-	logger := log.Get(r.Context())
-	// TODO: Update these return values!
-	return func() {
-		logger.Info("jose middleware unimplemented")
-	}, r
+// If an Authorization header is found, this middleware attempts to parse and validate that value
+// as a JWT with  the configured Credential types for the given JOSE provider.
+func GetHTTPMiddleware(jh JOSEHandler) func(*writer.StatusRecorder, *http.Request) (func(), *http.Request) {
+	return func(sr *writer.StatusRecorder, r *http.Request) (func(), *http.Request) {
+		logger := log.Get(r.Context())
+		authHeader := r.Header.Get(authHeader)
+		if len(authHeader) == 0 {
+			logger.Debug("no authorization header found")
+			return func() {}, r
+		}
+
+		if !strings.HasPrefix(authHeader, bearerPrefix) {
+			logger.Error("authorization header did not include bearer prefix")
+			return func() {}, r
+		}
+
+		claims := jh.GetClaims()
+		err := jh.ParseValidateJWT(strings.TrimPrefix(authHeader, bearerPrefix), claims)
+		if err != nil {
+			logger.Error(
+				"failed to parse and validate incoming jwt",
+				zap.Error(err),
+			)
+			return func() {}, r
+		}
+
+		// Populate each claim on the context, if any
+		for _, claim := range claims {
+			r = r.WithContext(claim.WithContext(r.Context()))
+		}
+		return func() {}, r
+	}
 }

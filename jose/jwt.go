@@ -15,6 +15,7 @@
 package jose
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -30,24 +31,34 @@ type Config struct {
 	ValidIssuer      string // URL of the JWT Issuer for this environment
 }
 
-// JOSE contains configuration for handling JWTs, JWKS, and other JOSE specifications
-type JOSE struct {
-	validIssuer string
-	jwks        *jose.JSONWebKeySet
+// ClaimGenerator defines an interface which creates a JWT Claim
+type ClaimGenerator interface {
+	New() Claim
 }
 
-// CognitoClaim defines a JWT Claim for tokens issued by the AWS Cognito Service
-type CognitoClaim struct {
-	TokenUse string `json:"token_use"`
-	Scope    string `json:"scope"`
-	ClientID string `json:"client_id"`
-	Version  int    `json:"version"`
+// Claim defines an interface for common JWT claim functionality, such as registering claims to
+// contexts.
+type Claim interface {
+	WithContext(c context.Context) context.Context
+}
+
+// JOSEHandler defines an interface for interfacing with JOSE and JWT functionality
+type JOSEHandler interface {
+	GetClaims() []Claim
+	ParseValidateJWT(input string, claims ...interface{}) error
+}
+
+// JOSE contains configuration for handling JWTs, JWKS, and other JOSE specifications
+type JOSE struct {
+	claimGenerators []ClaimGenerator
+	validIssuer     string
+	jwks            *jose.JSONWebKeySet
 }
 
 // NewJOSE creates and returns a JOSE client for use.
 func (c Config) NewJOSE() (JOSE, error) {
 	if len(c.JSONWebKeySetURL) == 0 {
-		return JOSE{}, xerrors.Errorf("no jwks url specified and jwt signature verification enabled")
+		return JOSE{}, xerrors.Errorf("no jwks url specified")
 	}
 
 	// Fetch JSON Web Key Sets from the specified URL
@@ -71,6 +82,16 @@ func (c Config) NewJOSE() (JOSE, error) {
 		jwks:        jwks,
 		validIssuer: c.ValidIssuer,
 	}, nil
+}
+
+// GetClaims generates a claim for each registered claim generator and returns the newly generated
+// claims.
+func (j JOSE) GetClaims() []Claim {
+	claims := make([]Claim, len(j.claimGenerators))
+	for i, generator := range j.claimGenerators {
+		claims[i] = generator.New()
+	}
+	return claims
 }
 
 // ParseValidateJWT accepts a string containing a JWT token and attempts to parse and validate the
