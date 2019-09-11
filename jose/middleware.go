@@ -28,7 +28,7 @@ const authHeader = "Authorization"
 
 // bearerPrefix defines the standard expected form for OIDC JWT Tokens in Authorization headers.
 // Eg `Authorization: Bearer <JWT>`
-const bearerPrefix string = "Bearer "
+const bearerPrefix = "Bearer "
 
 // GetHTTPMiddleware returns an HTTP middleware function which extracts the Authorization header,
 // if present, on all incoming HTTP requests. If an Authorization header is found, this middleware
@@ -61,7 +61,7 @@ func GetHTTPMiddleware(jh JOSEHandler) func(*writer.StatusRecorder, *http.Reques
 
 		// Populate each claim on the context, if any
 		for _, claim := range claims {
-			r = r.WithContext(claim.WithContext(r.Context()))
+			r = r.WithContext(claim.NewContext(r.Context()))
 		}
 		return func() {}, r
 	}

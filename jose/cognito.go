@@ -42,7 +42,7 @@ func (cg CognitoGenerator) New() Claim {
 	return &CognitoClaim{}
 }
 
-// WithContext registers a claim to a given context
-func (cc CognitoClaim) WithContext(ctx context.Context) context.Context {
+// NewContext registers a claim to a given context and returns that new context
+func (cc CognitoClaim) NewContext(ctx context.Context) context.Context {
 	return context.WithValue(ctx, CognitoClaimKey, &cc)
 }

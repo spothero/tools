@@ -44,8 +44,8 @@ func (mg MockGenerator) New() Claim {
 	return &MockClaim{}
 }
 
-// WithContext registers a claim to a given context
-func (mc MockClaim) WithContext(ctx context.Context) context.Context {
+// NewContext registers a claim to a given context
+func (mc MockClaim) NewContext(ctx context.Context) context.Context {
 	return context.WithValue(ctx, MockClaimKey, &mc)
 }
 

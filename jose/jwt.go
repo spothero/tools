@@ -43,9 +43,9 @@ type ClaimGenerator interface {
 // Claim defines an interface for common JWT claim functionality, such as registering claims to
 // contexts.
 type Claim interface {
-	// WithContext accepts an input context and embeds the claim within the context, returning it
+	// NewContext accepts an input context and embeds the claim within the context, returning it
 	// for further use
-	WithContext(c context.Context) context.Context
+	NewContext(c context.Context) context.Context
 }
 
 // JOSEHandler defines an interface for interfacing with JOSE and JWT functionality

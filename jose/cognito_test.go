@@ -25,7 +25,7 @@ func TestCognitoGeneratorNew(t *testing.T) {
 	assert.Equal(t, &CognitoClaim{}, CognitoGenerator{}.New())
 }
 
-func TestCognitoClaimWithContext(t *testing.T) {
+func TestCognitoClaimNewContext(t *testing.T) {
 	ctx := context.Background()
 	cc := CognitoClaim{
 		ClientID: "abc123",
@@ -35,5 +35,5 @@ func TestCognitoClaimWithContext(t *testing.T) {
 	}
 
 	expected := context.WithValue(context.Background(), CognitoClaimKey, &cc)
-	assert.Equal(t, expected, cc.WithContext(ctx))
+	assert.Equal(t, expected, cc.NewContext(ctx))
 }
