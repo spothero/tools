@@ -20,11 +20,11 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// mockCtxKey is the type used to uniquely place the mock claim in the context
-type mockCtxKey int
+// MockCtxKey is the type used to uniquely place the mock claim in the context
+type MockCtxKey int
 
 // MockClaimKey is the value used to uniquely place the mock claim within the context
-const MockClaimKey mockCtxKey = iota
+const MockClaimKey MockCtxKey = iota
 
 // MockGenerator satisfies the ClaimGenerator interface
 type MockGenerator struct{}
