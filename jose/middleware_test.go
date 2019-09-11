@@ -73,7 +73,7 @@ func TestGetHTTPMiddleware(t *testing.T) {
 			}
 			assert.NoError(t, err)
 
-			handler := MockHandler{
+			handler := &MockHandler{
 				claimGenerators: []ClaimGenerator{MockGenerator{}},
 			}
 			var parseErr error

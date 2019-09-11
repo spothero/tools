@@ -30,9 +30,7 @@ const MockClaimKey mockCtxKey = iota
 type MockGenerator struct{}
 
 // MockClaim defines a JWT Claim for tokens
-type MockClaim struct {
-	contents string `json:"contents"`
-}
+type MockClaim struct{}
 
 // MockHandler defines an interface for mocking JOSE and JWT functionality
 type MockHandler struct {
@@ -52,7 +50,7 @@ func (mc MockClaim) WithContext(ctx context.Context) context.Context {
 }
 
 // GetClaims mocks retrieval of claim instances
-func (mh MockHandler) GetClaims() []Claim {
+func (mh *MockHandler) GetClaims() []Claim {
 	claims := make([]Claim, len(mh.claimGenerators))
 	for i, generator := range mh.claimGenerators {
 		claims[i] = generator.New()
@@ -61,6 +59,6 @@ func (mh MockHandler) GetClaims() []Claim {
 }
 
 // ParseValidateJWT mocks the ParseValidateJWT function
-func (mh MockHandler) ParseValidateJWT(input string, claims ...interface{}) error {
+func (mh *MockHandler) ParseValidateJWT(input string, claims ...interface{}) error {
 	return mh.Called(input, claims).Error(0)
 }
