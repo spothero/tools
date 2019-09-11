@@ -51,12 +51,16 @@ type ProducerIface interface {
 type ProducerConfig struct {
 	ProducerCompressionCodec string
 	ProducerCompressionLevel int
+	ProducerRequiredAcks sarama.RequiredAcks
 }
 
 // Registers producer flags with pflags
 func (c *ProducerConfig) RegisterFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&c.ProducerCompressionCodec, "kafka-producer-compression-codec", "none", "Compression codec to use when producing messages, one of: \"none\", \"zstd\", \"snappy\", \"lz4\", \"zstd\", \"gzip\"")
 	flags.IntVar(&c.ProducerCompressionLevel, "kafka-producer-compression-level", -1000, "Compression level to use on produced messages, -1000 signifies to use the default level.")
+	var requiredAcks int
+	flags.IntVar(&requiredAcks, "kafka-producer-required-acks", -1, "Required acks setting for produced messages, 0=none, 1=local, -1=all. Default is -1.")
+	c.ProducerRequiredAcks = sarama.RequiredAcks(requiredAcks)
 }
 
 // NewProducer creates a sarama producer from a client. If the returnMessages flag is true,
@@ -98,8 +102,10 @@ func (c Client) NewProducer(config ProducerConfig, logger *zap.Logger, returnMes
 	default:
 		return Producer{}, fmt.Errorf("unknown compression codec %v", config.ProducerCompressionCodec)
 	}
+
 	c.SaramaClient.Config().Producer.Compression = compressionCodec
 	c.SaramaClient.Config().Producer.CompressionLevel = config.ProducerCompressionLevel
+	c.SaramaClient.Config().Producer.RequiredAcks = config.ProducerRequiredAcks
 	return producer, nil
 }
 
