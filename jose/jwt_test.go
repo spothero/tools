@@ -150,6 +150,12 @@ b9Ym/nxaqyTu0PxajXkKm5Q=
 			jwks,
 			false,
 		}, {
+			"valid token that is not correctly signed produces an error",
+			`eyJhbGciOiJSUzI1NiIsImtpZCI6ImZvb2JhcmFiYyJ9.eyJpc3MiOiJpc3N1ZXIiLCJzY29wZXMiOlsiczEiLCJzMiJdLCJzdWIiOiJzdWJqZWN0In0.RxZhTRfPDb6UJ58FwvC89GgJGC8lAO04tz5iLlBpIJsyPZB0X_UgXSj0SGVFm2jbP_i-ZVH4HFC2fMB1n-so9CnCOpunWwhYNdgF6ewQJ0ADTWwfDGsK12UOmyT2naaZN8ZUBF8cgPtOgdWqQjk2Ng9QFRJxlUuKYczBp7vjWvgX8WMwQcaA-eK7HtguR4e9c4FMbeFK8Soc4jCsVTjIKdSn9SErc42gFu65NI1hZ3OPe_T7AZqdDjCkJpoiJ65GdD_qvGkVndJSEcMp3riXQpAy0JbctVkYecdFaGidbxHRrdcQYHtKn-XGMCh2uoBKleUr1fTMiyCGPQQesy3xHw`,
+			"issuer",
+			jwks,
+			true,
+		}, {
 			"invalid jwt produces an error",
 			"invalid jwt",
 			"issuer",
