@@ -14,26 +14,48 @@ import (
 
 func TestNewJOSE(t *testing.T) {
 	tests := []struct {
-		name       string
-		keyData    []byte
-		statusCode int
-		expectErr  bool
+		name        string
+		keyData     []byte
+		statusCode  int
+		expectErr   bool
+		provideURL  bool
+		urlOverride string
 	}{
 		{
 			"empty keys array is parsed correctly",
 			[]byte("{\"keys\": []}"),
 			http.StatusOK,
 			false,
+			true,
+			"",
 		}, {
 			"non-200 responses return an error",
 			[]byte("{\"keys\": []}"),
 			http.StatusNotFound,
 			true,
+			true,
+			"",
 		}, {
 			"bad JSON data causes an error",
 			[]byte("not json data"),
 			http.StatusOK,
 			true,
+			true,
+			"",
+		}, {
+			"missing JWKS URL results in an error",
+			[]byte("{\"keys\": []}"),
+			http.StatusOK,
+			true,
+			false,
+			"",
+		}, {
+			"bad jwks url results in an error",
+			[]byte("{\"keys\": []}"),
+			http.StatusOK,
+			true,
+			true,
+			"badurl",
 		},
 	}
 	for _, test := range tests {
@@ -44,7 +66,14 @@ func TestNewJOSE(t *testing.T) {
 				assert.Equal(t, "GET", r.Method)
 			}))
 			defer ts.Close()
-			c := &Config{JSONWebKeySetURL: ts.URL}
+			url := ts.URL
+			if !test.provideURL {
+				url = ""
+			}
+			if len(test.urlOverride) > 0 {
+				url = test.urlOverride
+			}
+			c := &Config{JSONWebKeySetURL: url}
 			jose, err := c.NewJOSE()
 			if test.expectErr {
 				assert.Error(t, err)
@@ -55,6 +84,13 @@ func TestNewJOSE(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGenerateClaims(t *testing.T) {
+	j := JOSE{
+		claimGenerators: []ClaimGenerator{MockGenerator{}},
+	}
+	assert.Equal(t, []Claim{&MockClaim{}}, j.GetClaims())
 }
 
 func TestParseValidateJWT(t *testing.T) {
@@ -113,6 +149,12 @@ b9Ym/nxaqyTu0PxajXkKm5Q=
 			"issuer",
 			jwks,
 			false,
+		}, {
+			"valid token that is not correctly signed produces an error",
+			`eyJhbGciOiJSUzI1NiIsImtpZCI6ImZvb2JhcmFiYyJ9.eyJpc3MiOiJpc3N1ZXIiLCJzY29wZXMiOlsiczEiLCJzMiJdLCJzdWIiOiJzdWJqZWN0In0.RxZhTRfPDb6UJ58FwvC89GgJGC8lAO04tz5iLlBpIJsyPZB0X_UgXSj0SGVFm2jbP_i-ZVH4HFC2fMB1n-so9CnCOpunWwhYNdgF6ewQJ0ADTWwfDGsK12UOmyT2naaZN8ZUBF8cgPtOgdWqQjk2Ng9QFRJxlUuKYczBp7vjWvgX8WMwQcaA-eK7HtguR4e9c4FMbeFK8Soc4jCsVTjIKdSn9SErc42gFu65NI1hZ3OPe_T7AZqdDjCkJpoiJ65GdD_qvGkVndJSEcMp3riXQpAy0JbctVkYecdFaGidbxHRrdcQYHtKn-XGMCh2uoBKleUr1fTMiyCGPQQesy3xHw`,
+			"issuer",
+			jwks,
+			true,
 		}, {
 			"invalid jwt produces an error",
 			"invalid jwt",

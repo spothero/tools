@@ -15,6 +15,7 @@
 package jose
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -28,26 +29,45 @@ import (
 type Config struct {
 	JSONWebKeySetURL string // JSON Web Key Set (JWKS) URL for JSON Web Token (JWT) Verification
 	ValidIssuer      string // URL of the JWT Issuer for this environment
+	// List of one or more claims to be captured from JWTs. If using http middleware,
+	// these generators will determine which claims appear on the context.
+	ClaimGenerators []ClaimGenerator
+}
+
+// ClaimGenerator defines an interface which creates a JWT Claim
+type ClaimGenerator interface {
+	// New creates and returns a new Claim of the given underlying type
+	New() Claim
+}
+
+// Claim defines an interface for common JWT claim functionality, such as registering claims to
+// contexts.
+type Claim interface {
+	// NewContext accepts an input context and embeds the claim within the context, returning it
+	// for further use
+	NewContext(c context.Context) context.Context
+}
+
+// JOSEHandler defines an interface for interfacing with JOSE and JWT functionality
+type JOSEHandler interface {
+	// GetClaims returns an array containing empty claims
+	GetClaims() []Claim
+	// ParseValidateJWT accepts an input JWT string and populates any provided claims with
+	// available claim data from the token.
+	ParseValidateJWT(input string, claims ...interface{}) error
 }
 
 // JOSE contains configuration for handling JWTs, JWKS, and other JOSE specifications
 type JOSE struct {
-	validIssuer string
-	jwks        *jose.JSONWebKeySet
-}
-
-// CognitoClaim defines a JWT Claim for tokens issued by the AWS Cognito Service
-type CognitoClaim struct {
-	TokenUse string `json:"token_use"`
-	Scope    string `json:"scope"`
-	ClientID string `json:"client_id"`
-	Version  int    `json:"version"`
+	claimGenerators []ClaimGenerator
+	validIssuer     string
+	jwks            *jose.JSONWebKeySet
 }
 
 // NewJOSE creates and returns a JOSE client for use.
 func (c Config) NewJOSE() (JOSE, error) {
 	if len(c.JSONWebKeySetURL) == 0 {
-		return JOSE{}, xerrors.Errorf("no jwks url specified and jwt signature verification enabled")
+		return JOSE{}, xerrors.Errorf("no jwks url specified")
 	}
 
 	// Fetch JSON Web Key Sets from the specified URL
@@ -68,9 +88,19 @@ func (c Config) NewJOSE() (JOSE, error) {
 	}
 
 	return JOSE{
-		jwks:        jwks,
-		validIssuer: c.ValidIssuer,
+		jwks:            jwks,
+		validIssuer:     c.ValidIssuer,
+		claimGenerators: c.ClaimGenerators,
 	}, nil
+}
+
+// GetClaims returns a set of empty and initialized Claims registered to the JOSE struct
+func (j JOSE) GetClaims() []Claim {
+	claims := make([]Claim, len(j.claimGenerators))
+	for i, generator := range j.claimGenerators {
+		claims[i] = generator.New()
+	}
+	return claims
 }
 
 // ParseValidateJWT accepts a string containing a JWT token and attempts to parse and validate the
