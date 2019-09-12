@@ -323,3 +323,8 @@ func TestRegisterConsumerMetrics(t *testing.T) {
 	assert.NotNil(t, metrics.MessageErrors)
 	assert.NotNil(t, metrics.ErrorsProcessed)
 }
+
+func TestNewDefaultConsumerConfig(t *testing.T) {
+	expected := ConsumerConfig{SchemaRegistry: &SchemaRegistryConfig{}}
+	assert.Equal(t, expected, NewDefaultConsumerConfig())
+}
