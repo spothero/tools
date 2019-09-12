@@ -59,6 +59,14 @@ type ConsumerConfig struct {
 	SchemaRegistry *SchemaRegistryConfig
 }
 
+// NewDefaultConsumerConfig constructs and returns a usable ConsumerConfig with default settings
+func NewDefaultConsumerConfig() ConsumerConfig {
+	return ConsumerConfig{
+		JSONEnabled:    false,
+		SchemaRegistry: &SchemaRegistryConfig{},
+	}
+}
+
 // Registers high-level consumer flags with pflags
 func (c *ConsumerConfig) RegisterFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&c.JSONEnabled, "enable-json", true, "When this flag is set, messages from Kafka will be consumed as JSON instead of Avro")
