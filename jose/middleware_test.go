@@ -129,7 +129,7 @@ func TestGetHTTPMiddleware(t *testing.T) {
 			handler.On(
 				"ParseValidateJWT",
 				test.jwt,
-				[]interface{}{handler.GetClaims()},
+				handler.GetClaims(),
 			).Return(parseErr)
 			deferable, r := GetHTTPMiddleware(handler, test.authRequired)(&sr, req)
 			defer deferable()

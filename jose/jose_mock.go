@@ -59,6 +59,6 @@ func (mh *MockHandler) GetClaims() []Claim {
 }
 
 // ParseValidateJWT mocks the ParseValidateJWT function
-func (mh *MockHandler) ParseValidateJWT(input string, claims ...interface{}) error {
+func (mh *MockHandler) ParseValidateJWT(input string, claims ...Claim) error {
 	return mh.Called(input, claims).Error(0)
 }

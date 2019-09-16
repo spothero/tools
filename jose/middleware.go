@@ -60,7 +60,7 @@ func GetHTTPMiddleware(jh JOSEHandler, authRequired bool) func(*writer.StatusRec
 
 		claims := jh.GetClaims()
 		bearerToken := strings.TrimPrefix(authHeader, bearerPrefix)
-		err := jh.ParseValidateJWT(bearerToken, claims)
+		err := jh.ParseValidateJWT(bearerToken, claims...)
 		if err != nil {
 			logger.Debug("failed to parse and/or validate Bearer token", zap.Error(err))
 			if authRequired {
