@@ -39,5 +39,4 @@ func TestRegisterFlags(t *testing.T) {
 	ar, err := flags.GetBool("jose-auth-required")
 	assert.NoError(t, err)
 	assert.True(t, ar)
-
 }

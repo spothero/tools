@@ -42,7 +42,7 @@ func GetHTTPMiddleware(jh JOSEHandler, authRequired bool) func(*writer.StatusRec
 			message := "no authorization header found"
 			logger.Debug(message)
 			if authRequired {
-				r.Header.Set("WWW-Authenticate", "Bearer")
+				sr.Header().Set("WWW-Authenticate", "Bearer")
 				http.Error(sr, message, http.StatusUnauthorized)
 			}
 			return func() {}, r
@@ -52,7 +52,7 @@ func GetHTTPMiddleware(jh JOSEHandler, authRequired bool) func(*writer.StatusRec
 			message := "authorization header did not include bearer prefix"
 			logger.Debug(message)
 			if authRequired {
-				r.Header.Set("WWW-Authenticate", "Bearer")
+				sr.Header().Set("WWW-Authenticate", "Bearer")
 				http.Error(sr, message, http.StatusUnauthorized)
 			}
 			return func() {}, r

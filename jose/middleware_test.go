@@ -15,6 +15,7 @@
 package jose
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -135,7 +136,12 @@ func TestGetHTTPMiddleware(t *testing.T) {
 			assert.NotNil(t, r)
 
 			if test.authRequired {
-				assert.Equal(t, sr.StatusCode, test.expectedStatusCode)
+				httpRespResult := recorder.Result()
+				assert.Equal(t, test.expectedStatusCode, httpRespResult.StatusCode)
+				for expectedHeader, expectedValue := range test.expectedHeaders {
+					fmt.Printf("%+v\n", httpRespResult)
+					assert.Equal(t, expectedValue, httpRespResult.Header.Get(expectedHeader))
+				}
 			}
 			value, ok := r.Context().Value(MockClaimKey).(*MockClaim)
 			if test.expectClaim {
