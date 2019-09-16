@@ -34,17 +34,27 @@ const bearerPrefix = "Bearer "
 // if present, on all incoming HTTP requests. If an Authorization header is found, this middleware
 // attempts to parse and validate that value as a JWT with  the configured Credential types for
 // the given JOSE provider.
-func GetHTTPMiddleware(jh JOSEHandler) func(*writer.StatusRecorder, *http.Request) (func(), *http.Request) {
+func GetHTTPMiddleware(jh JOSEHandler, authRequired bool) func(*writer.StatusRecorder, *http.Request) (func(), *http.Request) {
 	return func(sr *writer.StatusRecorder, r *http.Request) (func(), *http.Request) {
 		logger := log.Get(r.Context())
 		authHeader := r.Header.Get(authHeader)
 		if len(authHeader) == 0 {
-			logger.Debug("no authorization header found")
+			message := "no authorization header found"
+			logger.Debug(message)
+			if authRequired {
+				r.Header.Set("WWW-Authenticate", "Bearer")
+				http.Error(sr, message, http.StatusUnauthorized)
+			}
 			return func() {}, r
 		}
 
 		if !strings.HasPrefix(authHeader, bearerPrefix) {
-			logger.Debug("authorization header did not include bearer prefix")
+			message := "authorization header did not include bearer prefix"
+			logger.Debug(message)
+			if authRequired {
+				r.Header.Set("WWW-Authenticate", "Bearer")
+				http.Error(sr, message, http.StatusUnauthorized)
+			}
 			return func() {}, r
 		}
 
@@ -52,10 +62,10 @@ func GetHTTPMiddleware(jh JOSEHandler) func(*writer.StatusRecorder, *http.Reques
 		bearerToken := strings.TrimPrefix(authHeader, bearerPrefix)
 		err := jh.ParseValidateJWT(bearerToken, claims)
 		if err != nil {
-			logger.Debug(
-				"failed to parse and validate incoming jwt",
-				zap.Error(err),
-			)
+			logger.Debug("failed to parse and/or validate Bearer token", zap.Error(err))
+			if authRequired {
+				http.Error(sr, "bearer token is invalid", http.StatusForbidden)
+			}
 			return func() {}, r
 		}
 

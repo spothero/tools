@@ -26,12 +26,15 @@ import (
 
 func TestGetHTTPMiddleware(t *testing.T) {
 	tests := []struct {
-		name              string
-		authHeaderPresent bool
-		authHeader        string
-		jwt               string
-		parseJWTError     bool
-		expectClaim       bool
+		name               string
+		authHeaderPresent  bool
+		authHeader         string
+		jwt                string
+		parseJWTError      bool
+		expectClaim        bool
+		authRequired       bool
+		expectedStatusCode int
+		expectedHeaders    map[string]string
 	}{
 		{
 			"no auth header results in no claim",
@@ -40,6 +43,9 @@ func TestGetHTTPMiddleware(t *testing.T) {
 			"",
 			false,
 			false,
+			false,
+			-1,
+			nil,
 		}, {
 			"malformed auth headers are rejected",
 			true,
@@ -47,6 +53,9 @@ func TestGetHTTPMiddleware(t *testing.T) {
 			"",
 			false,
 			false,
+			false,
+			-1,
+			nil,
 		}, {
 			"failed jwt parsings are rejected",
 			true,
@@ -54,6 +63,39 @@ func TestGetHTTPMiddleware(t *testing.T) {
 			"fake.jwt.header",
 			true,
 			false,
+			false,
+			-1,
+			nil,
+		}, {
+			"with auth: no auth header results in no claim and a 401",
+			false,
+			"",
+			"",
+			false,
+			false,
+			true,
+			401,
+			map[string]string{"WWW-Authenticate": "Bearer"},
+		}, {
+			"malformed auth headers are rejected",
+			true,
+			"bearer fake.jwt.header",
+			"",
+			false,
+			false,
+			true,
+			401,
+			map[string]string{"WWW-Authenticate": "Bearer"},
+		}, {
+			"failed jwt parsings are rejected",
+			true,
+			"Bearer fake.jwt.header",
+			"fake.jwt.header",
+			true,
+			false,
+			true,
+			403,
+			nil,
 		}, {
 			"jwt tokens are parsed and placed in context when present",
 			true,
@@ -61,6 +103,9 @@ func TestGetHTTPMiddleware(t *testing.T) {
 			"fake.jwt.header",
 			false,
 			true,
+			false,
+			-1,
+			nil,
 		},
 	}
 	for _, test := range tests {
@@ -85,10 +130,13 @@ func TestGetHTTPMiddleware(t *testing.T) {
 				test.jwt,
 				[]interface{}{handler.GetClaims()},
 			).Return(parseErr)
-			deferable, r := GetHTTPMiddleware(handler)(&sr, req)
+			deferable, r := GetHTTPMiddleware(handler, test.authRequired)(&sr, req)
 			defer deferable()
 			assert.NotNil(t, r)
 
+			if test.authRequired {
+				assert.Equal(t, sr.StatusCode, test.expectedStatusCode)
+			}
 			value, ok := r.Context().Value(MockClaimKey).(*MockClaim)
 			if test.expectClaim {
 				assert.True(t, ok)

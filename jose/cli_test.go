@@ -36,4 +36,8 @@ func TestRegisterFlags(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "", vi)
 
+	ar, err := flags.GetBool("jose-auth-required")
+	assert.NoError(t, err)
+	assert.True(t, ar)
+
 }
