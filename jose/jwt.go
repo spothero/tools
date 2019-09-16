@@ -55,7 +55,7 @@ type JOSEHandler interface {
 	GetClaims() []Claim
 	// ParseValidateJWT accepts an input JWT string and populates any provided claims with
 	// available claim data from the token.
-	ParseValidateJWT(input string, claims ...interface{}) error
+	ParseValidateJWT(input string, claims ...Claim) error
 }
 
 // JOSE contains configuration for handling JWTs, JWKS, and other JOSE specifications
