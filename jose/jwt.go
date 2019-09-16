@@ -111,15 +111,20 @@ func (j JOSE) GetClaims() []Claim {
 // claims structs which will be populated if the JWT is valid. Claims must be structs with json
 // fields that match the keys in the payload field, or a map[string]interface{}. Use of
 // map[string]interface{} is strongly discouraged.
-func (j JOSE) ParseValidateJWT(input string, claims ...interface{}) error {
+func (j JOSE) ParseValidateJWT(input string, claims ...Claim) error {
 	tok, err := jwt.ParseSigned(input)
 	if err != nil {
 		return xerrors.Errorf("failed to parse jwt token: %w", err)
 	}
 
 	// Extract Token Claims from the payload and ensure that the signing signature is valid
-	publicClaims := jwt.Claims{}
-	if err = tok.Claims(j.jwks, append(claims, &publicClaims)...); err != nil {
+	publicClaims := &jwt.Claims{}
+	allClaims := []interface{}{publicClaims}
+	for i := 0; i < len(claims); i++ {
+		allClaims = append(allClaims, claims[i])
+	}
+
+	if err = tok.Claims(j.jwks, allClaims...); err != nil {
 		return xerrors.Errorf("failed to extract claims from jwt: %w", err)
 	}
 
