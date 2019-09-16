@@ -46,16 +46,17 @@ func test(c jose.Config, jwt string) {
 		fmt.Printf("failed to supply jwt")
 		os.Exit(1)
 	}
+	c.ClaimGenerators = []jose.ClaimGenerator{jose.CognitoGenerator{}}
 	client, err := c.NewJOSE()
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	cognitoClaim := &jose.CognitoClaim{}
-	if err := client.ParseValidateJWT(jwt, cognitoClaim); err != nil {
+	claims := client.GetClaims()
+	if err := client.ParseValidateJWT(jwt, claims...); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to parse token: %+v\n", err)
 		os.Exit(1)
 	}
-	fmt.Printf("successfully parsed token: %+v\n", cognitoClaim)
+	fmt.Printf("successfully parsed token: %+v\n", claims[0])
 }
