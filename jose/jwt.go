@@ -32,6 +32,7 @@ type Config struct {
 	// List of one or more claims to be captured from JWTs. If using http middleware,
 	// these generators will determine which claims appear on the context.
 	ClaimGenerators []ClaimGenerator
+	AuthRequired    bool // If true, missing/invalid `Authorization` headers will result in a 4xx error
 }
 
 // ClaimGenerator defines an interface which creates a JWT Claim
@@ -62,6 +63,7 @@ type JOSE struct {
 	claimGenerators []ClaimGenerator
 	validIssuer     string
 	jwks            *jose.JSONWebKeySet
+	authRequired    bool
 }
 
 // NewJOSE creates and returns a JOSE client for use.
@@ -91,6 +93,7 @@ func (c Config) NewJOSE() (JOSE, error) {
 		jwks:            jwks,
 		validIssuer:     c.ValidIssuer,
 		claimGenerators: c.ClaimGenerators,
+		authRequired:    c.AuthRequired,
 	}, nil
 }
 
