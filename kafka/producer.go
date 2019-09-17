@@ -51,12 +51,12 @@ type ProducerIface interface {
 // Constant values that represent the required acks setting for produced messages. These map to
 // the sarama.RequiredAcks constants
 const (
-	// All waits for all in-sync replicas to commit before responding.
-	All int = iota
-	// Local waits for only the local commit to succeed before responding.
-	Local
-	// None waits for no acknowledgements.
-	None
+	// RequiredAcksAll waits for all in-sync replicas to commit before responding.
+	RequiredAcksAll int = -1
+	// RequiredAcksNone waits for no acknowledgements.
+	RequiredAcksNone = 0
+	// RequiredAcksLocal waits for only the local commit to succeed before responding.
+	RequiredAcksLocal = 1
 )
 
 // ProducerConfig contains producer-specific configuration information
@@ -70,7 +70,7 @@ type ProducerConfig struct {
 func (c *ProducerConfig) RegisterFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&c.ProducerCompressionCodec, "kafka-producer-compression-codec", "none", "Compression codec to use when producing messages, one of: \"none\", \"zstd\", \"snappy\", \"lz4\", \"zstd\", \"gzip\"")
 	flags.IntVar(&c.ProducerCompressionLevel, "kafka-producer-compression-level", -1000, "Compression level to use on produced messages, -1000 signifies to use the default level.")
-	flags.IntVar(&c.ProducerRequiredAcks, "kafka-producer-required-acks", 0, "Required acks setting for produced messages, 0=all, 1=local, 2=none. Default is 0.")
+	flags.IntVar(&c.ProducerRequiredAcks, "kafka-producer-required-acks", -1, "Required acks setting for produced messages, -1=all, 0=none, 1=local. Default is -1.")
 }
 
 // NewProducer creates a sarama producer from a client. If the returnMessages flag is true,
@@ -115,12 +115,12 @@ func (c Client) NewProducer(config ProducerConfig, logger *zap.Logger, returnMes
 
 	var requiredAcks sarama.RequiredAcks
 	switch config.ProducerRequiredAcks {
-	case All:
+	case RequiredAcksAll:
 		requiredAcks = sarama.WaitForAll
-	case Local:
-		requiredAcks = sarama.WaitForLocal
-	case None:
+	case RequiredAcksNone:
 		requiredAcks = sarama.NoResponse
+	case RequiredAcksLocal:
+		requiredAcks = sarama.WaitForLocal
 	default:
 		return Producer{}, fmt.Errorf("unknown required acks config %v", config.ProducerRequiredAcks)
 	}
