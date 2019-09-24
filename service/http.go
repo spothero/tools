@@ -90,7 +90,7 @@ func (hc HTTPConfig) ServerCmd(shortDescript, longDescript string, newService fu
 			if err := lc.InitializeLogger(); err != nil {
 				return err
 			}
-			if err := sc.InitializeRaven(); err != nil {
+			if err := sc.InitializeSentry(); err != nil {
 				return err
 			}
 			closer := tc.ConfigureTracer()

@@ -17,10 +17,11 @@ package sentry
 import (
 	"fmt"
 	"math"
+	"regexp"
 	"runtime/debug"
 	"time"
 
-	"github.com/getsentry/raven-go"
+	"github.com/getsentry/sentry-go"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -33,15 +34,21 @@ type Config struct {
 
 var appPackage string
 
-// InitializeRaven Initializes the Raven client. This function should be called as soon as
-// possible after the application configuration is loaded so that raven
+// duration to wait to flush events to sentry
+const flushTimeout = 2 * time.Second
+
+// InitializeSentry Initializes the Sentry client. This function should be called as soon as
+// possible after the application configuration is loaded so that sentry
 // is setup.
-func (c Config) InitializeRaven() error {
-	if err := raven.SetDSN(c.DSN); err != nil {
+func (c Config) InitializeSentry() error {
+	opts := sentry.ClientOptions{
+		Dsn:         c.DSN,
+		Environment: c.Environment,
+		Release:     c.AppVersion,
+	}
+	if err := sentry.Init(opts); err != nil {
 		return err
 	}
-	raven.SetEnvironment(c.Environment)
-	raven.SetRelease(c.AppVersion)
 
 	buildInfo, ok := debug.ReadBuildInfo()
 	if !ok {
@@ -77,27 +84,35 @@ func (c *Core) Check(ent zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.Check
 	return ce
 }
 
+// filter out function calls from this modules and from the logger in stack traces
+// reported to sentry
+var stacktraceModulesToIgnore = []*regexp.Regexp{
+	regexp.MustCompile(`github\.com/spothero/tools/sentry*`),
+	regexp.MustCompile(`github\.com/uber-go/zap*`),
+	regexp.MustCompile(`go\.uber\.org/zap*`),
+}
+
 // Write logs the entry and fields supplied at the log site and writes them to their destination
 func (c *Core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
-	var severity raven.Severity
+	var severity sentry.Level
 	switch ent.Level {
 	case zapcore.DebugLevel:
-		severity = raven.DEBUG
+		severity = sentry.LevelDebug
 	case zapcore.InfoLevel:
-		severity = raven.INFO
+		severity = sentry.LevelInfo
 	case zapcore.WarnLevel:
-		severity = raven.WARNING
+		severity = sentry.LevelWarning
 	case zapcore.ErrorLevel:
-		severity = raven.ERROR
+		severity = sentry.LevelError
 	default:
 		// captures Panic, DPanic, Fatal zapcore levels
-		severity = raven.FATAL
+		severity = sentry.LevelFatal
 	}
 
 	// Add extra logged fields to the Sentry packet
 	// This block was adapted from the way zap encodes messages internally
 	// See https://github.com/uber-go/zap/blob/v1.7.1/zapcore/field.go#L107
-	ravenExtra := make(map[string]interface{})
+	sentryExtra := make(map[string]interface{})
 	mergedFields := fields
 	if len(c.withFields) > 0 {
 		mergedFields = append(mergedFields, c.withFields...)
@@ -105,63 +120,63 @@ func (c *Core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 	for _, field := range mergedFields {
 		switch field.Type {
 		case zapcore.ArrayMarshalerType:
-			ravenExtra[field.Key] = field.Interface
+			sentryExtra[field.Key] = field.Interface
 		case zapcore.ObjectMarshalerType:
-			ravenExtra[field.Key] = field.Interface
+			sentryExtra[field.Key] = field.Interface
 		case zapcore.BinaryType:
-			ravenExtra[field.Key] = field.Interface
+			sentryExtra[field.Key] = field.Interface
 		case zapcore.BoolType:
-			ravenExtra[field.Key] = field.Integer == 1
+			sentryExtra[field.Key] = field.Integer == 1
 		case zapcore.ByteStringType:
-			ravenExtra[field.Key] = field.Interface
+			sentryExtra[field.Key] = field.Interface
 		case zapcore.Complex128Type:
-			ravenExtra[field.Key] = field.Interface
+			sentryExtra[field.Key] = field.Interface
 		case zapcore.Complex64Type:
-			ravenExtra[field.Key] = field.Interface
+			sentryExtra[field.Key] = field.Interface
 		case zapcore.DurationType:
-			ravenExtra[field.Key] = field.Integer
+			sentryExtra[field.Key] = field.Integer
 		case zapcore.Float64Type:
-			ravenExtra[field.Key] = math.Float64frombits(uint64(field.Integer))
+			sentryExtra[field.Key] = math.Float64frombits(uint64(field.Integer))
 		case zapcore.Float32Type:
-			ravenExtra[field.Key] = math.Float32frombits(uint32(field.Integer))
+			sentryExtra[field.Key] = math.Float32frombits(uint32(field.Integer))
 		case zapcore.Int64Type:
-			ravenExtra[field.Key] = field.Integer
+			sentryExtra[field.Key] = field.Integer
 		case zapcore.Int32Type:
-			ravenExtra[field.Key] = field.Integer
+			sentryExtra[field.Key] = field.Integer
 		case zapcore.Int16Type:
-			ravenExtra[field.Key] = field.Integer
+			sentryExtra[field.Key] = field.Integer
 		case zapcore.Int8Type:
-			ravenExtra[field.Key] = field.Integer
+			sentryExtra[field.Key] = field.Integer
 		case zapcore.StringType:
-			ravenExtra[field.Key] = field.String
+			sentryExtra[field.Key] = field.String
 		case zapcore.TimeType:
 			if field.Interface != nil {
 				// Time has a timezone
-				ravenExtra[field.Key] = time.Unix(0, field.Integer).In(field.Interface.(*time.Location))
+				sentryExtra[field.Key] = time.Unix(0, field.Integer).In(field.Interface.(*time.Location))
 			} else {
-				ravenExtra[field.Key] = time.Unix(0, field.Integer)
+				sentryExtra[field.Key] = time.Unix(0, field.Integer)
 			}
 		case zapcore.Uint64Type:
-			ravenExtra[field.Key] = uint64(field.Integer)
+			sentryExtra[field.Key] = uint64(field.Integer)
 		case zapcore.Uint32Type:
-			ravenExtra[field.Key] = uint32(field.Integer)
+			sentryExtra[field.Key] = uint32(field.Integer)
 		case zapcore.Uint16Type:
-			ravenExtra[field.Key] = uint16(field.Integer)
+			sentryExtra[field.Key] = uint16(field.Integer)
 		case zapcore.Uint8Type:
-			ravenExtra[field.Key] = uint8(field.Integer)
+			sentryExtra[field.Key] = uint8(field.Integer)
 		case zapcore.UintptrType:
-			ravenExtra[field.Key] = uintptr(field.Integer)
+			sentryExtra[field.Key] = uintptr(field.Integer)
 		case zapcore.ReflectType:
-			ravenExtra[field.Key] = field.Interface
+			sentryExtra[field.Key] = field.Interface
 		case zapcore.NamespaceType:
-			ravenExtra[field.Key] = field.Interface
+			sentryExtra[field.Key] = field.Interface
 		case zapcore.StringerType:
-			ravenExtra[field.Key] = field.Interface.(fmt.Stringer).String()
+			sentryExtra[field.Key] = field.Interface.(fmt.Stringer).String()
 		case zapcore.ErrorType:
-			ravenExtra[field.Key] = field.Interface.(error).Error()
+			sentryExtra[field.Key] = field.Interface.(error).Error()
 		case zapcore.SkipType:
 		default:
-			ravenExtra[field.Key] = fmt.Sprintf("Unknown field type %v", field.Type)
+			sentryExtra[field.Key] = fmt.Sprintf("Unknown field type %v", field.Type)
 		}
 	}
 
@@ -171,31 +186,48 @@ func (c *Core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 	if ent.Stack == "" {
 		fingerprint = ent.Message
 	}
-	packet := &raven.Packet{
-		Message:     ent.Message,
-		Timestamp:   raven.Timestamp(ent.Time),
-		Level:       severity,
-		Logger:      ent.LoggerName,
-		Extra:       ravenExtra,
-		Fingerprint: []string{fingerprint},
+	event := sentry.NewEvent()
+	event.Message = ent.Message
+	event.Level = severity
+	event.Logger = ent.LoggerName
+	event.Timestamp = ent.Time.Unix()
+	event.Extra = sentryExtra
+	event.Fingerprint = []string{fingerprint}
+	stackTrace := sentry.NewStacktrace()
+	filteredFrames := make([]sentry.Frame, 0, len(stackTrace.Frames))
+	for _, frame := range stackTrace.Frames {
+		ignoreFrame := false
+		for _, pattern := range stacktraceModulesToIgnore {
+			if pattern.MatchString(frame.Module) {
+				ignoreFrame = true
+				break
+			}
+		}
+		if !ignoreFrame {
+			filteredFrames = append(filteredFrames, frame)
+		}
 	}
+	event.Threads = []sentry.Thread{{
+		Stacktrace: &sentry.Stacktrace{
+			Frames: filteredFrames,
+		},
+		Current: true,
+	}}
 
-	// get stack trace but omit the internal logging calls from the trace
-	trace := raven.NewStacktrace(2, 5, []string{appPackage})
-	packet.Interfaces = append(packet.Interfaces, trace)
-
-	_, _ = raven.Capture(packet, nil)
+	sentry.CaptureEvent(event)
 
 	// level higher than error, (i.e. panic, fatal), the program might crash,
-	// so block while raven sends the event
+	// so block while sentry sends the event
 	if ent.Level > zapcore.ErrorLevel {
-		raven.Wait()
+		sentry.Flush(flushTimeout)
 	}
 	return nil
 }
 
 // Sync flushes any buffered logs
 func (c *Core) Sync() error {
-	raven.Wait()
+	if !sentry.Flush(flushTimeout) {
+		return fmt.Errorf("timed out waiting for Sentry flush")
+	}
 	return nil
 }
