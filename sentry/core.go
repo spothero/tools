@@ -75,7 +75,7 @@ func (c *Core) Check(ent zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.Check
 	return ce
 }
 
-// filter out function calls from this modules and from the logger in stack traces
+// filter out function calls from this module and from the logger in stack traces
 // reported to sentry
 var stacktraceModulesToIgnore = []*regexp.Regexp{
 	regexp.MustCompile(`github\.com/spothero/tools/sentry*`),
