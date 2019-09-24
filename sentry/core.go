@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"math"
 	"regexp"
-	"runtime/debug"
 	"time"
 
 	"github.com/getsentry/sentry-go"
@@ -31,8 +30,6 @@ type Config struct {
 	Environment string
 	AppVersion  string
 }
-
-var appPackage string
 
 // duration to wait to flush events to sentry
 const flushTimeout = 2 * time.Second
@@ -49,12 +46,6 @@ func (c Config) InitializeSentry() error {
 	if err := sentry.Init(opts); err != nil {
 		return err
 	}
-
-	buildInfo, ok := debug.ReadBuildInfo()
-	if !ok {
-		return fmt.Errorf("failed to discover package name from go build info")
-	}
-	appPackage = buildInfo.Main.Path
 	return nil
 }
 
