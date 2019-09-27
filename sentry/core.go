@@ -21,33 +21,12 @@ import (
 	"time"
 
 	"github.com/getsentry/sentry-go"
+	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
-// Config defines the necessary configuration for instantiating a Sentry Reporter
-type Config struct {
-	DSN         string
-	Environment string
-	AppVersion  string
-}
-
 // duration to wait to flush events to sentry
 const flushTimeout = 2 * time.Second
-
-// InitializeSentry Initializes the Sentry client. This function should be called as soon as
-// possible after the application configuration is loaded so that sentry
-// is setup.
-func (c Config) InitializeSentry() error {
-	opts := sentry.ClientOptions{
-		Dsn:         c.DSN,
-		Environment: c.Environment,
-		Release:     c.AppVersion,
-	}
-	if err := sentry.Init(opts); err != nil {
-		return err
-	}
-	return nil
-}
 
 // Core Implements a zapcore.Core that sends logged errors to Sentry
 type Core struct {
@@ -83,7 +62,9 @@ var stacktraceModulesToIgnore = []*regexp.Regexp{
 	regexp.MustCompile(`go\.uber\.org/zap*`),
 }
 
-// Write logs the entry and fields supplied at the log site and writes them to their destination
+// Write logs the entry and fields supplied at the log site and writes them to their destination. If a
+// Sentry Hub field is present in the fields, that Hub will be used for reporting to Sentry, otherrwise
+// the default Sentry Hub will be used.
 func (c *Core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 	var severity sentry.Level
 	switch ent.Level {
@@ -108,11 +89,17 @@ func (c *Core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 	if len(c.withFields) > 0 {
 		mergedFields = append(mergedFields, c.withFields...)
 	}
+	hub := sentry.CurrentHub()
 	for _, field := range mergedFields {
 		switch field.Type {
 		case zapcore.ArrayMarshalerType:
 			sentryExtra[field.Key] = field.Interface
 		case zapcore.ObjectMarshalerType:
+			if field.Key == loggerFieldKey {
+				if h, ok := field.Interface.(*sentry.Hub); ok {
+					hub = h
+				}
+			}
 			sentryExtra[field.Key] = field.Interface
 		case zapcore.BinaryType:
 			sentryExtra[field.Key] = field.Interface
@@ -205,12 +192,12 @@ func (c *Core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 		Current: true,
 	}}
 
-	sentry.CaptureEvent(event)
+	hub.CaptureEvent(event)
 
 	// level higher than error, (i.e. panic, fatal), the program might crash,
 	// so block while sentry sends the event
 	if ent.Level > zapcore.ErrorLevel {
-		sentry.Flush(flushTimeout)
+		hub.Flush(flushTimeout)
 	}
 	return nil
 }
@@ -220,5 +207,23 @@ func (c *Core) Sync() error {
 	if !sentry.Flush(flushTimeout) {
 		return fmt.Errorf("timed out waiting for Sentry flush")
 	}
+	return nil
+}
+
+const loggerFieldKey = "sentry"
+
+type hubZapField struct {
+	*sentry.Hub
+}
+
+// Hub attaches a Sentry hub to the logger such that if the logger ever logs an
+// error, request context can be sent to Sentry.
+func Hub(hub *sentry.Hub) zapcore.Field {
+	return zap.Object(loggerFieldKey, hubZapField{hub})
+}
+
+// MarshalLogObject implements Zap's ObjectMarshaler interface but is a no-op
+// since we don't actually want add anything from the Sentry Hub to the log.
+func (f hubZapField) MarshalLogObject(_ zapcore.ObjectEncoder) error {
 	return nil
 }
