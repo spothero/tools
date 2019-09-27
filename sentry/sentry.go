@@ -14,9 +14,34 @@
 
 package sentry
 
-import "github.com/spf13/pflag"
+import (
+	"github.com/getsentry/sentry-go"
+	"github.com/spf13/pflag"
+)
+
+// Config defines the necessary configuration for instantiating a Sentry Reporter
+type Config struct {
+	DSN         string
+	Environment string
+	AppVersion  string
+}
 
 // RegisterFlags registers Sentry flags with pflags
 func (c *Config) RegisterFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&c.DSN, "sentry-dsn", "", "Sentry DSN")
+}
+
+// InitializeSentry Initializes the Sentry client. This function should be called as soon as
+// possible after the application configuration is loaded so that sentry
+// is setup.
+func (c Config) InitializeSentry() error {
+	opts := sentry.ClientOptions{
+		Dsn:         c.DSN,
+		Environment: c.Environment,
+		Release:     c.AppVersion,
+	}
+	if err := sentry.Init(opts); err != nil {
+		return err
+	}
+	return nil
 }
