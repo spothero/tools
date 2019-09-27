@@ -25,6 +25,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/spothero/tools/http/writer"
 	"github.com/spothero/tools/log"
 	"go.uber.org/zap"
 )
@@ -45,7 +46,7 @@ type Config struct {
 	PreStart         func(ctx context.Context, router *mux.Router, server *http.Server) // A function to be called before starting the web server
 	PostShutdown     func(ctx context.Context)                                          // A function to be called before stopping the web server
 	RegisterHandlers func(*mux.Router)                                                  // Handler registration callback function. Register your routes in this function.
-	Middleware       Middleware                                                         // A list of global middleware functions to be called. Order is honored.
+	Middleware       []mux.MiddlewareFunc                                               // A list of global middleware functions to be called. Order is honored.
 	CancelSignals    []os.Signal                                                        // OS Signals to be used to cancel running servers. Defaults to SIGINT/`os.Interrupt`.
 }
 
@@ -75,9 +76,12 @@ func NewDefaultConfig(name string) Config {
 }
 
 // NewServer uses the given http Config to create and return a server ready to be run.
+// Note that this method prepends writer.StatusRecorderMiddleware to the middleware specified
+// in the config as a convenience.
 func (c Config) NewServer() Server {
 	router := mux.NewRouter()
-	router.Use(c.Middleware.handler)
+	router.Use(writer.StatusRecorderMiddleware)
+	router.Use(c.Middleware...)
 	if c.HealthHandler {
 		router.HandleFunc("/health", healthHandler)
 	}

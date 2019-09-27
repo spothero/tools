@@ -56,7 +56,7 @@ func (hc HTTPConfig) ServerCmd(shortDescript, longDescript string, newService fu
 	config := shHTTP.NewDefaultConfig(hc.Name)
 	config.PreStart = hc.PreStart
 	config.PostShutdown = hc.PostShutdown
-	config.Middleware = shHTTP.Middleware{
+	config.Middleware = []mux.MiddlewareFunc{
 		tracing.HTTPMiddleware,
 		shHTTP.NewMetrics(hc.Registry, true).Middleware,
 		log.HTTPMiddleware,

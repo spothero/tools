@@ -21,6 +21,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/opentracing/opentracing-go"
+	"github.com/spothero/tools/log"
 	"github.com/spothero/tools/service"
 )
 
@@ -47,6 +48,7 @@ func (h handler) helloWorld(w http.ResponseWriter, r *http.Request) {
 	span, _ := opentracing.StartSpanFromContext(r.Context(), "example-hello-world")
 	span = span.SetTag("Key", "Value")
 	defer span.Finish()
+	log.Get(r.Context()).Info("hello logger")
 
 	// NOTE: Here we write out some artisanal HTML. There are many other (better) ways to output data.
 	fmt.Fprintf(w,
@@ -67,6 +69,7 @@ func bestLanguage(w http.ResponseWriter, r *http.Request) {
 	span = span.SetTag("best.language", "golang")
 	span = span.SetTag("best.mascot", "gopher")
 	defer span.Finish()
+	log.Get(r.Context()).Info("go is the best language 😉")
 
 	// NOTE: Here we write out some artisanal HTML. There are many other (better) ways to output data.
 	fmt.Fprintf(w, "<html><a href='//golang.org/'>Go</a>, of course! \\ʕ◔ϖ◔ʔ/</br> Say <a href='/'>hello</a> again.</html>")

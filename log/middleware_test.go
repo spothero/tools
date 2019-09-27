@@ -23,53 +23,51 @@ import (
 
 	"github.com/spothero/tools/http/writer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
 )
 
 func TestHTTPMiddleware(t *testing.T) {
-	recorder := httptest.NewRecorder()
-	sr := writer.StatusRecorder{ResponseWriter: recorder, StatusCode: http.StatusOK}
-	req, err := http.NewRequest("GET", "/", nil)
-	assert.NoError(t, err)
-
 	// Override the global logger with the observable
 	core, recordedLogs := observer.New(zapcore.InfoLevel)
 	c := &Config{Cores: []zapcore.Core{core}}
-	err = c.InitializeLogger()
-	assert.NoError(t, err)
+	err := c.InitializeLogger()
+	require.NoError(t, err)
 	logger = zap.New(core)
 
-	deferable, r := HTTPMiddleware(&sr, req)
+	// setup a test server with logging middleware and a handler that sets the status code
+	const statusCode = 666
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(statusCode)
+		// make sure the middleware placed the logger in the request context
+		_, ok := r.Context().Value(logKey).(*zap.Logger)
+		assert.True(t, ok)
+	})
+	testServer := httptest.NewServer(writer.StatusRecorderMiddleware(HTTPMiddleware(testHandler)))
+	defer testServer.Close()
+	res, err := http.Get(testServer.URL)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	defer res.Body.Close()
 
 	// Test that request parameters are appropriately logged to our standards
-	assert.NotNil(t, r)
 	currLogs := recordedLogs.All()
-	assert.Len(t, currLogs, 1)
+	assert.Len(t, currLogs, 2)
 	foundLogKeysRequest := make([]string, len(currLogs[0].Context))
 	for idx, field := range currLogs[0].Context {
 		foundLogKeysRequest[idx] = field.Key
 	}
-	assert.ElementsMatch(
-		t,
-		[]string{"http_method", "path", "query_string"},
-		foundLogKeysRequest,
-	)
+	assert.ElementsMatch(t, []string{"http_method", "path", "query_string"}, foundLogKeysRequest)
 
 	// Test that response parameters are appropriately logged to our standards
-	deferable()
-	currLogs = recordedLogs.All()
-	assert.Len(t, currLogs, 2)
 	foundLogKeysResponse := make([]string, len(currLogs[1].Context))
 	for idx, field := range currLogs[1].Context {
 		foundLogKeysResponse[idx] = field.Key
 	}
-	assert.ElementsMatch(
-		t,
-		[]string{"response_code"},
-		foundLogKeysResponse,
-	)
+	assert.ElementsMatch(t, []string{"response_code"}, foundLogKeysResponse)
+	assert.Equal(t, currLogs[1].Context[0].Integer, int64(statusCode))
 }
 
 func TestSQLMiddleware(t *testing.T) {

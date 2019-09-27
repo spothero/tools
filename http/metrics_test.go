@@ -24,6 +24,7 @@ import (
 	dto "github.com/prometheus/client_model/go"
 	"github.com/spothero/tools/http/writer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewMetrics(t *testing.T) {
@@ -59,7 +60,7 @@ func TestNewMetrics(t *testing.T) {
 			metrics := NewMetrics(registry, test.mustRegister)
 			if test.duplicate {
 				if test.mustRegister {
-					assert.Panics(t, func() { NewMetrics( registry, test.mustRegister) })
+					assert.Panics(t, func() { NewMetrics(registry, test.mustRegister) })
 				} else {
 					assert.NotPanics(t, func() { _ = NewMetrics(registry, test.mustRegister) })
 				}
@@ -71,24 +72,25 @@ func TestNewMetrics(t *testing.T) {
 }
 
 func TestMiddleware(t *testing.T) {
-	req, err := http.NewRequest("GET", "/", nil)
-	assert.NoError(t, err)
-	httpRec := httptest.NewRecorder()
+	const statusCode = 666
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(statusCode)
+	})
 
 	metrics := NewMetrics(nil, true)
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		sr := &writer.StatusRecorder{ResponseWriter: w, StatusCode: http.StatusOK}
-		deferableFunc, _ := metrics.Middleware(sr, r)
-		defer deferableFunc()
-	}
 	router := mux.NewRouter()
-	router.HandleFunc("/", handler)
-	router.ServeHTTP(httpRec, req)
+	router.Handle("/", writer.StatusRecorderMiddleware(metrics.Middleware(testHandler)))
+	testServer := httptest.NewServer(router)
+	defer testServer.Close()
+	res, err := http.Get(testServer.URL)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	defer res.Body.Close()
 
 	// Expected prometheus labels after this request
 	labels := prometheus.Labels{
 		"path":        "/",
-		"status_code": "200",
+		"status_code": "666",
 	}
 
 	// Check duration histogram
