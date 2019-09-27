@@ -233,7 +233,7 @@ func Hub(hub *sentry.Hub) zapcore.Field {
 }
 
 // MarshalLogObject implements Zap's ObjectMarshaler interface but is a no-op
-// since we don't actually want add anything from the Sentry Hub to the log.
+// since we don't actually want to add anything from the Sentry Hub to the log.
 func (f hubZapField) MarshalLogObject(_ zapcore.ObjectEncoder) error {
 	return nil
 }
