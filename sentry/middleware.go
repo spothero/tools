@@ -8,6 +8,10 @@ import (
 	"github.com/spothero/tools/log"
 )
 
+// This middleware is a wrapper around the sentry-go library's middleware that attaches a the Sentry hub that
+// from the request context to the logger. That way, if the logger ever writes an error log, instead of just sending
+// the log message and fields provided to the logger to Sentry, Sentry is able to capture the entire request context
+// i.e. the request path, headers present, etc.
 func HTTPMiddleware(next http.Handler) http.Handler {
 	sentryHandler := sentryhttp.New(sentryhttp.Options{
 		Repanic:         true,

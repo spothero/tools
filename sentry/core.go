@@ -95,11 +95,6 @@ func (c *Core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 		case zapcore.ArrayMarshalerType:
 			sentryExtra[field.Key] = field.Interface
 		case zapcore.ObjectMarshalerType:
-			if field.Key == loggerFieldKey {
-				if h, ok := field.Interface.(*sentry.Hub); ok {
-					hub = h
-				}
-			}
 			sentryExtra[field.Key] = field.Interface
 		case zapcore.BinaryType:
 			sentryExtra[field.Key] = field.Interface
@@ -153,6 +148,11 @@ func (c *Core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 		case zapcore.ErrorType:
 			sentryExtra[field.Key] = field.Interface.(error).Error()
 		case zapcore.SkipType:
+			if field.Key == loggerFieldKey {
+				if h, ok := field.Interface.(hubZapField); ok {
+					hub = h.Hub
+				}
+			}
 		default:
 			sentryExtra[field.Key] = fmt.Sprintf("Unknown field type %v", field.Type)
 		}
@@ -219,7 +219,17 @@ type hubZapField struct {
 // Hub attaches a Sentry hub to the logger such that if the logger ever logs an
 // error, request context can be sent to Sentry.
 func Hub(hub *sentry.Hub) zapcore.Field {
-	return zap.Object(loggerFieldKey, hubZapField{hub})
+	// This is a hack in order to pass an arbitrary object (in this case a Sentry Hub) through the logger so
+	// that it can be pulled out in the custom Zap core. The way this works is the sentry Hub is wrapped in a type
+	// that implements Zap's ObjectMarshaler as a no-op. That object gets set on the zap.Field's Interface key
+	// The Type key is set to SkipType and the Key field is set to some unique value. This makes it so the built-in
+	// logger cores ignore the field, but in the custom Sentry core above we can check if the Key matches and try
+	// to pull the Sentry hub out of the field.
+	return zap.Field{
+		Key:       loggerFieldKey,
+		Type:      zapcore.SkipType,
+		Interface: hubZapField{hub},
+	}
 }
 
 // MarshalLogObject implements Zap's ObjectMarshaler interface but is a no-op
