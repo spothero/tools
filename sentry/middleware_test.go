@@ -22,7 +22,7 @@ func TestHTTPMiddleware(t *testing.T) {
 		assert.NotEqual(t, clone.Scope(), hub.Scope())
 	})
 
-	testServer := httptest.NewServer(tracing.HTTPMiddleware(HTTPMiddleware(testHandler)))
+	testServer := httptest.NewServer(tracing.HTTPMiddleware(NewMiddleware().HTTP(testHandler)))
 	defer testServer.Close()
 	res, err := http.Get(testServer.URL)
 	require.NoError(t, err)

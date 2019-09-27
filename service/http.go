@@ -60,7 +60,7 @@ func (hc HTTPConfig) ServerCmd(shortDescript, longDescript string, newService fu
 		tracing.HTTPMiddleware,
 		shHTTP.NewMetrics(hc.Registry, true).Middleware,
 		log.HTTPMiddleware,
-		sentry.HTTPMiddleware,
+		sentry.NewMiddleware().HTTP,
 	}
 	// Logging Config
 	lc := &log.Config{
