@@ -24,6 +24,7 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/spothero/tools/http/writer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	jaeger "github.com/uber/jaeger-client-go"
 )
 
@@ -46,42 +47,46 @@ func TestHTTPMiddleware(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			recorder := httptest.NewRecorder()
-			sr := writer.StatusRecorder{ResponseWriter: recorder, StatusCode: http.StatusOK}
-			req, err := http.NewRequest("GET", "/", nil)
-			assert.NoError(t, err)
-
 			tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
 			defer closer.Close()
 			opentracing.SetGlobalTracer(tracer)
 
 			// Configure a preset span and place in request context
 			var rootSpanCtx opentracing.SpanContext
-			if test.withExistingTrace {
-				span, spanCtx := opentracing.StartSpanFromContext(req.Context(), "test")
-				rootSpanCtx = span.Context()
-				req = req.WithContext(spanCtx)
-			}
-			deferable, r := HTTPMiddleware(&sr, req)
-			assert.NotNil(t, r)
-
-			sr.StatusCode = test.statusCode
-			deferable()
-
-			// Test that the span context is returned
-			requestSpan := opentracing.SpanFromContext(r.Context())
-			if spanCtx, ok := requestSpan.Context().(jaeger.SpanContext); ok {
-				if test.withExistingTrace {
-					assert.NotNil(t, rootSpanCtx)
-					if rootJaegerSpanCtx, ok := rootSpanCtx.(jaeger.SpanContext); ok {
-						assert.Equal(t, rootJaegerSpanCtx.TraceID(), spanCtx.TraceID())
-					} else {
-						assert.FailNow(t, "unable to extract root jaeger span from span context")
+			existingSpanMiddleware := func(next http.Handler) http.Handler {
+				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if test.withExistingTrace {
+						span, spanCtx := opentracing.StartSpanFromContext(r.Context(), "test")
+						rootSpanCtx = span.Context()
+						r = r.WithContext(spanCtx)
 					}
-				}
-			} else {
-				assert.FailNow(t, "unable to extract jaeger span from span context")
+					next.ServeHTTP(w, r)
+				})
 			}
+
+			testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requestSpan := opentracing.SpanFromContext(r.Context())
+				if spanCtx, ok := requestSpan.Context().(jaeger.SpanContext); ok {
+					if test.withExistingTrace {
+						assert.NotNil(t, rootSpanCtx)
+						if rootJaegerSpanCtx, ok := rootSpanCtx.(jaeger.SpanContext); ok {
+							assert.Equal(t, rootJaegerSpanCtx.TraceID(), spanCtx.TraceID())
+						} else {
+							assert.FailNow(t, "unable to extract root jaeger span from span context")
+						}
+					}
+				} else {
+					assert.FailNow(t, "unable to extract jaeger span from span context")
+				}
+			})
+
+			testServer := httptest.NewServer(
+				writer.StatusRecorderMiddleware(existingSpanMiddleware(HTTPMiddleware(testHandler))))
+			defer testServer.Close()
+			res, err := http.Get(testServer.URL)
+			require.NoError(t, err)
+			require.NotNil(t, res)
+			defer res.Body.Close()
 		})
 	}
 }

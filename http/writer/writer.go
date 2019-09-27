@@ -35,6 +35,16 @@ func (sr *StatusRecorder) WriteHeader(code int) {
 	sr.ResponseWriter.WriteHeader(code)
 }
 
+// StatusRecorderMiddleware wraps the http.ResponseWriter with StatusRecorder so that downstream middlewares can
+// utilize the outcome status code after the response completes. This middleware should be attached as early as
+// possible.
+func StatusRecorderMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		wrappedWriter := &StatusRecorder{ResponseWriter: w, StatusCode: http.StatusOK}
+		next.ServeHTTP(wrappedWriter, r)
+	})
+}
+
 // FetchRoutePathTemplate extracts the path template from a given request, or emptry string if none
 // could be found.
 func FetchRoutePathTemplate(r *http.Request) string {

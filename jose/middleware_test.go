@@ -20,8 +20,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/spothero/tools/http/writer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/xerrors"
 )
 
@@ -111,14 +111,6 @@ func TestGetHTTPMiddleware(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			recorder := httptest.NewRecorder()
-			sr := writer.StatusRecorder{ResponseWriter: recorder, StatusCode: http.StatusOK}
-			req, err := http.NewRequest("GET", "/", nil)
-			if test.authHeaderPresent {
-				req.Header.Add("Authorization", test.authHeader)
-			}
-			assert.NoError(t, err)
-
 			handler := &MockHandler{
 				claimGenerators: []ClaimGenerator{MockGenerator{}},
 			}
@@ -131,25 +123,38 @@ func TestGetHTTPMiddleware(t *testing.T) {
 				test.jwt,
 				handler.GetClaims(),
 			).Return(parseErr)
-			deferable, r := GetHTTPMiddleware(handler, test.authRequired)(&sr, req)
-			defer deferable()
-			assert.NotNil(t, r)
+
+			testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				value, ok := r.Context().Value(MockClaimKey).(*MockClaim)
+				if test.expectClaim {
+					assert.True(t, ok)
+					assert.Equal(t, &MockClaim{}, value)
+				} else {
+					assert.False(t, ok)
+					assert.Nil(t, value)
+				}
+			})
+
+			joseMiddleware := GetHTTPMiddleware(handler, test.authRequired)
+			testServer := httptest.NewServer(joseMiddleware(testHandler))
+			defer testServer.Close()
+
+			req, err := http.NewRequest(http.MethodGet, testServer.URL, nil)
+			require.NoError(t, err)
+			if test.authHeaderPresent {
+				req.Header.Add(authHeader, test.authHeader)
+			}
+			httpRespResult, err := (&http.Client{}).Do(req)
+			require.NoError(t, err)
+			require.NotNil(t, httpRespResult)
+			defer httpRespResult.Body.Close()
 
 			if test.authRequired {
-				httpRespResult := recorder.Result()
 				assert.Equal(t, test.expectedStatusCode, httpRespResult.StatusCode)
 				for expectedHeader, expectedValue := range test.expectedHeaders {
 					fmt.Printf("%+v\n", httpRespResult)
 					assert.Equal(t, expectedValue, httpRespResult.Header.Get(expectedHeader))
 				}
-			}
-			value, ok := r.Context().Value(MockClaimKey).(*MockClaim)
-			if test.expectClaim {
-				assert.True(t, ok)
-				assert.Equal(t, &MockClaim{}, value)
-			} else {
-				assert.False(t, ok)
-				assert.Nil(t, value)
 			}
 		})
 	}

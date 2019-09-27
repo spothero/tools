@@ -27,8 +27,8 @@ import (
 
 // Metrics is a bundle of prometheus HTTP metrics recorders
 type Metrics struct {
-	counter    *prometheus.CounterVec
-	duration   *prometheus.HistogramVec
+	counter  *prometheus.CounterVec
+	duration *prometheus.HistogramVec
 }
 
 // NewMetrics creates and returns a metrics bundle. The user may optionally
@@ -83,17 +83,20 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 	}
 }
 
-// Middleware provides standard HTTP middleware for recording prometheus metrics on every request
-func (m Metrics) Middleware(sr *writer.StatusRecorder, r *http.Request) (func(), *http.Request) {
-	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(durationSec float64) {
-		labels := prometheus.Labels{
-			"path":        writer.FetchRoutePathTemplate(r),
-			"status_code": strconv.Itoa(sr.StatusCode),
-		}
-		m.counter.With(labels).Inc()
-		m.duration.With(labels).Observe(durationSec)
-	}))
-	return func() {
-		timer.ObserveDuration()
-	}, r
+// Middleware provides standard HTTP middleware for recording prometheus metrics on every request.
+// Note that this middleware must be attached after writer.StatusRecorderMiddleware
+// for HTTP response code tagging to function.
+func (m Metrics) Middleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		timer := prometheus.NewTimer(prometheus.ObserverFunc(func(durationSec float64) {
+			labels := prometheus.Labels{"path": writer.FetchRoutePathTemplate(r)}
+			if statusRecorder, ok := w.(*writer.StatusRecorder); ok {
+				labels["status_code"] = strconv.Itoa(statusRecorder.StatusCode)
+			}
+			m.counter.With(labels).Inc()
+			m.duration.With(labels).Observe(durationSec)
+		}))
+		defer timer.ObserveDuration()
+		next.ServeHTTP(w, r)
+	})
 }

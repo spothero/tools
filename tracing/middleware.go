@@ -41,34 +41,42 @@ import (
 // * error (if the status code is >= 500)
 //
 // The returned HTTP Request includes the wrapped OpenTracing Span Context.
-func HTTPMiddleware(sr *writer.StatusRecorder, r *http.Request) (func(), *http.Request) {
-	logger := log.Get(r.Context())
-	wireContext, err := opentracing.GlobalTracer().Extract(
-		opentracing.HTTPHeaders,
-		opentracing.HTTPHeadersCarrier(r.Header))
-	if err != nil {
-		logger.Debug("failed to extract opentracing context on an incoming http request")
-	}
-	span, spanCtx := opentracing.StartSpanFromContext(r.Context(), writer.FetchRoutePathTemplate(r), ext.RPCServerOption(wireContext))
-	span = span.SetTag("http.method", r.Method)
-	span = span.SetTag("http.url", r.URL.String())
-
-	// While this removes the veneer of OpenTracing abstraction, the current specification does not
-	// provide a method of accessing Trace ID directly. Until OpenTracing 2.0 is released with
-	// support for abstract access for Trace ID we will coerce the type to the underlying tracer.
-	// See: https://github.com/opentracing/specification/issues/123
-	if sc, ok := span.Context().(jaeger.SpanContext); ok {
-		// Embed the Trace ID in the logging context for all future requests
-		spanCtx = log.NewContext(spanCtx, logger.With(zap.String("correlation_id", sc.TraceID().String())))
-	}
-	return func() {
-		span.SetTag("http.status_code", strconv.Itoa(sr.StatusCode))
-		// 5XX Errors are our fault -- note that this span belongs to an errored request
-		if sr.StatusCode >= http.StatusInternalServerError {
-			span.SetTag("error", true)
+// Note that this middleware must be attached after writer.StatusRecorderMiddleware
+// for HTTP response span tagging to function.
+func HTTPMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logger := log.Get(r.Context())
+		wireContext, err := opentracing.GlobalTracer().Extract(
+			opentracing.HTTPHeaders,
+			opentracing.HTTPHeadersCarrier(r.Header))
+		if err != nil {
+			logger.Debug("failed to extract opentracing context on an incoming http request")
 		}
-		span.Finish()
-	}, r.WithContext(spanCtx)
+		span, spanCtx := opentracing.StartSpanFromContext(r.Context(), writer.FetchRoutePathTemplate(r), ext.RPCServerOption(wireContext))
+		span = span.SetTag("http.method", r.Method)
+		span = span.SetTag("http.url", r.URL.String())
+
+		// While this removes the veneer of OpenTracing abstraction, the current specification does not
+		// provide a method of accessing Trace ID directly. Until OpenTracing 2.0 is released with
+		// support for abstract access for Trace ID we will coerce the type to the underlying tracer.
+		// See: https://github.com/opentracing/specification/issues/123
+		if sc, ok := span.Context().(jaeger.SpanContext); ok {
+			// Embed the Trace ID in the logging context for all future requests
+			spanCtx = log.NewContext(spanCtx, logger.With(zap.String("correlation_id", sc.TraceID().String())))
+		}
+
+		defer func() {
+			if statusRecorder, ok := w.(*writer.StatusRecorder); ok {
+				span.SetTag("http.status_code", strconv.Itoa(statusRecorder.StatusCode))
+				// 5XX Errors are our fault -- note that this span belongs to an errored request
+				if statusRecorder.StatusCode >= http.StatusInternalServerError {
+					span.SetTag("error", true)
+				}
+			}
+			span.Finish()
+		}()
+		next.ServeHTTP(w, r.WithContext(spanCtx))
+	})
 }
 
 // SQLMiddleware traces requests made against SQL databases.
