@@ -19,7 +19,6 @@ import (
 	"strings"
 
 	"github.com/spothero/tools/log"
-	"go.uber.org/zap"
 )
 
 // authHeader defines the name of the header containing the JWT authorization data
@@ -28,6 +27,12 @@ const authHeader = "Authorization"
 // bearerPrefix defines the standard expected form for OIDC JWT Tokens in Authorization headers.
 // Eg `Authorization: Bearer <JWT>`
 const bearerPrefix = "Bearer "
+
+const (
+	authHeaderNotFound   = "no authorization header found"
+	bearerPrefixNotFound = "authorization header did not include bearer prefix"
+	invalidBearerToken   = "bearer token is invalid"
+)
 
 // GetHTTPMiddleware returns an HTTP middleware function which extracts the Authorization header,
 // if present, on all incoming HTTP requests. If an Authorization header is found, this middleware
@@ -38,42 +43,46 @@ func GetHTTPMiddleware(jh JOSEHandler, authRequired bool) func(next http.Handler
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			logger := log.Get(r.Context())
 			authHeader := r.Header.Get(authHeader)
+			var parseErrMsg string
 			if len(authHeader) == 0 {
-				message := "no authorization header found"
-				logger.Debug(message)
-				if authRequired {
-					w.Header().Set("WWW-Authenticate", "Bearer")
-					http.Error(w, message, http.StatusUnauthorized)
+				logger.Debug(authHeaderNotFound)
+				parseErrMsg = authHeaderNotFound
+			}
+
+			if len(parseErrMsg) == 0 && !strings.HasPrefix(authHeader, bearerPrefix) {
+				logger.Debug(bearerPrefixNotFound)
+				parseErrMsg = bearerPrefixNotFound
+			}
+
+			var claims []Claim
+			if len(parseErrMsg) == 0 {
+				claims = jh.GetClaims()
+				bearerToken := strings.TrimPrefix(authHeader, bearerPrefix)
+				err := jh.ParseValidateJWT(bearerToken, claims...)
+				if err != nil {
+					logger.Debug(err.Error())
+					parseErrMsg = invalidBearerToken
 				}
-				return
 			}
-
-			if !strings.HasPrefix(authHeader, bearerPrefix) {
-				message := "authorization header did not include bearer prefix"
-				logger.Debug(message)
-				if authRequired {
-					w.Header().Set("WWW-Authenticate", "Bearer")
-					http.Error(w, message, http.StatusUnauthorized)
+			if len(parseErrMsg) == 0 {
+				// Populate each claim on the context, if any
+				for _, claim := range claims {
+					r = r.WithContext(claim.NewContext(r.Context()))
 				}
-				return
 			}
 
-			claims := jh.GetClaims()
-			bearerToken := strings.TrimPrefix(authHeader, bearerPrefix)
-			err := jh.ParseValidateJWT(bearerToken, claims...)
-			if err != nil {
-				logger.Debug("failed to parse and/or validate Bearer token", zap.Error(err))
+			if len(parseErrMsg) != 0 {
+				logger.Debug(parseErrMsg)
 				if authRequired {
-					http.Error(w, "bearer token is invalid", http.StatusForbidden)
+					httpStatus := http.StatusForbidden
+					if parseErrMsg == bearerPrefixNotFound || parseErrMsg == authHeaderNotFound {
+						w.Header().Set("WWW-Authenticate", "Bearer")
+						httpStatus = http.StatusUnauthorized
+					}
+					http.Error(w, parseErrMsg, httpStatus)
+					return
 				}
-				return
 			}
-
-			// Populate each claim on the context, if any
-			for _, claim := range claims {
-				r = r.WithContext(claim.NewContext(r.Context()))
-			}
-
 			next.ServeHTTP(w, r)
 		})
 	}
