@@ -36,9 +36,10 @@ func TestGetHTTPMiddleware(t *testing.T) {
 		authRequired       bool
 		expectedStatusCode int
 		expectedHeaders    map[string]string
+		expectNextHandlerCalled bool
 	}{
 		{
-			"no auth header results in no claim",
+			"no auth header results in no claim, auth not required, next handler called",
 			false,
 			"",
 			"",
@@ -47,8 +48,9 @@ func TestGetHTTPMiddleware(t *testing.T) {
 			false,
 			-1,
 			nil,
+			true,
 		}, {
-			"malformed auth headers are rejected",
+			"malformed auth headers are rejected, auth not required, next handler called",
 			true,
 			"bearer fake.jwt.header",
 			"",
@@ -57,8 +59,9 @@ func TestGetHTTPMiddleware(t *testing.T) {
 			false,
 			-1,
 			nil,
+			true,
 		}, {
-			"failed jwt parsings are rejected",
+			"failed jwt parsings are rejected, auth not required, next handler called",
 			true,
 			"Bearer fake.jwt.header",
 			"fake.jwt.header",
@@ -67,6 +70,7 @@ func TestGetHTTPMiddleware(t *testing.T) {
 			false,
 			-1,
 			nil,
+			true,
 		}, {
 			"with auth: no auth header results in no claim and a 401",
 			false,
@@ -77,8 +81,9 @@ func TestGetHTTPMiddleware(t *testing.T) {
 			true,
 			401,
 			map[string]string{"WWW-Authenticate": "Bearer"},
+			false,
 		}, {
-			"malformed auth headers are rejected",
+			"malformed auth headers are rejected, auth required",
 			true,
 			"bearer fake.jwt.header",
 			"",
@@ -87,8 +92,9 @@ func TestGetHTTPMiddleware(t *testing.T) {
 			true,
 			401,
 			map[string]string{"WWW-Authenticate": "Bearer"},
+			false,
 		}, {
-			"failed jwt parsings are rejected",
+			"failed jwt parsings are rejected, auth required",
 			true,
 			"Bearer fake.jwt.header",
 			"fake.jwt.header",
@@ -97,6 +103,18 @@ func TestGetHTTPMiddleware(t *testing.T) {
 			true,
 			403,
 			nil,
+			false,
+		}, {
+			"failed jwt parsings, auth not required, next handler called",
+			true,
+			"Bearer fake.jwt.header",
+			"fake.jwt.header",
+			true,
+			false,
+			false,
+			-1,
+			nil,
+			true,
 		}, {
 			"jwt tokens are parsed and placed in context when present",
 			true,
@@ -107,6 +125,7 @@ func TestGetHTTPMiddleware(t *testing.T) {
 			false,
 			-1,
 			nil,
+			true,
 		},
 	}
 	for _, test := range tests {
@@ -114,6 +133,7 @@ func TestGetHTTPMiddleware(t *testing.T) {
 			handler := &MockHandler{
 				claimGenerators: []ClaimGenerator{MockGenerator{}},
 			}
+
 			var parseErr error
 			if test.parseJWTError {
 				parseErr = xerrors.Errorf("a jwt parsing error occurred in this test")
@@ -124,7 +144,9 @@ func TestGetHTTPMiddleware(t *testing.T) {
 				handler.GetClaims(),
 			).Return(parseErr)
 
+			testHandlerCalled := false
 			testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				testHandlerCalled = true
 				value, ok := r.Context().Value(MockClaimKey).(*MockClaim)
 				if test.expectClaim {
 					assert.True(t, ok)
@@ -156,6 +178,8 @@ func TestGetHTTPMiddleware(t *testing.T) {
 					assert.Equal(t, expectedValue, httpRespResult.Header.Get(expectedHeader))
 				}
 			}
+
+			assert.Equal(t, test.expectNextHandlerCalled, testHandlerCalled)
 		})
 	}
 }
