@@ -27,15 +27,15 @@ import (
 
 func TestGetHTTPMiddleware(t *testing.T) {
 	tests := []struct {
-		name               string
-		authHeaderPresent  bool
-		authHeader         string
-		jwt                string
-		parseJWTError      bool
-		expectClaim        bool
-		authRequired       bool
-		expectedStatusCode int
-		expectedHeaders    map[string]string
+		name                    string
+		authHeaderPresent       bool
+		authHeader              string
+		jwt                     string
+		parseJWTError           bool
+		expectClaim             bool
+		authRequired            bool
+		expectedStatusCode      int
+		expectedHeaders         map[string]string
 		expectNextHandlerCalled bool
 	}{
 		{

@@ -47,7 +47,6 @@ type ProducerIface interface {
 	Errors() chan *sarama.ProducerError
 }
 
-
 // Constant values that represent the required acks setting for produced messages. These map to
 // the sarama.RequiredAcks constants
 const (
@@ -63,7 +62,7 @@ const (
 type ProducerConfig struct {
 	ProducerCompressionCodec string
 	ProducerCompressionLevel int
-	ProducerRequiredAcks int
+	ProducerRequiredAcks     int
 }
 
 // Registers producer flags with pflags

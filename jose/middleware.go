@@ -29,10 +29,11 @@ const authHeader = "Authorization"
 const bearerPrefix = "Bearer "
 
 const (
-	authHeaderNotFound = "no authorization header found"
+	authHeaderNotFound   = "no authorization header found"
 	bearerPrefixNotFound = "authorization header did not include bearer prefix"
-	invalidBearerToken = "bearer token is invalid"
-	)
+	invalidBearerToken   = "bearer token is invalid"
+)
+
 // GetHTTPMiddleware returns an HTTP middleware function which extracts the Authorization header,
 // if present, on all incoming HTTP requests. If an Authorization header is found, this middleware
 // attempts to parse and validate that value as a JWT with  the configured Credential types for
