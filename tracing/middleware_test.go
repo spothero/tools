@@ -78,6 +78,11 @@ func TestHTTPMiddleware(t *testing.T) {
 				} else {
 					assert.FailNow(t, "unable to extract jaeger span from span context")
 				}
+
+				correlationId, ok := r.Context().Value(correlationIDCtxKey).(string)
+				assert.Equal(t, true, ok)
+				assert.NotNil(t, correlationId)
+				assert.NotEqual(t, "", correlationId)
 			})
 
 			testServer := httptest.NewServer(
@@ -89,6 +94,31 @@ func TestHTTPMiddleware(t *testing.T) {
 			defer res.Body.Close()
 		})
 	}
+}
+
+func TestGetCorrelationID(t *testing.T) {
+	tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
+	defer closer.Close()
+	opentracing.SetGlobalTracer(tracer)
+
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		correlationId, ok := r.Context().Value(correlationIDCtxKey).(string)
+		assert.Equal(t, true, ok)
+		assert.NotNil(t, correlationId)
+		assert.NotEqual(t, "", correlationId)
+
+		_correlationId := GetCorrelationID(r)
+		assert.NotNil(t, _correlationId)
+		assert.NotEqual(t, "", _correlationId)
+		assert.Equal(t, correlationId, _correlationId)
+	})
+
+	testServer := httptest.NewServer(writer.StatusRecorderMiddleware(HTTPMiddleware(testHandler)))
+	defer testServer.Close()
+	res, err := http.Get(testServer.URL)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	defer res.Body.Close()
 }
 
 func TestSQLMiddleware(t *testing.T) {
