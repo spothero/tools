@@ -55,7 +55,7 @@ In addition, all the above packages may automatically be integrated with Cobra/V
 
 ### Usage
 
-A simple example is provided under [examples/example_server.go](examples/example_server.go) which shows usage of this
+A simple example is provided under [examples/http/server.go](examples/http/server.go) which shows usage of this
 library to create a simple 12-factor Go Web application which has tracing, logging, metrics,
 sentry, and local caching enabled.
 
