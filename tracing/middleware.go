@@ -29,11 +29,11 @@ import (
 	"go.uber.org/zap"
 )
 
-// correlationIDCtxKey is the key into the Context of the wrapped HTTP request
+// CorrelationIDCtxKey is the key into the Context of the wrapped HTTP request
 // which maps to the correlation id of the request. This correlation ID can be
 // conveyed to external clients in order to correlate external systems with
 // SpotHero tracing and logging.
-const correlationIDCtxKey = "correlationIDCtxKey"
+const CorrelationIDCtxKey = "CorrelationIDCtxKey"
 
 // HTTPMiddleware extracts the OpenTracing context on all incoming HTTP requests, if present. if
 // no trace ID is present in the headers, a trace is initiated.
@@ -70,7 +70,7 @@ func HTTPMiddleware(next http.Handler) http.Handler {
 			// Embed the Trace ID in the logging context for all future requests
 			correlationID := sc.TraceID().String()
 			spanCtx = log.NewContext(spanCtx, logger.With(zap.String("correlation_id", correlationID)))
-			spanCtx = context.WithValue(spanCtx, correlationIDCtxKey, correlationID)
+			spanCtx = context.WithValue(spanCtx, CorrelationIDCtxKey, correlationID)
 		}
 
 		defer func() {
@@ -88,10 +88,15 @@ func HTTPMiddleware(next http.Handler) http.Handler {
 }
 
 // GetCorrelationID returns the correlation ID associated with the given
-// request. This function only produces meaningful results for request which
-// have passed through tracing/HTTPMiddleware.
-func GetCorrelationID(r *http.Request) string {
-	return r.Context().Value(correlationIDCtxKey).(string)
+// Context. This function only produces meaningful results for Contexts
+// associated with http.Requests which have passed through
+// tracing/HTTPMiddleware.
+func GetCorrelationID(ctx context.Context) string {
+	if maybeCorrelationID, ok := ctx.Value(CorrelationIDCtxKey).(string); ok {
+		return maybeCorrelationID
+	} else {
+		return ""
+	}
 }
 
 // SQLMiddleware traces requests made against SQL databases.

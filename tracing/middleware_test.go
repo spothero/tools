@@ -79,7 +79,7 @@ func TestHTTPMiddleware(t *testing.T) {
 					assert.FailNow(t, "unable to extract jaeger span from span context")
 				}
 
-				correlationId, ok := r.Context().Value(correlationIDCtxKey).(string)
+				correlationId, ok := r.Context().Value(CorrelationIDCtxKey).(string)
 				assert.Equal(t, true, ok)
 				assert.NotNil(t, correlationId)
 				assert.NotEqual(t, "", correlationId)
@@ -102,12 +102,13 @@ func TestGetCorrelationID(t *testing.T) {
 	opentracing.SetGlobalTracer(tracer)
 
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		correlationId, ok := r.Context().Value(correlationIDCtxKey).(string)
+		correlationId, ok := r.Context().Value(CorrelationIDCtxKey).(string)
 		assert.Equal(t, true, ok)
 		assert.NotNil(t, correlationId)
 		assert.NotEqual(t, "", correlationId)
 
-		_correlationId := GetCorrelationID(r)
+		ctx := r.Context()
+		_correlationId := GetCorrelationID(ctx)
 		assert.NotNil(t, _correlationId)
 		assert.NotEqual(t, "", _correlationId)
 		assert.Equal(t, correlationId, _correlationId)
