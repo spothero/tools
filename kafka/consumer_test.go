@@ -306,6 +306,7 @@ func TestConsumePartition_handleError(t *testing.T) {
 	go consumer.consumePartition(ctx, handler, "test-topic", 0, 0, -1, readStatus, &catchupWg, false)
 	// Send an error to the consumer
 	partitionConsumer.YieldError(&sarama.ConsumerError{})
+	catchupWg.Wait()
 
 	// Shutdown consumer
 	cancel()
