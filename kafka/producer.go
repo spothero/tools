@@ -65,7 +65,7 @@ type ProducerConfig struct {
 	ProducerRequiredAcks     int
 }
 
-// Registers producer flags with pflags
+// RegisterFlags registers producer flags with pflags
 func (c *ProducerConfig) RegisterFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&c.ProducerCompressionCodec, "kafka-producer-compression-codec", "none", "Compression codec to use when producing messages, one of: \"none\", \"zstd\", \"snappy\", \"lz4\", \"zstd\", \"gzip\"")
 	flags.IntVar(&c.ProducerCompressionLevel, "kafka-producer-compression-level", -1000, "Compression level to use on produced messages, -1000 signifies to use the default level.")
