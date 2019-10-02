@@ -79,7 +79,7 @@ func TestHTTPMiddleware(t *testing.T) {
 					assert.FailNow(t, "unable to extract jaeger span from span context")
 				}
 
-				correlationId, ok := r.Context().Value(correlationIDCtxKey).(string)
+				correlationId, ok := r.Context().Value(CorrelationIDCtxKey).(string)
 				assert.Equal(t, true, ok)
 				assert.NotNil(t, correlationId)
 				assert.NotEqual(t, "", correlationId)
@@ -97,17 +97,20 @@ func TestHTTPMiddleware(t *testing.T) {
 }
 
 func TestGetCorrelationID(t *testing.T) {
+	// first, assert a request through the HTTPMiddleware contains a context
+	// which produces a meaningful result for GetCorrelationID()
 	tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
 	defer closer.Close()
 	opentracing.SetGlobalTracer(tracer)
 
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		correlationId, ok := r.Context().Value(correlationIDCtxKey).(string)
+		correlationId, ok := r.Context().Value(CorrelationIDCtxKey).(string)
 		assert.Equal(t, true, ok)
 		assert.NotNil(t, correlationId)
 		assert.NotEqual(t, "", correlationId)
 
-		_correlationId := GetCorrelationID(r)
+		ctx := r.Context()
+		_correlationId := GetCorrelationID(ctx)
 		assert.NotNil(t, _correlationId)
 		assert.NotEqual(t, "", _correlationId)
 		assert.Equal(t, correlationId, _correlationId)
@@ -119,6 +122,13 @@ func TestGetCorrelationID(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, res)
 	defer res.Body.Close()
+
+	// last, ensure a non-nil trivial string is returned when
+	// GetCorrelationID() is passed a Context which does not contain a
+	// correlation ID
+	emptyCtx := context.Background()
+	trivialString := GetCorrelationID(emptyCtx)
+	assert.Equal(t, "", trivialString)
 }
 
 func TestSQLMiddleware(t *testing.T) {
