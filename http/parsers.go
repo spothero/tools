@@ -24,8 +24,8 @@ import (
 // Coordinates is an encapsulation of geospatial coordinates in decimal
 // degrees.
 type Coordinates struct {
-	latitude  float64
-	longitude float64
+	Latitude  float64
+	Longitude float64
 }
 
 // ParseCoordinates reads and parses from the query parameters to the supplied
