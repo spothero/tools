@@ -26,6 +26,13 @@ type Coordinates struct {
 	longitude float64
 }
 
+// ParseCoordinates reads and parses from from the query parameters to the
+// supplied the supplied request latitude and logitude corresponding to
+// latFieldName and lonFieldName, respectively. An error is returned if only
+// one of the named fields is present, if either value cannot be parsed as a
+// float, or if either value is out of range for decimal latitude and
+// longitude. The returned struct reference is nil if none of latFieldName or
+// lonFieldName are present in the query parameters to the given request.
 func ParseCoordinates(r *http.Request, latFieldName, lonFieldName string) (*Coordinates, error) {
 	r.ParseForm()
 	latStr := r.Form.Get(latFieldName)
@@ -70,6 +77,11 @@ func ParseCoordinates(r *http.Request, latFieldName, lonFieldName string) (*Coor
 	}
 }
 
+// ParseTime reads and parses from the query parameters to the supplied request
+// a Time value corresponding to fieldName. An error is returned if a Time
+// could not be parsed from the given field. The zero-valued Time is returned
+// if the given field is not present in the query parameters to the supplied
+// request.
 func ParseTime(r *http.Request, fieldName string) (time.Time, error) {
 	r.ParseForm()
 	fieldStr := r.Form.Get(fieldName)
