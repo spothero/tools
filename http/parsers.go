@@ -21,6 +21,8 @@ import (
 	"time"
 )
 
+// Coordinates is an encapsulation of geospatial coordinates in decimal
+// degrees.
 type Coordinates struct {
 	latitude  float64
 	longitude float64
