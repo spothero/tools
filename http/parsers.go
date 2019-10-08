@@ -36,7 +36,10 @@ type Coordinates struct {
 // struct reference is nil if none of latFieldName or lonFieldName are present
 // in the query parameters to the given request.
 func ParseCoordinates(r *http.Request, latFieldName, lonFieldName string) (*Coordinates, error) {
-	r.ParseForm()
+	if err := r.ParseForm(); err != nil {
+		return nil, err
+	}
+
 	latStr := r.Form.Get(latFieldName)
 	lonStr := r.Form.Get(lonFieldName)
 	latPresent, lonPresent := false, false
@@ -85,7 +88,10 @@ func ParseCoordinates(r *http.Request, latFieldName, lonFieldName string) (*Coor
 // if the given field is not present in the query parameters to the supplied
 // request.
 func ParseTime(r *http.Request, fieldName string) (time.Time, error) {
-	r.ParseForm()
+	if err := r.ParseForm(); err != nil {
+		return time.Time{}, err
+	}
+
 	fieldStr := r.Form.Get(fieldName)
 	if fieldStr != "" {
 		parsed, err := time.Parse(time.RFC3339, fieldStr)
