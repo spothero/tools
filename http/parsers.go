@@ -15,10 +15,11 @@
 package http
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
+
+	"golang.org/x/xerrors"
 )
 
 // Coordinates is an encapsulation of geospatial coordinates in decimal
@@ -49,7 +50,7 @@ func ParseCoordinates(r *http.Request, latFieldName, lonFieldName string) (*Coor
 		// case: some value supplied for latitude
 		_lat, errLat := strconv.ParseFloat(latStr, 64)
 		if errLat != nil {
-			return nil, fmt.Errorf("unable to parse %v", latFieldName)
+			return nil, xerrors.Errorf("unable to parse %v", latFieldName)
 		}
 		lat = _lat
 		latPresent = true
@@ -59,27 +60,26 @@ func ParseCoordinates(r *http.Request, latFieldName, lonFieldName string) (*Coor
 		// case: some value supplied for longitude
 		_lon, errLat := strconv.ParseFloat(lonStr, 64)
 		if errLat != nil {
-			return nil, fmt.Errorf("unable to parse %v", lonFieldName)
+			return nil, xerrors.Errorf("unable to parse %v", lonFieldName)
 		}
 		lon = _lon
 		lonPresent = true
 	}
 
 	if lat < -90 || lat > 90 {
-		return nil, fmt.Errorf("%v must be in [-90, 90]", latFieldName)
+		return nil, xerrors.Errorf("%v must be in [-90, 90]", latFieldName)
 	}
 
 	if lon < -180 || lon > 180 {
-		return nil, fmt.Errorf("%v must be in [-180, 180]", lonFieldName)
+		return nil, xerrors.Errorf("%v must be in [-180, 180]", lonFieldName)
 	}
 
-	if latPresent && lonPresent {
-		return &Coordinates{lat, lon}, nil
-	} else if latPresent != lonPresent {
-		return nil, fmt.Errorf("both %v and %v must be provided", latFieldName, lonFieldName)
-	} else {
+	if latPresent != lonPresent {
+		return nil, xerrors.Errorf("both %v and %v must be provided", latFieldName, lonFieldName)
+	} else if !latPresent && !lonPresent {
 		return nil, nil
 	}
+	return &Coordinates{lat, lon}, nil
 }
 
 // ParseTime reads and parses from the query parameters to the supplied request
@@ -93,16 +93,16 @@ func ParseTime(r *http.Request, fieldName string) (time.Time, error) {
 	}
 
 	fieldStr := r.Form.Get(fieldName)
-	if fieldStr != "" {
-		parsed, err := time.Parse(time.RFC3339, fieldStr)
-
-		if err != nil {
-			err = fmt.Errorf("unable to parse `%v`: %v", fieldName, parsed)
-			return time.Time{}, err
-		}
-
-		return parsed, nil
+	if fieldStr == "" {
+		return time.Time{}, nil
 	}
 
-	return time.Time{}, nil
+	parsed, err := time.Parse(time.RFC3339, fieldStr)
+
+	if err != nil {
+		err = xerrors.Errorf("unable to parse `%v`: %v", fieldName, parsed)
+		return time.Time{}, err
+	}
+
+	return parsed, nil
 }
