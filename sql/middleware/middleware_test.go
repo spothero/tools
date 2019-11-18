@@ -71,6 +71,12 @@ func TestBefore(t *testing.T) {
 			true,
 			true,
 		},
+		{
+			"missing query name is handled",
+			2,
+			false,
+			false,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -133,6 +139,12 @@ func TestEnd(t *testing.T) {
 			true,
 			true,
 		},
+		{
+			"missing query name is handled",
+			2,
+			false,
+			false,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -147,7 +159,7 @@ func TestEnd(t *testing.T) {
 			}
 			ctx = context.WithValue(ctx, ctxCallbackValue, mw)
 			ctx, err := Middleware{}.end(ctx, nil, "query", "arg1", "arg2")
-			if test.expectErr || !test.supplyQueryName {
+			if test.expectErr {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)

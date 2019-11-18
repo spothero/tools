@@ -121,6 +121,16 @@ func TestSQLMiddleware(t *testing.T) {
 			1,
 			true,
 		},
+		{
+			"unnamed queries are still logged in the end middleware",
+			zapcore.DebugLevel,
+			"",
+			"test-query",
+			1,
+			1,
+			0,
+			false,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -133,7 +143,10 @@ func TestSQLMiddleware(t *testing.T) {
 
 			// Set expectations
 			expectedLevel := test.logLevel
-			expectedLabels := []string{"query_name", "query"}
+			expectedLabels := []string{"query"}
+			if test.queryName != "" {
+				expectedLabels = append(expectedLabels, "query_name")
+			}
 			expectedLabelsEnd := expectedLabels
 			if test.numErrLogsEndExpect > 0 {
 				expectedLevel = zapcore.ErrorLevel
