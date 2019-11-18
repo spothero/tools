@@ -121,16 +121,6 @@ func TestSQLMiddleware(t *testing.T) {
 			1,
 			true,
 		},
-		{
-			"unnamed logs are warned on in the end middleware",
-			zapcore.DebugLevel,
-			"",
-			"test-query",
-			2,
-			1,
-			0,
-			false,
-		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

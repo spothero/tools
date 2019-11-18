@@ -115,9 +115,11 @@ func SQLMiddleware(ctx context.Context, queryName, query string, args ...interfa
 		spanName = fmt.Sprintf("%s_%s", spanName, queryName)
 	}
 	span, spanCtx := opentracing.StartSpanFromContext(ctx, spanName)
-	span = span.SetTag("component", "tracing")
-	span = span.SetTag("db.type", "sql")
-	span = span.SetTag("db.statement", query)
+	span = span.
+		SetTag("component", "tracing").
+		SetTag("db.type", "sql").
+		SetTag("db.statement", query).
+		SetTag("db.statement.arguments", args)
 	mwEnd := func(ctx context.Context, queryName, query string, queryErr error, args ...interface{}) (context.Context, error) {
 		defer span.Finish()
 		if queryErr != nil {

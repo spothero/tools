@@ -16,9 +16,9 @@ package sql
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spothero/tools/log"
 	"github.com/spothero/tools/sql/middleware"
@@ -180,7 +180,7 @@ func newMetrics(dbName string, registry prometheus.Registerer, mustRegister bool
 
 // exportMetrics creates a goroutine which periodically scrapes the core database driver for
 // connection details, exporting those metrics for prometheus scraping
-func (m metrics) exportMetrics(db *sqlx.DB, frequency time.Duration) chan<- bool {
+func (m metrics) exportMetrics(db *sql.DB, frequency time.Duration) chan<- bool {
 	ticker := time.NewTicker(frequency)
 	kill := make(chan bool)
 	labels := prometheus.Labels{"db_name": m.dbName}

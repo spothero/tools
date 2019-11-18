@@ -16,7 +16,6 @@ package middleware
 
 import (
 	"context"
-	"fmt"
 )
 
 // ctxCallbackKey is the type used to place the list of middleware within context.Context
@@ -76,10 +75,7 @@ func (m Middleware) OnError(ctx context.Context, queryErr error, query string, a
 
 // end provides a common function for closing out SQL query middleware
 func (m Middleware) end(ctx context.Context, queryErr error, query string, args ...interface{}) (context.Context, error) {
-	queryName, ok := ctx.Value(ctxQueryNameValue).(string)
-	if !ok {
-		return ctx, fmt.Errorf("no query name found on SQL query")
-	}
+	queryName, _ := ctx.Value(ctxQueryNameValue).(string)
 	mwEndCallbacks, ok := ctx.Value(ctxCallbackValue).([]MiddlewareEnd)
 	if !ok {
 		return ctx, nil

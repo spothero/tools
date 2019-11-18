@@ -71,12 +71,6 @@ func TestBefore(t *testing.T) {
 			true,
 			true,
 		},
-		{
-			"missing query name is handled",
-			2,
-			false,
-			false,
-		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

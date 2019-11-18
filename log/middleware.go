@@ -60,32 +60,19 @@ func HTTPMiddleware(next http.Handler) http.Handler {
 
 // SQLMiddleware debug logs requests made against SQL databases.
 func SQLMiddleware(ctx context.Context, queryName, query string, args ...interface{}) (context.Context, sqlMiddleware.MiddlewareEnd, error) {
-	Get(ctx).Debug(
-		"attempting sql query",
-		zap.String("query_name", queryName),
-		zap.String("query", query),
-	)
-	if queryName == "" {
-		Get(ctx).Warn(
-			"unnamed sql query provided",
-			zap.String("query_name", queryName),
-			zap.String("query", query),
-		)
+	var fields []zap.Field
+	if queryName != "" {
+		fields = []zap.Field{zap.String("query", query), zap.String("query_name", queryName)}
+	} else {
+		fields = []zap.Field{zap.String("query", query)}
 	}
+	Get(ctx).Debug("attempting sql query", fields...)
 	mwEnd := func(ctx context.Context, queryName, query string, queryErr error, args ...interface{}) (context.Context, error) {
 		if queryErr != nil {
-			Get(ctx).Error(
-				"failed sql query",
-				zap.String("query_name", queryName),
-				zap.String("query", query),
-				zap.Error(queryErr),
-			)
+			fields = append(fields, zap.Error(queryErr))
+			Get(ctx).Error("failed sql query", fields...)
 		} else {
-			Get(ctx).Debug(
-				"completed sql query",
-				zap.String("query_name", queryName),
-				zap.String("query", query),
-			)
+			Get(ctx).Debug("completed sql query", fields...)
 		}
 		return ctx, nil
 	}
