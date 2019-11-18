@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/jmoiron/sqlx"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
@@ -82,7 +81,7 @@ func TestExportMetrics(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotPanics(t, func() {
 		metrics := newMetrics("test", nil, false)
-		cancelChannel := metrics.exportMetrics(&sqlx.DB{DB: db, Mapper: nil}, 5*time.Millisecond)
+		cancelChannel := metrics.exportMetrics(db, 5*time.Millisecond)
 		timer := time.NewTimer(10 * time.Millisecond)
 		<-timer.C
 		cancelChannel <- true

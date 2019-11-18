@@ -133,12 +133,6 @@ func TestEnd(t *testing.T) {
 			true,
 			true,
 		},
-		{
-			"missing query name results in an error",
-			1,
-			false,
-			false,
-		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
