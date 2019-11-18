@@ -140,8 +140,8 @@ func TestEnd(t *testing.T) {
 			true,
 		},
 		{
-			"missing query name results in an error",
-			1,
+			"missing query name is handled",
+			2,
 			false,
 			false,
 		},
@@ -159,7 +159,7 @@ func TestEnd(t *testing.T) {
 			}
 			ctx = context.WithValue(ctx, ctxCallbackValue, mw)
 			ctx, err := Middleware{}.end(ctx, nil, "query", "arg1", "arg2")
-			if test.expectErr || !test.supplyQueryName {
+			if test.expectErr {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
