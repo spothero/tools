@@ -30,6 +30,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// HTTPConfig contains required configuration for starting an HTTP service
 type HTTPConfig struct {
 	Config
 	PreStart     func(ctx context.Context, router *mux.Router, server *http.Server) // A function to be called before starting the web server
