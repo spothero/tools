@@ -15,8 +15,11 @@
 package service
 
 import (
+	"os"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
@@ -30,11 +33,13 @@ func (ms mockHTTPService) RegisterHandlers(_ *mux.Router) {}
 func TestDefaultHTTPServer(t *testing.T) {
 	c := HTTPConfig{
 		Config: Config{
-			Name:     "test",
-			Registry: prometheus.NewRegistry(),
-			Version:  "0.1.0",
-			GitSHA:   "abc123",
+			Name:        "test",
+			Environment: "test",
+			Registry:    prometheus.NewRegistry(),
+			Version:     "0.1.0",
+			GitSHA:      "abc123",
 		},
+		CancelSignals: []os.Signal{syscall.SIGUSR1},
 	}
 	cmd := c.ServerCmd("short", "long", func(HTTPConfig) HTTPService { return mockHTTPService{} })
 	assert.NotNil(t, cmd)
@@ -46,4 +51,12 @@ func TestDefaultHTTPServer(t *testing.T) {
 	assert.NotNil(t, cmd.PersistentPreRun)
 	assert.NotNil(t, cmd.RunE)
 	assert.True(t, cmd.Flags().HasFlags())
+
+	timer := time.NewTimer(100 * time.Millisecond)
+	go func() {
+		<-timer.C
+		assert.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGUSR1))
+	}()
+	err := cmd.Execute()
+	assert.NoError(t, err)
 }

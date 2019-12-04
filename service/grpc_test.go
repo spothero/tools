@@ -15,8 +15,11 @@
 package service
 
 import (
+	"os"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
@@ -30,11 +33,13 @@ func (ms mockGRPCService) ServerRegistration(*grpc.Server) {}
 func TestDefaultGRPCServer(t *testing.T) {
 	c := GRPCConfig{
 		Config: Config{
-			Name:     "test",
-			Registry: prometheus.NewRegistry(),
-			Version:  "0.1.0",
-			GitSHA:   "abc123",
+			Name:        "test",
+			Environment: "test",
+			Registry:    prometheus.NewRegistry(),
+			Version:     "0.1.0",
+			GitSHA:      "abc123",
 		},
+		CancelSignals: []os.Signal{syscall.SIGUSR1},
 	}
 	cmd := c.ServerCmd("short", "long", func(GRPCConfig) GRPCService { return mockGRPCService{} })
 	assert.NotNil(t, cmd)
@@ -46,4 +51,12 @@ func TestDefaultGRPCServer(t *testing.T) {
 	assert.NotNil(t, cmd.PersistentPreRun)
 	assert.NotNil(t, cmd.RunE)
 	assert.True(t, cmd.Flags().HasFlags())
+
+	timer := time.NewTimer(100 * time.Millisecond)
+	go func() {
+		<-timer.C
+		assert.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGUSR1))
+	}()
+	err := cmd.Execute()
+	assert.NoError(t, err)
 }
