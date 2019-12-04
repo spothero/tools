@@ -23,11 +23,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type mockService struct{}
+type mockHTTPService struct{}
 
-func (ms mockService) RegisterHandlers(_ *mux.Router) {}
+func (ms mockHTTPService) RegisterHandlers(_ *mux.Router) {}
 
-func TestDefaultServer(t *testing.T) {
+func TestDefaultHTTPServer(t *testing.T) {
 	c := HTTPConfig{
 		Config: Config{
 			Name:     "test",
@@ -36,7 +36,7 @@ func TestDefaultServer(t *testing.T) {
 			GitSHA:   "abc123",
 		},
 	}
-	cmd := c.ServerCmd("short", "long", func(HTTPConfig) HTTPService { return mockService{} })
+	cmd := c.ServerCmd("short", "long", func(HTTPConfig) HTTPService { return mockHTTPService{} })
 	assert.NotNil(t, cmd)
 	assert.NotZero(t, cmd.Use)
 	assert.NotZero(t, cmd.Short)

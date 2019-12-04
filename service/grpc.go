@@ -55,20 +55,13 @@ func (gc GRPCConfig) ServerCmd(
 	newService func(GRPCConfig) GRPCService,
 ) *cobra.Command {
 	// GRPC Config
-	config := shGRPC.NewDefaultConfig(gc.Name)
+	config := shGRPC.NewDefaultConfig(gc.Name, newService(gc).ServerRegistration)
 	config.UnaryInterceptors = []grpc.UnaryServerInterceptor{
 		grpc_opentracing.UnaryServerInterceptor(),
 	}
 	config.StreamInterceptors = []grpc.StreamServerInterceptor{
 		grpc_opentracing.StreamServerInterceptor(),
 	}
-	// TODO: Interceptors
-	//config.Middleware = []mux.MiddlewareFunc{
-	//	tracing.HTTPMiddleware,
-	//	shGRPC.NewMetrics(gc.Registry, true).Middleware,
-	//	log.HTTPMiddleware,
-	//	sentry.NewMiddleware().HTTP,
-	//}
 	// Logging Config
 	lc := &log.Config{
 		UseDevelopmentLogger: true,
@@ -103,14 +96,14 @@ func (gc GRPCConfig) ServerCmd(
 			}
 			closer := tc.ConfigureTracer()
 			defer closer.Close()
-			grpcService := newService(gc)
-			config.ServerRegistration = grpcService.ServerRegistration
 			server, err := config.NewServer()
 			if err != nil {
 				return fmt.Errorf("failed to create the grpc server: %x", err)
 			}
-			server.Run()
-			return nil
+			if err := server.Run(); err != nil {
+				return fmt.Errorf("failed to run the grpc server: %x", err)
+			}
+			return err
 		},
 	}
 	// Register Cobra/Viper CLI Flags
@@ -121,5 +114,4 @@ func (gc GRPCConfig) ServerCmd(
 	sc.RegisterFlags(flags)
 	tc.RegisterFlags(flags)
 	return cmd
-
 }

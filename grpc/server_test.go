@@ -15,8 +15,11 @@
 package grpc
 
 import (
+	"fmt"
 	"os"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
@@ -39,9 +42,84 @@ func TestNewDefaultConfig(t *testing.T) {
 }
 
 func TestNewServer(t *testing.T) {
-
+	tests := []struct {
+		name      string
+		config    Config
+		expectErr bool
+	}{
+		{
+			"no registration function results in an error",
+			Config{},
+			true,
+		},
+		{
+			"the server object is properly configured when a registration function is provided",
+			Config{
+				Name:               "test",
+				Address:            "127.0.0.1",
+				Port:               9111,
+				ServerRegistration: func(*grpc.Server) {},
+			},
+			false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			server, err := test.config.NewServer()
+			if test.expectErr {
+				assert.Error(t, err)
+				assert.Equal(t, Server{}, server)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, server.server)
+				assert.Equal(
+					t,
+					fmt.Sprintf("%s:%d", test.config.Address, test.config.Port),
+					server.listenAddress,
+				)
+			}
+		})
+	}
 }
 
 func TestRun(t *testing.T) {
-
+	tests := []struct {
+		name      string
+		server    Server
+		expectErr bool
+	}{
+		{
+			"an invalid tcp binding results in an error",
+			Server{
+				server:        grpc.NewServer(),
+				listenAddress: "127.0.0.1:-1",
+				cancelSignals: []os.Signal{syscall.SIGUSR1},
+			},
+			true,
+		},
+		{
+			"a valid tcp binding does not result in an error",
+			Server{
+				server:        grpc.NewServer(),
+				listenAddress: "127.0.0.1:9111",
+				cancelSignals: []os.Signal{syscall.SIGUSR1},
+			},
+			false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			timer := time.NewTimer(10 * time.Millisecond)
+			go func() {
+				<-timer.C
+				assert.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGUSR1))
+			}()
+			err := test.server.Run()
+			if test.expectErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }

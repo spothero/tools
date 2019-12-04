@@ -38,8 +38,7 @@ type Config struct {
 	ServerRegistration func(*grpc.Server)             // Callback for registering GRPC API Servers
 	StreamInterceptors []grpc.StreamServerInterceptor // A list of global GRPC stream interceptor functions to be called. Order is honored left to right.
 	UnaryInterceptors  []grpc.UnaryServerInterceptor  // A list of global GRPC unary interceptor functions to be called. Order is honored left to right.
-
-	CancelSignals []os.Signal // OS Signals to be used to cancel running servers. Defaults to SIGINT/`os.Interrupt`.
+	CancelSignals      []os.Signal                    // OS Signals to be used to cancel running servers. Defaults to SIGINT/`os.Interrupt`.
 }
 
 // Server contains the configured GRPC server and related components
@@ -64,6 +63,7 @@ func NewDefaultConfig(name string, serverRegistration func(*grpc.Server)) Config
 	}
 }
 
+// NewServer creates and returns a configured Server object given a GRPC configuration object.
 func (c Config) NewServer() (Server, error) {
 	server := grpc.NewServer(
 		grpc.StreamInterceptor(
@@ -87,11 +87,15 @@ func (c Config) NewServer() (Server, error) {
 	}, nil
 }
 
-func (s Server) Run() {
+// Run starts the GRPC server. The function returns an error if the GRPC server cannot bind to its
+// listen address. Additionally, this function is blocking and will not return until one of the
+// configured cancel signals is received.
+func (s Server) Run() error {
 	ctx := context.Background()
 	listener, err := net.Listen("tcp", s.listenAddress)
 	if err != nil {
 		log.Get(ctx).Error("error starting grpc server listener", zap.Error(err))
+		return err
 	}
 	go func() {
 		log.Get(ctx).Info(fmt.Sprintf("grpc server started on %s", s.listenAddress))
@@ -106,4 +110,5 @@ func (s Server) Run() {
 	<-signals
 	log.Get(ctx).Info("received interrupt, shutting down")
 	s.server.GracefulStop()
+	return nil
 }
