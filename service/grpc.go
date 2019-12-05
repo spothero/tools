@@ -97,14 +97,10 @@ func (gc GRPCConfig) ServerCmd(
 			}
 			closer := tc.ConfigureTracer()
 			defer closer.Close()
-			server, err := config.NewServer()
-			if err != nil {
-				return fmt.Errorf("failed to create the grpc server: %x", err)
-			}
-			if err := server.Run(); err != nil {
+			if err := config.NewServer().Run(); err != nil {
 				return fmt.Errorf("failed to run the grpc server: %x", err)
 			}
-			return err
+			return nil
 		},
 	}
 	// Register Cobra/Viper CLI Flags
