@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing"
+	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/spf13/cobra"
 	"github.com/spothero/tools/cli"
 	shGRPC "github.com/spothero/tools/grpc"
@@ -61,10 +62,12 @@ func (gc GRPCConfig) ServerCmd(
 	config.UnaryInterceptors = []grpc.UnaryServerInterceptor{
 		grpc_opentracing.UnaryServerInterceptor(),
 		log.UnaryServerInterceptor,
+		grpc_prometheus.UnaryServerInterceptor,
 	}
 	config.StreamInterceptors = []grpc.StreamServerInterceptor{
 		grpc_opentracing.StreamServerInterceptor(),
 		log.StreamServerInterceptor,
+		grpc_prometheus.StreamServerInterceptor,
 	}
 	if len(gc.CancelSignals) > 0 {
 		config.CancelSignals = gc.CancelSignals
