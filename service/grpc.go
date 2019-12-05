@@ -16,7 +16,6 @@ package service
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing"
@@ -33,7 +32,6 @@ import (
 // GRPCConfig contains required configuration for starting a GRPC service
 type GRPCConfig struct {
 	Config
-	CancelSignals []os.Signal // OS Signals to be used to cancel running servers. Defaults to SIGINT/`os.Interrupt`.
 }
 
 // GRPCService implementers register GRPC APIs with the GRPC server

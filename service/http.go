@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -34,9 +33,8 @@ import (
 // HTTPConfig contains required configuration for starting an HTTP service
 type HTTPConfig struct {
 	Config
-	PreStart      func(ctx context.Context, router *mux.Router, server *http.Server) // A function to be called before starting the web server
-	PostShutdown  func(ctx context.Context)                                          // A function to be called before stopping the web server
-	CancelSignals []os.Signal                                                        // OS Signals to be used to cancel running servers. Defaults to SIGINT/`os.Interrupt`.
+	PreStart     func(ctx context.Context, router *mux.Router, server *http.Server) // A function to be called before starting the web server
+	PostShutdown func(ctx context.Context)                                          // A function to be called before stopping the web server
 }
 
 // HTTPService implementers register HTTP routes with a mux router.
