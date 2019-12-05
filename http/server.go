@@ -34,7 +34,7 @@ import (
 type Config struct {
 	Name             string                                                             // Name of the HTTP Server
 	Address          string                                                             // Address on which the server will be accessible
-	Port             int                                                                // Port on which the server will be accessible
+	Port             uint16                                                             // Port on which the server will be accessible
 	TLSEnabled       bool                                                               // Whether or not traffic should be served via HTTPS
 	TLSCrtPath       string                                                             // Location of TLS Certificate
 	TLSKeyPath       string                                                             // Location of TLS Key

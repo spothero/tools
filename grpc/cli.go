@@ -18,7 +18,7 @@ import "github.com/spf13/pflag"
 
 // RegisterFlags registers GRPC flags with pflags
 func (c *Config) RegisterFlags(flags *pflag.FlagSet) {
-	flags.StringVar(&c.Name, "grpc-server-name", c.Name, "GRPC Server Name")
+	flags.StringVar(&c.Name, "grpc-server-name", c.Name, "The name of the GRPC Server")
 	flags.StringVarP(&c.Address, "grpc-address", "a", c.Address, "GRPC Address for server")
-	flags.IntVar(&c.Port, "grpc-port", c.Port, "GRPC Port for server")
+	flags.Uint16Var(&c.Port, "grpc-port", c.Port, "GRPC Port for server")
 }
