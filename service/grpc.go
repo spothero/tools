@@ -60,9 +60,11 @@ func (gc GRPCConfig) ServerCmd(
 	config := shGRPC.NewDefaultConfig(gc.Name, newService(gc).ServerRegistration)
 	config.UnaryInterceptors = []grpc.UnaryServerInterceptor{
 		grpc_opentracing.UnaryServerInterceptor(),
+		log.UnaryServerInterceptor,
 	}
 	config.StreamInterceptors = []grpc.StreamServerInterceptor{
 		grpc_opentracing.StreamServerInterceptor(),
+		log.StreamServerInterceptor,
 	}
 	if len(gc.CancelSignals) > 0 {
 		config.CancelSignals = gc.CancelSignals
