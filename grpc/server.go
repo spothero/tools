@@ -29,9 +29,9 @@ import (
 
 // Config contains the configuration necessary for running a GRPC Server.
 type Config struct {
-	Name               string                         // Name of the HTTP Server
+	Name               string                         // Name of the GRPC Server
 	Address            string                         // Address on which the server will be accessible
-	Port               int                            // Port on which the server will be accessible
+	Port               uint16                         // Port on which the server will be accessible
 	TLSEnabled         bool                           // Whether or not traffic should be served via HTTPS
 	TLSCrtPath         string                         // Location of TLS Certificate
 	TLSKeyPath         string                         // Location of TLS Key
@@ -64,7 +64,7 @@ func NewDefaultConfig(name string, serverRegistration func(*grpc.Server)) Config
 }
 
 // NewServer creates and returns a configured Server object given a GRPC configuration object.
-func (c Config) NewServer() (Server, error) {
+func (c Config) NewServer() Server {
 	server := grpc.NewServer(
 		grpc.StreamInterceptor(
 			grpc_middleware.ChainStreamServer(
@@ -78,13 +78,13 @@ func (c Config) NewServer() (Server, error) {
 		),
 	)
 	if c.ServerRegistration == nil {
-		return Server{}, fmt.Errorf("no server registration function provided")
+		panic("no server registration function provided")
 	}
 	c.ServerRegistration(server)
 	return Server{
 		server:        server,
 		listenAddress: fmt.Sprintf("%s:%d", c.Address, c.Port),
-	}, nil
+	}
 }
 
 // Run starts the GRPC server. The function returns an error if the GRPC server cannot bind to its

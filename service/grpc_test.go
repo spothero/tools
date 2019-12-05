@@ -33,13 +33,13 @@ func (ms mockGRPCService) ServerRegistration(*grpc.Server) {}
 func TestDefaultGRPCServer(t *testing.T) {
 	c := GRPCConfig{
 		Config: Config{
-			Name:        "test",
-			Environment: "test",
-			Registry:    prometheus.NewRegistry(),
-			Version:     "0.1.0",
-			GitSHA:      "abc123",
+			Name:          "test",
+			Environment:   "test",
+			Registry:      prometheus.NewRegistry(),
+			Version:       "0.1.0",
+			GitSHA:        "abc123",
+			CancelSignals: []os.Signal{syscall.SIGUSR1},
 		},
-		CancelSignals: []os.Signal{syscall.SIGUSR1},
 	}
 	cmd := c.ServerCmd("short", "long", func(GRPCConfig) GRPCService { return mockGRPCService{} })
 	assert.NotNil(t, cmd)

@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -34,9 +33,8 @@ import (
 // HTTPConfig contains required configuration for starting an HTTP service
 type HTTPConfig struct {
 	Config
-	PreStart      func(ctx context.Context, router *mux.Router, server *http.Server) // A function to be called before starting the web server
-	PostShutdown  func(ctx context.Context)                                          // A function to be called before stopping the web server
-	CancelSignals []os.Signal                                                        // OS Signals to be used to cancel running servers. Defaults to SIGINT/`os.Interrupt`.
+	PreStart     func(ctx context.Context, router *mux.Router, server *http.Server) // A function to be called before starting the web server
+	PostShutdown func(ctx context.Context)                                          // A function to be called before stopping the web server
 }
 
 // HTTPService implementers register HTTP routes with a mux router.
@@ -44,11 +42,9 @@ type HTTPService interface {
 	RegisterHandlers(router *mux.Router)
 }
 
-// ServerCmd creates and returns a Cobra and Viper command preconfigured to run a
-// production-quality HTTP server. This method takes a function that instantiates a HTTPService interface
-// that passes through the HTTPConfig object to the constructor after all values are populated from
-// the CLI and/or environment variables so that values configured by this package are accessible
-// downstream.
+// This method takes a function, newService, that instantiates the HTTPService by consuming
+// the HTTPConfig object after all values are populated from the CLI and/or environment
+// variables so that values configured by this package are accessible by newService.
 //
 // Note that this function returns the Default HTTP server for use
 // at SpotHero. Consumers of the tools libraries are free to define their own server entrypoints if

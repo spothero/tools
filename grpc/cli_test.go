@@ -37,7 +37,7 @@ func TestRegisterFlags(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, c.Address, ad)
 
-	p, err := flags.GetInt("grpc-port")
+	p, err := flags.GetUint16("grpc-port")
 	assert.NoError(t, err)
 	assert.Equal(t, c.Port, p)
 }

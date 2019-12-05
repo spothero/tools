@@ -33,13 +33,13 @@ func (ms mockHTTPService) RegisterHandlers(_ *mux.Router) {}
 func TestDefaultHTTPServer(t *testing.T) {
 	c := HTTPConfig{
 		Config: Config{
-			Name:        "test",
-			Environment: "test",
-			Registry:    prometheus.NewRegistry(),
-			Version:     "0.1.0",
-			GitSHA:      "abc123",
+			Name:          "test",
+			Environment:   "test",
+			Registry:      prometheus.NewRegistry(),
+			Version:       "0.1.0",
+			GitSHA:        "abc123",
+			CancelSignals: []os.Signal{syscall.SIGUSR1},
 		},
-		CancelSignals: []os.Signal{syscall.SIGUSR1},
 	}
 	cmd := c.ServerCmd("short", "long", func(HTTPConfig) HTTPService { return mockHTTPService{} })
 	assert.NotNil(t, cmd)

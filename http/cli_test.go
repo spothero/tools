@@ -36,7 +36,7 @@ func TestRegisterFlags(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, c.Address, ad)
 
-	p, err := flags.GetInt("port")
+	p, err := flags.GetUint16("port")
 	assert.NoError(t, err)
 	assert.Equal(t, c.Port, p)
 

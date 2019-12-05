@@ -16,7 +16,6 @@ package service
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing"
@@ -34,19 +33,16 @@ import (
 // GRPCConfig contains required configuration for starting a GRPC service
 type GRPCConfig struct {
 	Config
-	CancelSignals []os.Signal // OS Signals to be used to cancel running servers. Defaults to SIGINT/`os.Interrupt`.
 }
 
-// GRPCService implementers register GRPC APIs with the GRPC server
+// GRPCService implementors register GRPC APIs with the GRPC server
 type GRPCService interface {
 	ServerRegistration(*grpc.Server)
 }
 
-// ServerCmd creates and returns a Cobra and Viper command preconfigured to run a
-// production-quality GRPC server. This method takes a function that instantiates the GRPCService
-// interface that passes through the GRPCConfig object to the constructor after all values are
-// populated from the CLI and/or environment variables so that values configured by this package
-// are accessible downstream.
+// This method takes a function, newService, that instantiates the GRPCService by consuming
+// the GRPCConfig object after all values are populated from the CLI and/or environment
+// variables so that values configured by this package are accessible by newService.
 //
 // Note that this function returns the Default GRPC server for use at SpotHero. Consumers of the
 // tools libraries are free to define their own server entrypoints if desired. This function is
@@ -106,14 +102,10 @@ func (gc GRPCConfig) ServerCmd(
 			}
 			closer := tc.ConfigureTracer()
 			defer closer.Close()
-			server, err := config.NewServer()
-			if err != nil {
-				return fmt.Errorf("failed to create the grpc server: %x", err)
-			}
-			if err := server.Run(); err != nil {
+			if err := config.NewServer().Run(); err != nil {
 				return fmt.Errorf("failed to run the grpc server: %x", err)
 			}
-			return err
+			return nil
 		},
 	}
 	// Register Cobra/Viper CLI Flags
