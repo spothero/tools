@@ -24,6 +24,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 )
 
 // UnaryServerInterceptor returns a new unary server interceptor that includes a logger in context
@@ -39,7 +40,7 @@ func UnaryServerInterceptor(ctx context.Context, req interface{}, info *grpc.Una
 	logger.Info("request received")
 	newCtx := NewContext(ctx, requestLogger)
 	resp, err := handler(newCtx, req)
-	code := grpc.Code(err)
+	code := status.Code(err)
 	Get(newCtx).Check(grpc_zap.DefaultCodeToLevel(code), "returning response").Write(
 		zap.String("grpc.code", code.String()),
 		zap.Duration("grpc.duration", time.Since(startTime)),
@@ -63,7 +64,7 @@ func StreamServerInterceptor(srv interface{}, stream grpc.ServerStream, info *gr
 	wrapped := grpc_middleware.WrapServerStream(stream)
 	wrapped.WrappedContext = newCtx
 	err := handler(srv, wrapped)
-	code := grpc.Code(err)
+	code := status.Code(err)
 	Get(newCtx).Check(grpc_zap.DefaultCodeToLevel(code), "returning response").Write(
 		zap.String("grpc.code", code.String()),
 		zap.Duration("grpc.duration", time.Since(startTime)),

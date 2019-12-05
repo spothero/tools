@@ -27,32 +27,32 @@ type MockServerStream struct {
 }
 
 // SetHeader mocks the ServerStream SetHeader function
-func (mss MockServerStream) SetHeader(md metadata.MD) error {
+func (mss *MockServerStream) SetHeader(md metadata.MD) error {
 	return mss.Called(md).Error(0)
 }
 
 // SendHeader mocks the ServerStream SendHeader function
-func (mss MockServerStream) SendHeader(md metadata.MD) error {
+func (mss *MockServerStream) SendHeader(md metadata.MD) error {
 	return mss.Called(md).Error(0)
 }
 
 // SetTrailer mocks the ServerStream SetTrailer function
-func (mss MockServerStream) SetTrailer(md metadata.MD) {
+func (mss *MockServerStream) SetTrailer(md metadata.MD) {
 	mss.Called(md)
 }
 
 // Context mocks the ServerStream Context function
-func (mss MockServerStream) Context() context.Context {
+func (mss *MockServerStream) Context() context.Context {
 	mss.Called()
 	return context.Background()
 }
 
 // SendMsg mocks the ServerStream SendMsg function
-func (mss MockServerStream) SendMsg(m interface{}) error {
+func (mss *MockServerStream) SendMsg(m interface{}) error {
 	return mss.Called(m).Error(0)
 }
 
 // RecvMsg mocks the ServerStream RecvMsg function
-func (mss MockServerStream) RecvMsg(m interface{}) error {
+func (mss *MockServerStream) RecvMsg(m interface{}) error {
 	return mss.Called(m).Error(0)
 }

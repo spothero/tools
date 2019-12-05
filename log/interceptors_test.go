@@ -88,7 +88,7 @@ func TestStreamServerInterceptor(t *testing.T) {
 	mockHandler := func(srv interface{}, stream grpc.ServerStream) error {
 		return nil
 	}
-	mockStream := grpcmock.MockServerStream{}
+	mockStream := &grpcmock.MockServerStream{}
 	mockStream.On("Context").Return(context.Background())
 	err := StreamServerInterceptor(nil, mockStream, info, mockHandler)
 	assert.NoError(t, err)
@@ -99,7 +99,8 @@ func TestSetLogCtx(t *testing.T) {
 	recordedLogs := makeLoggerObservable(t, zapcore.InfoLevel)
 
 	deadline := time.Now()
-	startCtx, _ := context.WithDeadline(context.Background(), deadline)
+	startCtx, cancel := context.WithDeadline(context.Background(), deadline)
+	defer cancel()
 	ctx := setLogCtx(startCtx, "service.method", time.Now())
 	assert.NotNil(t, ctx)
 
