@@ -64,7 +64,7 @@ func NewDefaultConfig(name string, serverRegistration func(*grpc.Server)) Config
 }
 
 // NewServer creates and returns a configured Server object given a GRPC configuration object.
-func (c Config) NewServer() (Server, error) {
+func (c Config) NewServer() Server {
 	server := grpc.NewServer(
 		grpc.StreamInterceptor(
 			grpc_middleware.ChainStreamServer(
@@ -78,13 +78,13 @@ func (c Config) NewServer() (Server, error) {
 		),
 	)
 	if c.ServerRegistration == nil {
-		return Server{}, fmt.Errorf("no server registration function provided")
+		panic("no server registration function provided")
 	}
 	c.ServerRegistration(server)
 	return Server{
 		server:        server,
 		listenAddress: fmt.Sprintf("%s:%d", c.Address, c.Port),
-	}, nil
+	}
 }
 
 // Run starts the GRPC server. The function returns an error if the GRPC server cannot bind to its

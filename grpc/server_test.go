@@ -43,12 +43,12 @@ func TestNewDefaultConfig(t *testing.T) {
 
 func TestNewServer(t *testing.T) {
 	tests := []struct {
-		name      string
-		config    Config
-		expectErr bool
+		name        string
+		config      Config
+		expectPanic bool
 	}{
 		{
-			"no registration function results in an error",
+			"no registration function results in a panic",
 			Config{},
 			true,
 		},
@@ -65,12 +65,13 @@ func TestNewServer(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			server, err := test.config.NewServer()
-			if test.expectErr {
-				assert.Error(t, err)
-				assert.Equal(t, Server{}, server)
+			if test.expectPanic {
+				assert.Panics(t, func() {
+					server := test.config.NewServer()
+					assert.NotNil(t, server.server)
+				})
 			} else {
-				assert.NoError(t, err)
+				server := test.config.NewServer()
 				assert.NotNil(t, server.server)
 				assert.Equal(
 					t,
