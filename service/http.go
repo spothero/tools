@@ -42,11 +42,9 @@ type HTTPService interface {
 	RegisterHandlers(router *mux.Router)
 }
 
-// ServerCmd creates and returns a Cobra and Viper command preconfigured to run a
-// production-quality HTTP server. This method takes a function that instantiates a HTTPService interface
-// that passes through the HTTPConfig object to the constructor after all values are populated from
-// the CLI and/or environment variables so that values configured by this package are accessible
-// downstream.
+// This method takes a function, newService, that instantiates the HTTPService by consuming
+// the HTTPConfig object after all values are populated from the CLI and/or environment
+// variables so that values configured by this package are accessible by newService.
 //
 // Note that this function returns the Default HTTP server for use
 // at SpotHero. Consumers of the tools libraries are free to define their own server entrypoints if
