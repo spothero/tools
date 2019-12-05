@@ -69,7 +69,6 @@ func verifyRequestResponseLogs(t *testing.T, recordedLogs *observer.ObservedLogs
 	)
 }
 
-// TODO: Test different types of GRPC codes
 func TestUnaryServerInterceptor(t *testing.T) {
 	recordedLogs := makeLoggerObservable(t, zapcore.InfoLevel)
 	ctx := context.Background()
@@ -83,7 +82,6 @@ func TestUnaryServerInterceptor(t *testing.T) {
 	verifyRequestResponseLogs(t, recordedLogs)
 }
 
-// TODO: Test different types of GRPC codes
 func TestStreamServerInterceptor(t *testing.T) {
 	recordedLogs := makeLoggerObservable(t, zapcore.InfoLevel)
 	info := &grpc.StreamServerInfo{}
@@ -97,10 +95,34 @@ func TestStreamServerInterceptor(t *testing.T) {
 	verifyRequestResponseLogs(t, recordedLogs)
 }
 
-// TODO: Test that the fields are correctly set for the logger
 func TestSetLogCtx(t *testing.T) {
-	startCtx := context.Background()
+	recordedLogs := makeLoggerObservable(t, zapcore.InfoLevel)
+
+	deadline := time.Now()
+	startCtx, _ := context.WithDeadline(context.Background(), deadline)
 	ctx := setLogCtx(startCtx, "service.method", time.Now())
-	// TODO: Actually test this
 	assert.NotNil(t, ctx)
+
+	// Invoke the logger so that the observe is populated with logs
+	Get(ctx).Info("test")
+
+	// Test that request parameters are appropriately logged to our standards
+	currLogs := recordedLogs.All()
+	assert.Len(t, currLogs, 1)
+	foundLogKeysRequest := make([]string, len(currLogs[0].Context))
+	for idx, field := range currLogs[0].Context {
+		foundLogKeysRequest[idx] = field.Key
+	}
+	assert.ElementsMatch(
+		t,
+		[]string{
+			"system",
+			"span.kind",
+			"grpc.service",
+			"grpc.method",
+			"grpc.start_time",
+			"grpc.request.deadline",
+		},
+		foundLogKeysRequest,
+	)
 }
