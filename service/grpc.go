@@ -55,13 +55,17 @@ func (gc GRPCConfig) ServerCmd(
 ) *cobra.Command {
 	// GRPC Config
 	config := shGRPC.NewDefaultConfig(gc.Name, newService(gc).ServerRegistration)
+	// Ensure that GRPC Interceptors capture histograms
+	grpc_prometheus.EnableHandlingTimeHistogram()
 	config.UnaryInterceptors = []grpc.UnaryServerInterceptor{
 		grpc_opentracing.UnaryServerInterceptor(),
+		tracing.UnaryServerInterceptor,
 		log.UnaryServerInterceptor,
 		grpc_prometheus.UnaryServerInterceptor,
 	}
 	config.StreamInterceptors = []grpc.StreamServerInterceptor{
 		grpc_opentracing.StreamServerInterceptor(),
+		tracing.StreamServerInterceptor,
 		log.StreamServerInterceptor,
 		grpc_prometheus.StreamServerInterceptor,
 	}

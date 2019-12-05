@@ -25,15 +25,7 @@ import (
 	"github.com/spothero/tools/http/writer"
 	"github.com/spothero/tools/log"
 	sql "github.com/spothero/tools/sql/middleware"
-	"github.com/uber/jaeger-client-go"
-	"go.uber.org/zap"
 )
-
-// CorrelationIDCtxKey is the key into the Context of the wrapped HTTP request
-// which maps to the correlation id of the request. This correlation ID can be
-// conveyed to external clients in order to correlate external systems with
-// SpotHero tracing and logging.
-const CorrelationIDCtxKey = "CorrelationIDCtxKey"
 
 // HTTPMiddleware extracts the OpenTracing context on all incoming HTTP requests, if present. if
 // no trace ID is present in the headers, a trace is initiated.
@@ -62,17 +54,6 @@ func HTTPMiddleware(next http.Handler) http.Handler {
 		span = span.SetTag("http.method", r.Method)
 		span = span.SetTag("http.url", r.URL.String())
 
-		// While this removes the veneer of OpenTracing abstraction, the current specification does not
-		// provide a method of accessing Trace ID directly. Until OpenTracing 2.0 is released with
-		// support for abstract access for Trace ID we will coerce the type to the underlying tracer.
-		// See: https://github.com/opentracing/specification/issues/123
-		if sc, ok := span.Context().(jaeger.SpanContext); ok {
-			// Embed the Trace ID in the logging context for all future requests
-			correlationID := sc.TraceID().String()
-			spanCtx = log.NewContext(spanCtx, logger.With(zap.String("correlation_id", correlationID)))
-			spanCtx = context.WithValue(spanCtx, CorrelationIDCtxKey, correlationID)
-		}
-
 		defer func() {
 			if statusRecorder, ok := w.(*writer.StatusRecorder); ok {
 				span.SetTag("http.status_code", strconv.Itoa(statusRecorder.StatusCode))
@@ -83,7 +64,7 @@ func HTTPMiddleware(next http.Handler) http.Handler {
 			}
 			span.Finish()
 		}()
-		next.ServeHTTP(w, r.WithContext(spanCtx))
+		next.ServeHTTP(w, r.WithContext(embedCorrelationID(spanCtx)))
 	})
 }
 
@@ -127,5 +108,5 @@ func SQLMiddleware(ctx context.Context, queryName, query string, args ...interfa
 		}
 		return ctx, nil
 	}
-	return spanCtx, mwEnd, nil
+	return embedCorrelationID(spanCtx), mwEnd, nil
 }

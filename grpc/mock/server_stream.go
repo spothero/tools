@@ -43,8 +43,7 @@ func (mss *MockServerStream) SetTrailer(md metadata.MD) {
 
 // Context mocks the ServerStream Context function
 func (mss *MockServerStream) Context() context.Context {
-	mss.Called()
-	return context.Background()
+	return mss.Called().Get(0).(context.Context)
 }
 
 // SendMsg mocks the ServerStream SendMsg function
