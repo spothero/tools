@@ -88,5 +88,5 @@ func setLogCtx(ctx context.Context, fullMethodName string, startTime time.Time) 
 	if d, ok := ctx.Deadline(); ok {
 		fields = append(fields, zap.String("grpc.request.deadline", d.Format(time.RFC3339)))
 	}
-	return NewContext(ctx, logger.With(fields...))
+	return NewContext(ctx, Get(ctx).With(fields...))
 }
