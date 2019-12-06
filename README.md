@@ -44,6 +44,7 @@ Currently, this library supports the following features:
   * CLI Support for SQL database configuration
 * Avro Decoding
 * HTTP Server with instrumentation
+* gRPC Server with instrumentation
 * Prometheus Metrics
 * High-Performance Logging
 * Sentry Integration

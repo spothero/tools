@@ -21,17 +21,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
 )
 
-type mockHTTPService struct{}
+type mockGRPCService struct{}
 
-func (ms mockHTTPService) RegisterHandlers(_ *mux.Router) {}
+func (ms mockGRPCService) ServerRegistration(*grpc.Server) {}
 
-func TestDefaultHTTPServer(t *testing.T) {
-	c := HTTPConfig{
+func TestDefaultGRPCServer(t *testing.T) {
+	c := GRPCConfig{
 		Config: Config{
 			Name:          "test",
 			Environment:   "test",
@@ -41,7 +41,7 @@ func TestDefaultHTTPServer(t *testing.T) {
 			CancelSignals: []os.Signal{syscall.SIGUSR1},
 		},
 	}
-	cmd := c.ServerCmd("short", "long", func(HTTPConfig) HTTPService { return mockHTTPService{} })
+	cmd := c.ServerCmd("short", "long", func(GRPCConfig) GRPCService { return mockGRPCService{} })
 	assert.NotNil(t, cmd)
 	assert.NotZero(t, cmd.Use)
 	assert.NotZero(t, cmd.Short)

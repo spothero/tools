@@ -29,6 +29,12 @@ import (
 	"go.uber.org/zap"
 )
 
+// CorrelationIDCtxKey is the key into any context.Context  which maps to the
+// correlation id of the given context. This correlation ID can be
+// conveyed to external clients in order to correlate external systems with
+// SpotHero tracing and logging.
+const CorrelationIDCtxKey = "CorrelationIDCtxKey"
+
 // Config defines the necessary configuration for instantiating a Tracer
 type Config struct {
 	Enabled               bool
@@ -82,4 +88,21 @@ func TraceOutbound(r *http.Request, span opentracing.Span) error {
 		span.Context(),
 		opentracing.HTTPHeaders,
 		opentracing.HTTPHeadersCarrier(r.Header))
+}
+
+// embedCorrelationID embeds the current Trace ID as the correlation ID in the context logger
+func embedCorrelationID(ctx context.Context) context.Context {
+	// While this removes the veneer of OpenTracing abstraction, the current specification does not
+	// provide a method of accessing Trace ID directly. Until OpenTracing 2.0 is released with
+	// support for abstract access for Trace ID we will coerce the type to the underlying tracer.
+	// See: https://github.com/opentracing/specification/issues/123
+	if span := opentracing.SpanFromContext(ctx); span != nil {
+		if sc, ok := span.Context().(jaeger.SpanContext); ok {
+			// Embed the Trace ID in the logging context for all future requests
+			correlationID := sc.TraceID().String()
+			ctx = log.NewContext(ctx, log.Get(ctx).With(zap.String("correlation_id", correlationID)))
+			ctx = context.WithValue(ctx, CorrelationIDCtxKey, correlationID)
+		}
+	}
+	return ctx
 }

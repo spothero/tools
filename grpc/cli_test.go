@@ -12,31 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package jose
+package grpc
 
 import (
 	"testing"
 
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
 )
 
 func TestRegisterFlags(t *testing.T) {
 	flags := pflag.NewFlagSet("pflags", pflag.PanicOnError)
-	c := Config{}
+	c := NewDefaultConfig("test", func(*grpc.Server) {})
 	c.RegisterFlags(flags)
 	err := flags.Parse(nil)
 	assert.NoError(t, err)
 
-	ju, err := flags.GetString("jose-jwks-url")
+	sn, err := flags.GetString("grpc-server-name")
 	assert.NoError(t, err)
-	assert.Equal(t, c.JSONWebKeySetURL, ju)
+	assert.Equal(t, c.Name, sn)
 
-	vi, err := flags.GetString("jose-valid-issuer")
+	ad, err := flags.GetString("grpc-address")
 	assert.NoError(t, err)
-	assert.Equal(t, "", vi)
+	assert.Equal(t, c.Address, ad)
 
-	ar, err := flags.GetBool("jose-auth-required")
+	p, err := flags.GetUint16("grpc-port")
 	assert.NoError(t, err)
-	assert.False(t, ar)
+	assert.Equal(t, c.Port, p)
 }
