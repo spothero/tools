@@ -32,7 +32,7 @@ type Config struct {
 	// List of one or more claims to be captured from JWTs. If using http middleware,
 	// these generators will determine which claims appear on the context.
 	ClaimGenerators []ClaimGenerator
-	AuthRequired    bool // If true, missing/invalid `Authorization` HTTP headers or GRPC metadata will result in a 4xx error
+	AuthRequired    bool // If true, missing/invalid `Authorization` will result in an Unauthenticated error
 }
 
 // ClaimGenerator defines an interface which creates a JWT Claim
