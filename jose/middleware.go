@@ -36,7 +36,7 @@ const (
 
 // GetHTTPMiddleware returns an HTTP middleware function which extracts the Authorization header,
 // if present, on all incoming HTTP requests. If an Authorization header is found, this middleware
-// attempts to parse and validate that value as a JWT with  the configured Credential types for
+// attempts to parse and validate that value as a JWT with the configured Credential types for
 // the given JOSE provider.
 func GetHTTPMiddleware(jh JOSEHandler, authRequired bool) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {

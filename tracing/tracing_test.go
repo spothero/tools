@@ -15,11 +15,13 @@
 package tracing
 
 import (
+	"context"
 	"net/http"
 	"testing"
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/stretchr/testify/assert"
+	jaeger "github.com/uber/jaeger-client-go"
 )
 
 func TestConfigureTracer(t *testing.T) {
@@ -60,4 +62,17 @@ func TestTraceOutbound(t *testing.T) {
 	defer span.Finish()
 	err = TraceOutbound(req, span)
 	assert.NoError(t, err)
+}
+
+func TestEmbedCorrelationID(t *testing.T) {
+	tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
+	defer closer.Close()
+	opentracing.SetGlobalTracer(tracer)
+	_, spanCtx := opentracing.StartSpanFromContext(context.Background(), "test")
+
+	ctx := embedCorrelationID(spanCtx)
+	correlationId, ok := ctx.Value(CorrelationIDCtxKey).(string)
+	assert.Equal(t, true, ok)
+	assert.NotNil(t, correlationId)
+	assert.NotEqual(t, "", correlationId)
 }
