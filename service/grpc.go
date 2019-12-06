@@ -18,11 +18,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing"
-	"github.com/grpc-ecosystem/go-grpc-prometheus"
+	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
+	grpcot "github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing"
+	grpcprom "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/spf13/cobra"
 	"github.com/spothero/tools/cli"
 	shGRPC "github.com/spothero/tools/grpc"
+	"github.com/spothero/tools/jose"
 	"github.com/spothero/tools/log"
 	"github.com/spothero/tools/sentry"
 	"github.com/spothero/tools/tracing"
@@ -55,20 +57,6 @@ func (gc GRPCConfig) ServerCmd(
 ) *cobra.Command {
 	// GRPC Config
 	config := shGRPC.NewDefaultConfig(gc.Name, newService(gc).ServerRegistration)
-	// Ensure that GRPC Interceptors capture histograms
-	grpc_prometheus.EnableHandlingTimeHistogram()
-	config.UnaryInterceptors = []grpc.UnaryServerInterceptor{
-		grpc_opentracing.UnaryServerInterceptor(),
-		tracing.UnaryServerInterceptor,
-		log.UnaryServerInterceptor,
-		grpc_prometheus.UnaryServerInterceptor,
-	}
-	config.StreamInterceptors = []grpc.StreamServerInterceptor{
-		grpc_opentracing.StreamServerInterceptor(),
-		tracing.StreamServerInterceptor,
-		log.StreamServerInterceptor,
-		grpc_prometheus.StreamServerInterceptor,
-	}
 	if len(gc.CancelSignals) > 0 {
 		config.CancelSignals = gc.CancelSignals
 	}
@@ -88,6 +76,8 @@ func (gc GRPCConfig) ServerCmd(
 	}
 	// Tracing Config
 	tc := tracing.Config{ServiceName: gc.Name}
+	// Jose Config
+	jc := jose.Config{ClaimGenerators: []jose.ClaimGenerator{jose.CognitoGenerator{}}}
 	cmd := &cobra.Command{
 		Use:              gc.Name,
 		Short:            shortDescription,
@@ -106,6 +96,38 @@ func (gc GRPCConfig) ServerCmd(
 			}
 			closer := tc.ConfigureTracer()
 			defer closer.Close()
+
+			// Ensure that GRPC Interceptors capture histograms
+			grpcprom.EnableHandlingTimeHistogram()
+			config.UnaryInterceptors = []grpc.UnaryServerInterceptor{
+				grpcot.UnaryServerInterceptor(),
+				tracing.UnaryServerInterceptor,
+				log.UnaryServerInterceptor,
+				grpcprom.UnaryServerInterceptor,
+			}
+			config.StreamInterceptors = []grpc.StreamServerInterceptor{
+				grpcot.StreamServerInterceptor(),
+				tracing.StreamServerInterceptor,
+				log.StreamServerInterceptor,
+				grpcprom.StreamServerInterceptor,
+			}
+
+			// If the user has requested JOSE Auth, add JOSE Auth interceptors
+			if jc.AuthRequired {
+				jh, err := jc.NewJOSE()
+				if err != nil {
+					return err
+				}
+				joseInterceptorFunc := jose.GetContextAuth(jh, jc.AuthRequired)
+				config.UnaryInterceptors = append(
+					config.UnaryInterceptors,
+					grpcauth.UnaryServerInterceptor(joseInterceptorFunc),
+				)
+				config.StreamInterceptors = append(
+					config.StreamInterceptors,
+					grpcauth.StreamServerInterceptor(joseInterceptorFunc),
+				)
+			}
 			if err := config.NewServer().Run(); err != nil {
 				return fmt.Errorf("failed to run the grpc server: %x", err)
 			}
@@ -119,5 +141,6 @@ func (gc GRPCConfig) ServerCmd(
 	lc.RegisterFlags(flags)
 	sc.RegisterFlags(flags)
 	tc.RegisterFlags(flags)
+	jc.RegisterFlags(flags)
 	return cmd
 }
