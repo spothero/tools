@@ -129,7 +129,7 @@ func (gc GRPCConfig) ServerCmd(
 				)
 			}
 			if err := config.NewServer().Run(); err != nil {
-				return fmt.Errorf("failed to run the grpc server: %x", err)
+				return fmt.Errorf("failed to run the grpc server: %w", err)
 			}
 			return nil
 		},

@@ -37,7 +37,7 @@ func GetContextAuth(jh JOSEHandler, authRequired bool) func(context.Context) (co
 		var parseErrMsg string
 		bearerToken, err := grpc_auth.AuthFromMD(ctx, bearerTokenType)
 		if err != nil {
-			parseErrMsg = fmt.Sprintf("no authorization bearer token found: %x", err)
+			parseErrMsg = fmt.Sprintf("no authorization bearer token found: %w", err)
 		}
 
 		var claims []Claim
