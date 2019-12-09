@@ -70,7 +70,7 @@ func verifyRequestResponseLogs(t *testing.T, recordedLogs *observer.ObservedLogs
 }
 
 func TestUnaryServerInterceptor(t *testing.T) {
-	recordedLogs := makeLoggerObservable(t, zapcore.InfoLevel)
+	recordedLogs := makeLoggerObservable(t, zapcore.DebugLevel)
 	ctx := context.Background()
 	info := &grpc.UnaryServerInfo{}
 	mockHandler := func(ctx context.Context, req interface{}) (interface{}, error) {
@@ -83,7 +83,7 @@ func TestUnaryServerInterceptor(t *testing.T) {
 }
 
 func TestStreamServerInterceptor(t *testing.T) {
-	recordedLogs := makeLoggerObservable(t, zapcore.InfoLevel)
+	recordedLogs := makeLoggerObservable(t, zapcore.DebugLevel)
 	info := &grpc.StreamServerInfo{}
 	mockHandler := func(srv interface{}, stream grpc.ServerStream) error {
 		return nil
