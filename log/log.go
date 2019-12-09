@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -112,6 +113,7 @@ func (c Config) InitializeLogger() error {
 	if logger, err = logConfig.Build(c.Options...); err != nil {
 		return fmt.Errorf("error initializing logger - %s", err.Error())
 	}
+	grpc_zap.ReplaceGrpcLoggerV2(logger)
 	return nil
 }
 
