@@ -42,7 +42,7 @@ func HTTPMiddleware(next http.Handler) http.Handler {
 		method := zap.String("http_method", r.Method)
 		path := zap.String("path", writer.FetchRoutePathTemplate(r))
 		query := zap.String("query_string", r.URL.Query().Encode())
-		logger.Debug("request received", method, path, query, zap.Reflect("Headers", r.Header))
+		logger.Debug("request received", method, path, query)
 		defer func() {
 			var responseCodeField zap.Field
 			if statusRecorder, ok := w.(*writer.StatusRecorder); ok {

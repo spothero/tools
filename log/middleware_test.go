@@ -28,7 +28,7 @@ import (
 )
 
 func TestHTTPMiddleware(t *testing.T) {
-	recordedLogs := makeLoggerObservable(t, zapcore.InfoLevel)
+	recordedLogs := makeLoggerObservable(t, zapcore.DebugLevel)
 
 	// setup a test server with logging middleware and a handler that sets the status code
 	const statusCode = 666
@@ -50,6 +50,7 @@ func TestHTTPMiddleware(t *testing.T) {
 	for idx, field := range currLogs[0].Context {
 		foundLogKeysRequest[idx] = field.Key
 	}
+	fmt.Println(foundLogKeysRequest)
 	assert.ElementsMatch(t, []string{"http_method", "path", "query_string"}, foundLogKeysRequest)
 
 	// Test that response parameters are appropriately logged to our standards
