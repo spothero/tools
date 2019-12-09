@@ -22,7 +22,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/xerrors"
 )
 
 func TestGetHTTPMiddleware(t *testing.T) {
@@ -136,7 +135,7 @@ func TestGetHTTPMiddleware(t *testing.T) {
 
 			var parseErr error
 			if test.parseJWTError {
-				parseErr = xerrors.Errorf("a jwt parsing error occurred in this test")
+				parseErr = fmt.Errorf("a jwt parsing error occurred in this test")
 			}
 			handler.On(
 				"ParseValidateJWT",
