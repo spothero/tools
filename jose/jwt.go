@@ -17,10 +17,10 @@ package jose
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
-	"golang.org/x/xerrors"
 	"gopkg.in/square/go-jose.v2"
 	"gopkg.in/square/go-jose.v2/jwt"
 )
@@ -69,24 +69,24 @@ type JOSE struct {
 // NewJOSE creates and returns a JOSE client for use.
 func (c Config) NewJOSE() (JOSE, error) {
 	if len(c.JSONWebKeySetURL) == 0 {
-		return JOSE{}, xerrors.Errorf("no jwks url specified")
+		return JOSE{}, fmt.Errorf("no jwks url specified")
 	}
 
 	// Fetch JSON Web Key Sets from the specified URL
 	resp, err := http.Get(c.JSONWebKeySetURL)
 	if err != nil {
-		return JOSE{}, xerrors.Errorf("failed to retrieve jwks from url: %w", err)
+		return JOSE{}, fmt.Errorf("failed to retrieve jwks from url: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return JOSE{}, xerrors.Errorf("received non-200 response from jwks url `%v`", resp.Status)
+		return JOSE{}, fmt.Errorf("received non-200 response from jwks url `%v`", resp.Status)
 	}
 
 	// Decode the response body into a JSONWebKeySet
 	jwks := &jose.JSONWebKeySet{}
 	err = json.NewDecoder(resp.Body).Decode(jwks)
 	if err != nil {
-		return JOSE{}, xerrors.Errorf("failed to decoded jwks json: %w", err)
+		return JOSE{}, fmt.Errorf("failed to decoded jwks json: %w", err)
 	}
 
 	return JOSE{
@@ -114,7 +114,7 @@ func (j JOSE) GetClaims() []Claim {
 func (j JOSE) ParseValidateJWT(input string, claims ...Claim) error {
 	tok, err := jwt.ParseSigned(input)
 	if err != nil {
-		return xerrors.Errorf("failed to parse jwt token: %w", err)
+		return fmt.Errorf("failed to parse jwt token: %w", err)
 	}
 
 	// Extract Token Claims from the payload and ensure that the signing signature is valid
@@ -125,7 +125,7 @@ func (j JOSE) ParseValidateJWT(input string, claims ...Claim) error {
 	}
 
 	if err = tok.Claims(j.jwks, allClaims...); err != nil {
-		return xerrors.Errorf("failed to extract claims from jwt: %w", err)
+		return fmt.Errorf("failed to extract claims from jwt: %w", err)
 	}
 
 	// Validate that the claims were issued by a trusted source and are not expired
