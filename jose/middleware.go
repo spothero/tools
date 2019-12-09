@@ -32,6 +32,7 @@ const (
 	authHeaderNotFound   = "no authorization header found"
 	bearerPrefixNotFound = "authorization header did not include bearer prefix"
 	invalidBearerToken   = "bearer token is invalid"
+	noBearerToken        = "no authorization bearer token found"
 )
 
 // GetHTTPMiddleware returns an HTTP middleware function which extracts the Authorization header,
