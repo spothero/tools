@@ -37,7 +37,7 @@ func UnaryServerInterceptor(ctx context.Context, req interface{}, info *grpc.Una
 	ctx = setLogCtx(ctx, info.FullMethod, startTime)
 	requestLogger := Get(ctx)
 	logger := requestLogger.Named("grpc")
-	logger.Info("request received")
+	logger.Debug("request received")
 	newCtx := NewContext(ctx, requestLogger)
 	resp, err := handler(newCtx, req)
 	code := status.Code(err)
@@ -59,7 +59,7 @@ func StreamServerInterceptor(srv interface{}, stream grpc.ServerStream, info *gr
 	ctx := setLogCtx(stream.Context(), info.FullMethod, startTime)
 	requestLogger := Get(ctx)
 	logger := requestLogger.Named("grpc")
-	logger.Info("request received")
+	logger.Debug("request received")
 	newCtx := NewContext(ctx, requestLogger)
 	wrapped := grpc_middleware.WrapServerStream(stream)
 	wrapped.WrappedContext = newCtx

@@ -1,6 +1,4 @@
-// Copyright 2019 SpotHero
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
+// Copyright 2019 SpotHero // // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
@@ -18,6 +16,7 @@ import (
 	"context"
 	"fmt"
 
+	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -112,6 +111,7 @@ func (c Config) InitializeLogger() error {
 	if logger, err = logConfig.Build(c.Options...); err != nil {
 		return fmt.Errorf("error initializing logger - %s", err.Error())
 	}
+	grpc_zap.ReplaceGrpcLoggerV2(logger)
 	return nil
 }
 
