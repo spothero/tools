@@ -57,6 +57,9 @@ type Server struct {
 	preStart      func(ctx context.Context, router *mux.Router, server *http.Server)
 	postShutdown  func(ctx context.Context)
 	cancelSignals []os.Signal
+	tlsEnabled    bool
+	tlsCrtPath    string
+	tlsKeyPath    string
 }
 
 // NewDefaultConfig returns a standard configuration given a server name. It is recommended to
@@ -110,6 +113,9 @@ func (c Config) NewServer() Server {
 		preStart:      c.PreStart,
 		postShutdown:  c.PostShutdown,
 		cancelSignals: c.CancelSignals,
+		tlsEnabled:    c.TLSEnabled,
+		tlsCrtPath:    c.TLSCrtPath,
+		tlsKeyPath:    c.TLSKeyPath,
 	}
 }
 
@@ -131,9 +137,20 @@ func (s Server) Run() {
 	}
 
 	go func() {
-		log.Get(ctx).Info(fmt.Sprintf("HTTP server started on %s", s.httpServer.Addr))
-		if err := s.httpServer.ListenAndServe(); err != nil {
-			log.Get(ctx).Info("HTTP server shutdown", zap.Error(err))
+		var err error
+		if s.tlsEnabled {
+			log.Get(ctx).Info(fmt.Sprintf("HTTPS server started on %s", s.httpServer.Addr))
+			err = s.httpServer.ListenAndServeTLS(s.tlsCrtPath, s.tlsKeyPath)
+		} else {
+			log.Get(ctx).Info(fmt.Sprintf("HTTP server started on %s", s.httpServer.Addr))
+			err = s.httpServer.ListenAndServe()
+		}
+		fmt.Println(err)
+		switch err {
+		case http.ErrServerClosed:
+			log.Get(ctx).Info("http server shutdown", zap.Error(err))
+		default:
+			log.Get(ctx).Error("http server encountered an error and shutdown", zap.Error(err))
 		}
 	}()
 
@@ -147,7 +164,7 @@ func (s Server) Run() {
 	shutdown, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	if err := s.httpServer.Shutdown(shutdown); err != nil {
-		log.Get(shutdown).Error("error shutting down http server", zap.Error(err))
+		log.Get(shutdown).Error("error waiting to shutdown http server", zap.Error(err))
 	}
 
 	// Call any existing post-shutdown callback
