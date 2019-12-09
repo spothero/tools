@@ -145,10 +145,9 @@ func (s Server) Run() {
 			log.Get(ctx).Info(fmt.Sprintf("HTTP server started on %s", s.httpServer.Addr))
 			err = s.httpServer.ListenAndServe()
 		}
-		fmt.Println(err)
 		switch err {
 		case http.ErrServerClosed:
-			log.Get(ctx).Info("http server shutdown", zap.Error(err))
+			log.Get(ctx).Info("http server shutdown")
 		default:
 			log.Get(ctx).Error("http server encountered an error and shutdown", zap.Error(err))
 		}

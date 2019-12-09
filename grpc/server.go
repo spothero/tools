@@ -104,7 +104,6 @@ func (s Server) Run() error {
 	if s.tlsEnabled {
 		cert, err := tls.LoadX509KeyPair(s.tlsCrtPath, s.tlsKeyPath)
 		if err != nil {
-			log.Get(ctx).Error("failed to load tls x509 key pair", zap.Error(err))
 			return fmt.Errorf("failed to load tls x509 key pair: %w", err)
 		}
 		listener, err = tls.Listen(
@@ -113,13 +112,11 @@ func (s Server) Run() error {
 			&tls.Config{Certificates: []tls.Certificate{cert}},
 		)
 		if err != nil {
-			log.Get(ctx).Error("error starting tls grpc server listener", zap.Error(err))
 			return fmt.Errorf("error starting tls grpc server listener: %w", err)
 		}
 	} else {
 		listener, err = net.Listen("tcp", s.listenAddress)
 		if err != nil {
-			log.Get(ctx).Error("error starting grpc server listener", zap.Error(err))
 			return fmt.Errorf("error starting grpc server listener: %w", err)
 		}
 	}
