@@ -73,7 +73,10 @@ func (c Config) ServerCmd(
 	}
 
 	// GRPC Config
-	grpcConfig := shGRPC.NewDefaultConfig(c.Name, newGRPCService(c).ServerRegistration)
+	grpcConfig := shGRPC.Config{}
+	if newGRPCService != nil {
+		grpcConfig = shGRPC.NewDefaultConfig(c.Name, newGRPCService(c).ServerRegistration)
+	}
 	if len(c.CancelSignals) > 0 {
 		grpcConfig.CancelSignals = c.CancelSignals
 		httpConfig.CancelSignals = c.CancelSignals
@@ -151,19 +154,24 @@ func (c Config) ServerCmd(
 				)
 			}
 			var wg sync.WaitGroup
-			wg.Add(2)
-			go func() {
-				defer wg.Done()
-				if err := grpcConfig.NewServer().Run(); err != nil {
-					log.Get(context.Background()).Error("failed to run the grpc server", zap.Error(err))
-				}
-			}()
-			go func() {
-				defer wg.Done()
-				httpService := newHTTPService(c)
-				httpConfig.RegisterHandlers = httpService.RegisterHandlers
-				httpConfig.NewServer().Run()
-			}()
+			if newGRPCService != nil {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					if err := grpcConfig.NewServer().Run(); err != nil {
+						log.Get(context.Background()).Error("failed to run the grpc server", zap.Error(err))
+					}
+				}()
+			}
+			if newHTTPService != nil {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					httpService := newHTTPService(c)
+					httpConfig.RegisterHandlers = httpService.RegisterHandlers
+					httpConfig.NewServer().Run()
+				}()
+			}
 			wg.Wait()
 			return nil
 		},
