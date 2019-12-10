@@ -45,9 +45,10 @@ func configureHub(ctx context.Context, fullMethodName string) context.Context {
 		"grpc.service": path.Dir(fullMethodName)[1:],
 		"grpc.method":  path.Base(fullMethodName),
 	})
-	span := opentracing.SpanFromContext(ctx)
-	if sc, ok := span.Context().(jaeger.SpanContext); ok {
-		hub.Scope().SetTag("correlation_id", sc.TraceID().String())
+	if span := opentracing.SpanFromContext(ctx); span != nil {
+		if sc, ok := span.Context().(jaeger.SpanContext); ok {
+			hub.Scope().SetTag("correlation_id", sc.TraceID().String())
+		}
 	}
 	return sentry.SetHubOnContext(ctx, hub)
 }
