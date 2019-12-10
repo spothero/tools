@@ -37,7 +37,7 @@ func (m Middleware) HTTP(next http.Handler) http.Handler {
 		hub.ConfigureScope(func(scope *sentry.Scope) {
 			span := opentracing.SpanFromContext(r.Context())
 			if sc, ok := span.Context().(jaeger.SpanContext); ok {
-				scope.SetTag("trace_id", sc.TraceID().String())
+				scope.SetTag("correlation_id", sc.TraceID().String())
 			}
 		})
 		ctx := log.NewContext(r.Context(), log.Get(r.Context()).With(Hub(hub)))
