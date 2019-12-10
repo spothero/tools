@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/gorilla/mux"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
@@ -149,17 +150,21 @@ func (c Config) ServerCmd(
 					jose.GetHTTPMiddleware(jh, jc.AuthRequired),
 				)
 			}
+			var wg sync.WaitGroup
+			wg.Add(2)
 			go func() {
+				defer wg.Done()
 				if err := grpcConfig.NewServer().Run(); err != nil {
 					log.Get(context.Background()).Error("failed to run the grpc server", zap.Error(err))
 				}
 			}()
 			go func() {
+				defer wg.Done()
 				httpService := newHTTPService(c)
 				httpConfig.RegisterHandlers = httpService.RegisterHandlers
 				httpConfig.NewServer().Run()
 			}()
-
+			wg.Wait()
 			return nil
 		},
 	}
