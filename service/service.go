@@ -15,26 +15,30 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
+	"github.com/gorilla/mux"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpcot "github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing"
 	grpcprom "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/spf13/cobra"
 	"github.com/spothero/tools/cli"
 	shGRPC "github.com/spothero/tools/grpc"
+	shHTTP "github.com/spothero/tools/http"
 	"github.com/spothero/tools/jose"
 	"github.com/spothero/tools/log"
 	"github.com/spothero/tools/sentry"
 	"github.com/spothero/tools/tracing"
+	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 )
 
-// GRPCConfig contains required configuration for starting a GRPC service
-type GRPCConfig struct {
-	Config
+// HTTPService implementers register HTTP routes with a mux router.
+type HTTPService interface {
+	RegisterHandlers(router *mux.Router)
 }
 
 // GRPCService implementors register GRPC APIs with the GRPC server
@@ -51,41 +55,54 @@ type GRPCService interface {
 // provided as a convenience function that should satisfy most use cases.
 //
 // Note that Version and GitSHA *must be specified* before calling this function.
-func (gc GRPCConfig) ServerCmd(
+func (c Config) ServerCmd(
 	shortDescription, longDescription string,
-	newService func(GRPCConfig) GRPCService,
+	newHTTPService func(Config) HTTPService,
+	newGRPCService func(Config) GRPCService,
 ) *cobra.Command {
+	// HTTP Config
+	httpConfig := shHTTP.NewDefaultConfig(c.Name)
+	httpConfig.PreStart = c.PreStart
+	httpConfig.PostShutdown = c.PostShutdown
+	httpConfig.Middleware = []mux.MiddlewareFunc{
+		tracing.HTTPMiddleware,
+		shHTTP.NewMetrics(c.Registry, true).Middleware,
+		log.HTTPMiddleware,
+		sentry.NewMiddleware().HTTP,
+	}
+
 	// GRPC Config
-	config := shGRPC.NewDefaultConfig(gc.Name, newService(gc).ServerRegistration)
-	if len(gc.CancelSignals) > 0 {
-		config.CancelSignals = gc.CancelSignals
+	grpcConfig := shGRPC.NewDefaultConfig(c.Name, newGRPCService(c).ServerRegistration)
+	if len(c.CancelSignals) > 0 {
+		grpcConfig.CancelSignals = c.CancelSignals
+		httpConfig.CancelSignals = c.CancelSignals
 	}
 	// Logging Config
 	lc := &log.Config{
 		UseDevelopmentLogger: true,
 		Fields: map[string]interface{}{
-			"version": gc.Version,
-			"git_sha": gc.GitSHA[len(gc.GitSHA)-6:], // Log only the last 6 digits of the Git SHA
+			"version": c.Version,
+			"git_sha": c.GitSHA[len(c.GitSHA)-6:], // Log only the last 6 digits of the Git SHA
 		},
 		Cores: []zapcore.Core{&sentry.Core{}},
 	}
 	// Sentry Config
 	sc := sentry.Config{
-		Environment: gc.Environment,
-		AppVersion:  gc.Version,
+		Environment: c.Environment,
+		AppVersion:  c.Version,
 	}
 	// Tracing Config
-	tc := tracing.Config{ServiceName: gc.Name}
+	tc := tracing.Config{ServiceName: c.Name}
 	// Jose Config
 	jc := jose.Config{ClaimGenerators: []jose.ClaimGenerator{jose.CognitoGenerator{}}}
 	cmd := &cobra.Command{
-		Use:              gc.Name,
+		Use:              c.Name,
 		Short:            shortDescription,
 		Long:             longDescription,
-		Version:          fmt.Sprintf("%s (%s)", gc.Version, gc.GitSHA),
-		PersistentPreRun: cli.CobraBindEnvironmentVariables(strings.Replace(gc.Name, "-", "_", -1)),
+		Version:          fmt.Sprintf("%s (%s)", c.Version, c.GitSHA),
+		PersistentPreRun: cli.CobraBindEnvironmentVariables(strings.Replace(c.Name, "-", "_", -1)),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := gc.CheckFlags(); err != nil {
+			if err := c.CheckFlags(); err != nil {
 				return err
 			}
 			if err := lc.InitializeLogger(); err != nil {
@@ -99,13 +116,13 @@ func (gc GRPCConfig) ServerCmd(
 
 			// Ensure that GRPC Interceptors capture histograms
 			grpcprom.EnableHandlingTimeHistogram()
-			config.UnaryInterceptors = []grpc.UnaryServerInterceptor{
+			grpcConfig.UnaryInterceptors = []grpc.UnaryServerInterceptor{
 				grpcot.UnaryServerInterceptor(),
 				tracing.UnaryServerInterceptor,
 				log.UnaryServerInterceptor,
 				grpcprom.UnaryServerInterceptor,
 			}
-			config.StreamInterceptors = []grpc.StreamServerInterceptor{
+			grpcConfig.StreamInterceptors = []grpc.StreamServerInterceptor{
 				grpcot.StreamServerInterceptor(),
 				tracing.StreamServerInterceptor,
 				log.StreamServerInterceptor,
@@ -119,25 +136,38 @@ func (gc GRPCConfig) ServerCmd(
 					return err
 				}
 				joseInterceptorFunc := jose.GetContextAuth(jh, jc.AuthRequired)
-				config.UnaryInterceptors = append(
-					config.UnaryInterceptors,
+				grpcConfig.UnaryInterceptors = append(
+					grpcConfig.UnaryInterceptors,
 					grpcauth.UnaryServerInterceptor(joseInterceptorFunc),
 				)
-				config.StreamInterceptors = append(
-					config.StreamInterceptors,
+				grpcConfig.StreamInterceptors = append(
+					grpcConfig.StreamInterceptors,
 					grpcauth.StreamServerInterceptor(joseInterceptorFunc),
 				)
+				httpConfig.Middleware = append(
+					httpConfig.Middleware,
+					jose.GetHTTPMiddleware(jh, jc.AuthRequired),
+				)
 			}
-			if err := config.NewServer().Run(); err != nil {
-				return fmt.Errorf("failed to run the grpc server: %w", err)
-			}
+			go func() {
+				if err := grpcConfig.NewServer().Run(); err != nil {
+					log.Get(context.Background()).Error("failed to run the grpc server", zap.Error(err))
+				}
+			}()
+			go func() {
+				httpService := newHTTPService(c)
+				httpConfig.RegisterHandlers = httpService.RegisterHandlers
+				httpConfig.NewServer().Run()
+			}()
+
 			return nil
 		},
 	}
 	// Register Cobra/Viper CLI Flags
 	flags := cmd.Flags()
-	gc.RegisterFlags(flags)
-	config.RegisterFlags(flags)
+	c.RegisterFlags(flags)
+	httpConfig.RegisterFlags(flags)
+	grpcConfig.RegisterFlags(flags)
 	lc.RegisterFlags(flags)
 	sc.RegisterFlags(flags)
 	tc.RegisterFlags(flags)
