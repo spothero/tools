@@ -101,23 +101,63 @@ func TestRun(t *testing.T) {
 		postShutdownCalled = true
 	}
 	router := mux.NewRouter()
-
-	s := Server{
-		httpServer: &http.Server{
-			Addr:    "tcp://127.0.0.1:0",
-			Handler: router,
+	tests := []struct {
+		name   string
+		server Server
+	}{
+		{
+			"an invalid tcp binding results in an error",
+			Server{
+				httpServer: &http.Server{
+					Addr:    "127.0.0.1:-1",
+					Handler: router,
+				},
+				router:        router,
+				preStart:      mockPreStart,
+				postShutdown:  mockPostShutdown,
+				cancelSignals: []os.Signal{syscall.SIGUSR1},
+			},
 		},
-		router:        router,
-		preStart:      mockPreStart,
-		postShutdown:  mockPostShutdown,
-		cancelSignals: []os.Signal{syscall.SIGUSR1},
+		{
+			"http servers bind with valid settings",
+			Server{
+				httpServer: &http.Server{
+					Addr:    "127.0.0.1:60987",
+					Handler: router,
+				},
+				router:        router,
+				preStart:      mockPreStart,
+				postShutdown:  mockPostShutdown,
+				cancelSignals: []os.Signal{syscall.SIGUSR1},
+			},
+		},
+		{
+			"https/tls servers bind with valid settings",
+			Server{
+				httpServer: &http.Server{
+					Addr:    "127.0.0.1:60987",
+					Handler: router,
+				},
+				router:        router,
+				preStart:      mockPreStart,
+				postShutdown:  mockPostShutdown,
+				cancelSignals: []os.Signal{syscall.SIGUSR1},
+				tlsEnabled:    true,
+				tlsCrtPath:    "testdata/fake-crt.pem",
+				tlsKeyPath:    "testdata/fake-key.pem",
+			},
+		},
 	}
-	timer := time.NewTimer(10 * time.Millisecond)
-	go func() {
-		<-timer.C
-		assert.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGUSR1))
-	}()
-	s.Run()
-	assert.True(t, preStartCalled)
-	assert.True(t, postShutdownCalled)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			timer := time.NewTimer(20 * time.Millisecond)
+			go func() {
+				<-timer.C
+				assert.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGUSR1))
+			}()
+			test.server.Run()
+			assert.True(t, preStartCalled)
+			assert.True(t, postShutdownCalled)
+		})
+	}
 }

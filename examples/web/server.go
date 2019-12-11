@@ -23,6 +23,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/spothero/tools/log"
 	"github.com/spothero/tools/service"
+	"google.golang.org/grpc"
 )
 
 // These variables should be set during build with the Go link tool
@@ -34,12 +35,18 @@ type handler struct {
 	environment string
 }
 
-// registerHandlers is a callback used to register HTTP endpoints to the default server
+// RegisterHandlers is a callback used to register HTTP endpoints to the default server
 // NOTE: The HTTP server automatically registers /health and /metrics -- Have a look in your
 // browser!
 func (h handler) RegisterHandlers(router *mux.Router) {
 	router.HandleFunc("/", h.helloWorld)
 	router.HandleFunc("/best-language", bestLanguage)
+}
+
+// RegisterAPIs is a callback used to register GRPC endpoints to the default server.
+// The handler is empty since we are not registering any GRPC APIs in this example.
+func (h handler) RegisterAPIs(server *grpc.Server) {
+
 }
 
 // helloWorld simply writes "hello world" to the caller. It is ended for use as an HTTP callback.
@@ -77,18 +84,16 @@ func bestLanguage(w http.ResponseWriter, r *http.Request) {
 
 // This is the main entrypoint of the program. Here we create our root command and then execute it.
 func main() {
-	serverCmd := service.HTTPConfig{
-		Config: service.Config{
-			Name:        "example_server",
-			Version:     version,
-			GitSHA:      gitSHA,
-			Environment: "local",
-		},
+	serverCmd := service.Config{
+		Name:        "example_server",
+		Version:     version,
+		GitSHA:      gitSHA,
+		Environment: "local",
 	}
-	if err := serverCmd.ServerCmd("", "", func(hc service.HTTPConfig) service.HTTPService {
-		return handler{
-			environment: hc.Environment,
-		}
+	if err := serverCmd.ServerCmd("", "", func(c service.Config) service.HTTPService {
+		return handler{environment: c.Environment}
+	}, func(c service.Config) service.GRPCService {
+		return handler{environment: c.Environment}
 	}).Execute(); err != nil {
 		os.Exit(1)
 	}

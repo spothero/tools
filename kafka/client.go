@@ -18,6 +18,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"io/ioutil"
 	"reflect"
 	"strings"
@@ -30,7 +31,6 @@ import (
 	"github.com/spothero/tools/log"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"golang.org/x/xerrors"
 )
 
 // ClientConfig contains connection settings and configuration for communicating with a Kafka cluster
@@ -78,7 +78,7 @@ func (c ClientConfig) NewClient(ctx context.Context) (Client, error) {
 	if c.Verbose {
 		saramaLogger, err := zap.NewStdLogAt(log.Get(ctx).Named("sarama"), zapcore.InfoLevel)
 		if err != nil {
-			return Client{}, xerrors.Errorf("verbose was requested but failed to create zap standard logger: %w", err)
+			return Client{}, fmt.Errorf("verbose was requested but failed to create zap standard logger: %w", err)
 		}
 		sarama.Logger = saramaLogger
 	}
@@ -96,7 +96,7 @@ func (c ClientConfig) NewClient(ctx context.Context) (Client, error) {
 	if c.TLSCrtPath != "" && c.TLSKeyPath != "" {
 		cer, err := tls.LoadX509KeyPair(c.TLSCrtPath, c.TLSKeyPath)
 		if err != nil {
-			return Client{}, xerrors.Errorf("failed to load Kafka server TLS key pair: %w", err)
+			return Client{}, fmt.Errorf("failed to load Kafka server TLS key pair: %w", err)
 		}
 		kafkaConfig.Net.TLS.Config = &tls.Config{
 			Certificates:       []tls.Certificate{cer},
@@ -108,7 +108,7 @@ func (c ClientConfig) NewClient(ctx context.Context) (Client, error) {
 		if c.TLSCaCrtPath != "" {
 			caCert, err := ioutil.ReadFile(c.TLSCaCrtPath)
 			if err != nil {
-				return Client{}, xerrors.Errorf("failed to load Kafka server CA certificate: %w", err)
+				return Client{}, fmt.Errorf("failed to load Kafka server CA certificate: %w", err)
 			}
 			if len(caCert) > 0 {
 				caCertPool := x509.NewCertPool()
@@ -121,7 +121,7 @@ func (c ClientConfig) NewClient(ctx context.Context) (Client, error) {
 
 	saramaClient, err := sarama.NewClient([]string{c.Broker}, kafkaConfig)
 	if err != nil {
-		return Client{}, xerrors.Errorf("failed to create Kafka client: %w", err)
+		return Client{}, fmt.Errorf("failed to create Kafka client: %w", err)
 	}
 
 	// Export metrics from Sarama's metrics registry to Prometheus

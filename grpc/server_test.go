@@ -102,15 +102,51 @@ func TestRun(t *testing.T) {
 			"a valid tcp binding does not result in an error",
 			Server{
 				server:        grpc.NewServer(),
-				listenAddress: "127.0.0.1:9111",
+				listenAddress: "127.0.0.1:60123",
 				cancelSignals: []os.Signal{syscall.SIGUSR1},
+			},
+			false,
+		},
+		{
+			"missing or in valid tls certificates result in an error",
+			Server{
+				server:        grpc.NewServer(),
+				listenAddress: "127.0.0.1:60123",
+				cancelSignals: []os.Signal{syscall.SIGUSR1},
+				tlsEnabled:    true,
+				tlsCrtPath:    "testdata/does-not-exist-crt.pem",
+				tlsKeyPath:    "testdata/fake-key.pem",
+			},
+			true,
+		},
+		{
+			"an invalid tcp binding with tls server results in an error",
+			Server{
+				server:        grpc.NewServer(),
+				listenAddress: "127.0.0.1:-1",
+				cancelSignals: []os.Signal{syscall.SIGUSR1},
+				tlsEnabled:    true,
+				tlsCrtPath:    "testdata/fake-crt.pem",
+				tlsKeyPath:    "testdata/fake-key.pem",
+			},
+			true,
+		},
+		{
+			"valid tls certificates are loaded",
+			Server{
+				server:        grpc.NewServer(),
+				listenAddress: "127.0.0.1:60123",
+				cancelSignals: []os.Signal{syscall.SIGUSR1},
+				tlsEnabled:    true,
+				tlsCrtPath:    "testdata/fake-crt.pem",
+				tlsKeyPath:    "testdata/fake-key.pem",
 			},
 			false,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			timer := time.NewTimer(10 * time.Millisecond)
+			timer := time.NewTimer(20 * time.Millisecond)
 			go func() {
 				<-timer.C
 				assert.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGUSR1))

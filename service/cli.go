@@ -14,22 +14,27 @@
 package service
 
 import (
+	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 
+	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/pflag"
 )
 
 // Config defines service level configuration for HTTP servers
 type Config struct {
-	Name          string                // Name of the application
-	Environment   string                // Environment where the server is running
-	Version       string                // Semantic Version of the application
-	GitSHA        string                // GitSHA of the application when compiled
-	Registry      prometheus.Registerer // The Prometheus Registry to use. If nil, the global registry is used by default.
-	CancelSignals []os.Signal           // OS Signals to be used to cancel running servers. Defaults to SIGINT/`os.Interrupt`.
+	Name             string                                                             // Name of the application
+	Environment      string                                                             // Environment where the server is running
+	Version          string                                                             // Semantic Version of the application
+	GitSHA           string                                                             // GitSHA of the application when compiled
+	Registry         prometheus.Registerer                                              // The Prometheus Registry to use. If nil, the global registry is used by default.
+	CancelSignals    []os.Signal                                                        // OS Signals to be used to cancel running servers. Defaults to SIGINT/`os.Interrupt`.
+	PreStartHTTP     func(ctx context.Context, router *mux.Router, server *http.Server) // A function to be called before starting the HTTP web server
+	PostShutdownHTTP func(ctx context.Context)                                          // A function to be called before stopping the HTTP web server
 }
 
 // RegisterFlags registers Service flags with pflags
