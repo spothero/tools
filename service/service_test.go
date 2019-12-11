@@ -35,7 +35,7 @@ type mockGRPCService struct{}
 
 func (ms mockGRPCService) RegisterAPIs(*grpc.Server) {}
 
-func TestDefaultGRPCServer(t *testing.T) {
+func TestDefaultServer(t *testing.T) {
 	c := Config{
 		Name:          "test",
 		Environment:   "test",
