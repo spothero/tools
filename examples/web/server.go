@@ -43,9 +43,9 @@ func (h handler) RegisterHandlers(router *mux.Router) {
 	router.HandleFunc("/best-language", bestLanguage)
 }
 
-// ServerRegistration is a callback used to register GRPC endpoints to the default server.
+// RegisterAPIs is a callback used to register GRPC endpoints to the default server.
 // The handler is empty since we are not registering any GRPC APIs in this example.
-func (h handler) ServerRegistration(server *grpc.Server) {
+func (h handler) RegisterAPIs(server *grpc.Server) {
 
 }
 

@@ -33,7 +33,7 @@ func (ms mockHTTPService) RegisterHandlers(_ *mux.Router) {}
 
 type mockGRPCService struct{}
 
-func (ms mockGRPCService) ServerRegistration(*grpc.Server) {}
+func (ms mockGRPCService) RegisterAPIs(*grpc.Server) {}
 
 func TestDefaultGRPCServer(t *testing.T) {
 	c := Config{

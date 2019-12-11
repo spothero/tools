@@ -44,16 +44,18 @@ type HTTPService interface {
 
 // GRPCService implementors register GRPC APIs with the GRPC server
 type GRPCService interface {
-	ServerRegistration(*grpc.Server)
+	RegisterAPIs(*grpc.Server)
 }
 
-// This method takes a function, newService, that instantiates the GRPCService by consuming
-// the GRPCConfig object after all values are populated from the CLI and/or environment
-// variables so that values configured by this package are accessible by newService.
+// ServerCmd takes functions, newHTTPService and newGRPCService, that instantiate
+// the GRPCService and HTTPService by consuming the Config object after all values
+// are populated from the CLI and/or environment variables so that values configured
+// by this package are accessible by newService.
 //
-// Note that this function returns the Default GRPC server for use at SpotHero. Consumers of the
-// tools libraries are free to define their own server entrypoints if desired. This function is
-// provided as a convenience function that should satisfy most use cases.
+// Note that this function creates the default server configuration (grpc and http)
+// for use at SpotHero. Consumers of the tools libraries are free to define their
+// own server entrypoints if desired. This function is provided as a convenience
+// function that should satisfy most use cases.
 //
 // Note that Version and GitSHA *must be specified* before calling this function.
 func (c Config) ServerCmd(
@@ -63,8 +65,8 @@ func (c Config) ServerCmd(
 ) *cobra.Command {
 	// HTTP Config
 	httpConfig := shHTTP.NewDefaultConfig(c.Name)
-	httpConfig.PreStart = c.PreStart
-	httpConfig.PostShutdown = c.PostShutdown
+	httpConfig.PreStart = c.PreStartHTTP
+	httpConfig.PostShutdown = c.PostShutdownHTTP
 	httpConfig.Middleware = []mux.MiddlewareFunc{
 		tracing.HTTPMiddleware,
 		shHTTP.NewMetrics(c.Registry, true).Middleware,
@@ -75,7 +77,7 @@ func (c Config) ServerCmd(
 	// GRPC Config
 	grpcConfig := shGRPC.Config{}
 	if newGRPCService != nil {
-		grpcConfig = shGRPC.NewDefaultConfig(c.Name, newGRPCService(c).ServerRegistration)
+		grpcConfig = shGRPC.NewDefaultConfig(c.Name, newGRPCService(c).RegisterAPIs)
 	}
 	if len(c.CancelSignals) > 0 {
 		grpcConfig.CancelSignals = c.CancelSignals
