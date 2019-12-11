@@ -127,12 +127,14 @@ func (c Config) ServerCmd(
 				tracing.UnaryServerInterceptor,
 				log.UnaryServerInterceptor,
 				grpcprom.UnaryServerInterceptor,
+				sentry.UnaryServerInterceptor,
 			}
 			grpcConfig.StreamInterceptors = []grpc.StreamServerInterceptor{
 				grpcot.StreamServerInterceptor(),
 				tracing.StreamServerInterceptor,
 				log.StreamServerInterceptor,
 				grpcprom.StreamServerInterceptor,
+				sentry.StreamServerInterceptor,
 			}
 
 			// If the user has requested JOSE Auth, add JOSE Auth interceptors
