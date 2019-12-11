@@ -22,7 +22,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/opentracing/opentracing-go"
 	"github.com/spothero/tools/log"
-	"github.com/spothero/tools/service"
 	"google.golang.org/grpc"
 )
 
@@ -84,15 +83,15 @@ func bestLanguage(w http.ResponseWriter, r *http.Request) {
 
 // This is the main entrypoint of the program. Here we create our root command and then execute it.
 func main() {
-	serverCmd := service.Config{
+	serverCmd := Config{
 		Name:        "example_server",
 		Version:     version,
 		GitSHA:      gitSHA,
 		Environment: "local",
 	}
-	if err := serverCmd.ServerCmd("", "", func(c service.Config) service.HTTPService {
+	if err := serverCmd.ServerCmd("", "", func(c Config) HTTPService {
 		return handler{environment: c.Environment}
-	}, func(c service.Config) service.GRPCService {
+	}, func(c Config) GRPCService {
 		return handler{environment: c.Environment}
 	}).Execute(); err != nil {
 		os.Exit(1)

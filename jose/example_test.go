@@ -19,12 +19,11 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/spothero/tools/jose"
 )
 
 func main() {
 	jwt := ""
-	c := jose.Config{}
+	c := Config{}
 	cmd := &cobra.Command{
 		Use:   "jose",
 		Short: "jose test app",
@@ -41,12 +40,12 @@ func main() {
 	}
 }
 
-func test(c jose.Config, jwt string) {
+func test(c Config, jwt string) {
 	if len(jwt) == 0 {
 		fmt.Printf("failed to supply jwt")
 		os.Exit(1)
 	}
-	c.ClaimGenerators = []jose.ClaimGenerator{jose.CognitoGenerator{}}
+	c.ClaimGenerators = []ClaimGenerator{CognitoGenerator{}}
 	client, err := c.NewJOSE()
 	if err != nil {
 		fmt.Println(err)
