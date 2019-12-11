@@ -10,7 +10,7 @@ build: example-server jwt-cli ## Builds the project
 
 .PHONY: example-server
 example-server: ## Builds an example server
-	go build -ldflags="-X main.version=${VERSION} -X main.gitSHA=${GIT_SHA}" -o example-server examples/http/server.go
+	go build -ldflags="-X main.version=${VERSION} -X main.gitSHA=${GIT_SHA}" -o example-server examples/web/server.go
 
 .PHONY: jwt-cli
 jwt-cli: ## Builds a jwt cli

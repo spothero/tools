@@ -32,7 +32,9 @@ func makeLoggerObservable(t *testing.T, level zapcore.Level) *observer.ObservedL
 	c := &Config{Cores: []zapcore.Core{core}}
 	err := c.InitializeLogger()
 	require.NoError(t, err)
+	loggerMutex.Lock()
 	logger = zap.New(core)
+	loggerMutex.Unlock()
 	return recordedLogs
 }
 

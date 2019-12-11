@@ -16,10 +16,10 @@ package jose
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/xerrors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -107,7 +107,7 @@ func TestGetContextAuth(t *testing.T) {
 
 			var parseErr error
 			if test.parseJWTError {
-				parseErr = xerrors.Errorf("a jwt parsing error occurred in this test")
+				parseErr = fmt.Errorf("a jwt parsing error occurred in this test")
 			}
 			handler.On(
 				"ParseValidateJWT",

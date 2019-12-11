@@ -17,6 +17,7 @@ package log
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	"github.com/prometheus/client_golang/prometheus"
@@ -32,6 +33,9 @@ const logKey ctxKey = iota
 
 // logger is the default zap logger
 var logger = zap.NewNop()
+
+// loggerMutex protects the logger from change by multiple threads
+var loggerMutex = &sync.Mutex{}
 
 // Config defines the necessary configuration for instantiating a Logger
 type Config struct {
@@ -110,6 +114,8 @@ func (c Config) InitializeLogger() error {
 		}))
 	}
 	c.Options = append(c.Options, zap.Hooks(metricsHook(c.counter)))
+	loggerMutex.Lock()
+	defer loggerMutex.Unlock()
 	if logger, err = logConfig.Build(c.Options...); err != nil {
 		return fmt.Errorf("error initializing logger - %s", err.Error())
 	}

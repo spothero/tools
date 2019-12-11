@@ -16,6 +16,7 @@ package grpc
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"os"
@@ -43,9 +44,12 @@ type Config struct {
 
 // Server contains the configured GRPC server and related components
 type Server struct {
-	server        *grpc.Server
-	listenAddress string
-	cancelSignals []os.Signal // OS Signals to be used to cancel running servers. Defaults to SIGINT/`os.Interrupt`.
+	server        *grpc.Server // The the GRPC Server
+	listenAddress string       // The address the server should bind to
+	cancelSignals []os.Signal  // OS Signals to be used to cancel running servers. Defaults to SIGINT/`os.Interrupt`.
+	tlsEnabled    bool         // Whether or not traffic should be served via HTTPS
+	tlsCrtPath    string       // Location of TLS Certificate
+	tlsKeyPath    string       // Location of TLS Key
 }
 
 // NewDefaultConfig returns a default GRPC server config object. The caller must still supply the
@@ -84,6 +88,9 @@ func (c Config) NewServer() Server {
 	return Server{
 		server:        server,
 		listenAddress: fmt.Sprintf("%s:%d", c.Address, c.Port),
+		tlsEnabled:    c.TLSEnabled,
+		tlsCrtPath:    c.TLSCrtPath,
+		tlsKeyPath:    c.TLSKeyPath,
 	}
 }
 
@@ -92,14 +99,33 @@ func (c Config) NewServer() Server {
 // configured cancel signals is received.
 func (s Server) Run() error {
 	ctx := context.Background()
-	listener, err := net.Listen("tcp", s.listenAddress)
-	if err != nil {
-		log.Get(ctx).Error("error starting grpc server listener", zap.Error(err))
-		return err
+	var listener net.Listener
+	var err error
+	if s.tlsEnabled {
+		cert, err := tls.LoadX509KeyPair(s.tlsCrtPath, s.tlsKeyPath)
+		if err != nil {
+			return fmt.Errorf("failed to load tls x509 key pair: %w", err)
+		}
+		listener, err = tls.Listen(
+			"tcp",
+			s.listenAddress,
+			&tls.Config{Certificates: []tls.Certificate{cert}},
+		)
+		if err != nil {
+			return fmt.Errorf("error starting tls grpc server listener: %w", err)
+		}
+	} else {
+		listener, err = net.Listen("tcp", s.listenAddress)
+		if err != nil {
+			return fmt.Errorf("error starting grpc server listener: %w", err)
+		}
 	}
 	go func() {
 		log.Get(ctx).Info(fmt.Sprintf("grpc server started on %s", s.listenAddress))
-		if err := s.server.Serve(listener); err != nil {
+		err := s.server.Serve(listener)
+		if err != nil {
+			log.Get(ctx).Error("error encountered in grpc server", zap.Error(err))
+		} else {
 			log.Get(ctx).Info("grpc server shutdown", zap.Error(err))
 		}
 	}()

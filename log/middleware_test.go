@@ -50,7 +50,6 @@ func TestHTTPMiddleware(t *testing.T) {
 	for idx, field := range currLogs[0].Context {
 		foundLogKeysRequest[idx] = field.Key
 	}
-	fmt.Println(foundLogKeysRequest)
 	assert.ElementsMatch(t, []string{"http_method", "path", "query_string"}, foundLogKeysRequest)
 
 	// Test that response parameters are appropriately logged to our standards
