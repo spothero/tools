@@ -35,9 +35,10 @@ func (m Middleware) HTTP(next http.Handler) http.Handler {
 	return m.sentryHandler.HandleFunc(func(w http.ResponseWriter, r *http.Request) {
 		hub := sentry.GetHubFromContext(r.Context())
 		hub.ConfigureScope(func(scope *sentry.Scope) {
-			span := opentracing.SpanFromContext(r.Context())
-			if sc, ok := span.Context().(jaeger.SpanContext); ok {
-				scope.SetTag("trace_id", sc.TraceID().String())
+			if span := opentracing.SpanFromContext(r.Context()); span != nil {
+				if sc, ok := span.Context().(jaeger.SpanContext); ok {
+					scope.SetTag("correlation_id", sc.TraceID().String())
+				}
 			}
 		})
 		ctx := log.NewContext(r.Context(), log.Get(r.Context()).With(Hub(hub)))
