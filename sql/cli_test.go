@@ -20,6 +20,7 @@ import (
 
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPostgresConfigRegisterFlags(t *testing.T) {
@@ -73,4 +74,32 @@ func TestPostgresConfigRegisterFlags(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 0*time.Second, mf)
 
+}
+
+func TestMySQLConfig_RegisterFlags(t *testing.T) {
+	flags := pflag.NewFlagSet("pflags", pflag.PanicOnError)
+	m := MySQLConfig{}
+	m.RegisterFlags(flags)
+	err := flags.Parse([]string{
+		"--mysql-address", "address",
+		"--mysql-database", "database",
+		"--mysql-user", "user",
+		"--mysql-password", "password",
+		"--mysql-net", "net",
+		"--mysql-dial-timeout", "12s",
+		"--mysql-read-timeout", "34s",
+		"--mysql-write-timeout", "56s",
+		"--mysql-ca-cert-path", "/path/to/the/ca.pem",
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, m.Addr, "address")
+	assert.Equal(t, m.DBName, "database")
+	assert.Equal(t, m.User, "user")
+	assert.Equal(t, m.Passwd, "password")
+	assert.Equal(t, m.Net, "net")
+	assert.Equal(t, m.Timeout, 12*time.Second)
+	assert.Equal(t, m.ReadTimeout, 34*time.Second)
+	assert.Equal(t, m.WriteTimeout, 56*time.Second)
+	assert.Equal(t, m.CACertPath, "/path/to/the/ca.pem")
 }
