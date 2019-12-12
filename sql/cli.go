@@ -18,7 +18,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// RegisterFlags registers SQL flags with pflags
+// RegisterFlags registers PostgreSQL flags with pflags
 func (pc *PostgresConfig) RegisterFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&pc.Host, "pg-host", pc.Host, "Postgres Host Address")
 	flags.Uint16Var(&pc.Port, "pg-port", pc.Port, "Postgres Port")
@@ -31,4 +31,17 @@ func (pc *PostgresConfig) RegisterFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&pc.SSLKey, "pg-ssl-key", pc.SSLKey, "Path of the Postgres SSL Key on disk")
 	flags.StringVar(&pc.SSLRootCert, "pg-ssl-root-cert", pc.SSLRootCert, "Path of the Postgres SSL Root Cert on disk")
 	flags.DurationVar(&pc.MetricsFrequency, "pg-metrics-frequency", pc.MetricsFrequency, "Postgres metrics export frequency")
+}
+
+// RegisterFlags registers MySQL flags with pflags
+func (c *MySQLConfig) RegisterFlags(flags *pflag.FlagSet) {
+	flags.StringVar(&c.Addr, "mysql-address", c.Addr, "MySQL address")
+	flags.StringVar(&c.DBName, "mysql-database", c.DBName, "MySQL database name")
+	flags.StringVar(&c.User, "mysql-user", c.User, "MySQL username")
+	flags.StringVar(&c.Passwd, "mysql-password", c.Passwd, "MySQL password")
+	flags.StringVar(&c.Net, "mysql-net", "tcp", "MySQL network connection type")
+	flags.DurationVar(&c.Timeout, "mysql-dial-timeout", c.Timeout, "MySQL dial timeout")
+	flags.DurationVar(&c.ReadTimeout, "mysql-read-timeout", c.ReadTimeout, "MySQL I/O read timeout")
+	flags.DurationVar(&c.WriteTimeout, "mysql-write-timeout", c.WriteTimeout, "MySQL I/O write timeout")
+	flags.StringVar(&c.CACertPath, "mysql-ca-cert-path", "", "Path to the CA cert for the MySQL server")
 }
