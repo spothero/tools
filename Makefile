@@ -5,19 +5,8 @@ LINTER_INSTALLED := $(shell sh -c 'which golangci-lint')
 .PHONY: all
 all: lint test ## Lints and runs the tests
 
-.PHONY: build
-build: example-server jwt-cli ## Builds the project
-
-.PHONY: example-server
-example-server: ## Builds an example server
-	go build -ldflags="-X main.version=${VERSION} -X main.gitSHA=${GIT_SHA}" -o example-server examples/web/server.go
-
-.PHONY: jwt-cli
-jwt-cli: ## Builds a jwt cli
-	go build -ldflags="-X main.version=${VERSION} -X main.gitSHA=${GIT_SHA}" -o jwt-cli examples/jose/jwt.go
-
 .PHONY: test
-test: build ## Runs application tests
+test: ## Runs application tests
 	go test -race -v ./... -coverprofile=coverage.txt -covermode=atomic
 
 .PHONY: coverage
