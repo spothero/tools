@@ -195,39 +195,6 @@ func TestWrite(t *testing.T) {
 	}
 }
 
-func TestSync(t *testing.T) {
-	originalHub := sentry.CurrentHub().Clone()
-	transportMock := TransportMock{}
-	tests := []struct {
-		name      string
-		hub       *sentry.Hub
-		expectErr bool
-	}{
-		{
-			"testing with an unconfigured client fails",
-			originalHub,
-			true,
-		},
-		{
-			"testing with a mock client fails",
-			sentry.NewHub(&sentry.Client{Transport: transportMock}, &sentry.Scope{}),
-			false,
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			//ref := sentry.CurrentHub()
-			//*ref = *test.hub
-			if test.expectErr {
-				assert.Error(t, (&Core{}).Sync())
-			} else {
-				assert.NoError(t, (&Core{}).Sync())
-			}
-			//*ref = *originalHub
-		})
-	}
-}
-
 func TestHub(t *testing.T) {
 	assert.Equal(
 		t,
