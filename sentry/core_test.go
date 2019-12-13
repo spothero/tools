@@ -190,10 +190,7 @@ func TestWrite(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			//ref := sentry.CurrentHub()
-			//*ref = *test.hub
 			assert.NoError(t, test.core.Write(test.entry, test.fields))
-			//*ref = *originalHub
 		})
 	}
 }
@@ -219,14 +216,14 @@ func TestSync(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			ref := sentry.CurrentHub()
-			*ref = *test.hub
+			//ref := sentry.CurrentHub()
+			//*ref = *test.hub
 			if test.expectErr {
 				assert.Error(t, (&Core{}).Sync())
 			} else {
 				assert.NoError(t, (&Core{}).Sync())
 			}
-			*ref = *originalHub
+			//*ref = *originalHub
 		})
 	}
 }
