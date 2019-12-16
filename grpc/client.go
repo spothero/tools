@@ -15,11 +15,14 @@
 package grpc
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware"
+	grpczap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	grpcot "github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing"
 	grpcprom "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/spothero/tools/log"
 	"github.com/spothero/tools/tracing"
 	"google.golang.org/grpc"
 )
@@ -32,7 +35,7 @@ type ClientConfig struct {
 }
 
 // NewDefaultClientConfig returns the default SpotHero GRPC Client Configuration
-func NewDefaultClientConfig() ClientConfig {
+func NewDefaultClientConfig(ctx context.Context) ClientConfig {
 	grpcprom.EnableClientHandlingTimeHistogram()
 	grpcprom.EnableClientStreamReceiveTimeHistogram()
 	grpcprom.EnableClientStreamSendTimeHistogram()
@@ -45,7 +48,7 @@ func NewDefaultClientConfig() ClientConfig {
 				grpc_middleware.ChainUnaryClient(
 					grpcot.UnaryClientInterceptor(),
 					tracing.UnaryClientInterceptor,
-					// TODO: Custom Logger
+					grpczap.UnaryClientInterceptor(log.Get(ctx)),
 					grpcprom.UnaryClientInterceptor,
 					// TODO: Sentry
 					// TODO: Auth header passer?
@@ -56,7 +59,7 @@ func NewDefaultClientConfig() ClientConfig {
 				grpc_middleware.ChainStreamClient(
 					grpcot.StreamClientInterceptor(),
 					tracing.StreamClientInterceptor,
-					// TODO: Custom Logger
+					grpczap.StreamClientInterceptor(log.Get(ctx)),
 					grpcprom.StreamClientInterceptor,
 					// TODO: Sentry
 					// TODO: Auth header passer?

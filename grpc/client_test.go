@@ -13,3 +13,25 @@
 // limitations under the License.
 
 package grpc
+
+import (
+	"context"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
+)
+
+func TestNewDefaultClientConfig(t *testing.T) {
+	cc := NewDefaultClientConfig(context.Background())
+	assert.Equal(t, "localhost", cc.Address)
+	assert.Equal(t, uint16(9111), cc.Port)
+	assert.NotNil(t, cc.Options)
+}
+
+func TestGetConn(t *testing.T) {
+	conn, err := ClientConfig{Options: []grpc.DialOption{grpc.WithInsecure()}}.GetConn()
+	assert.NoError(t, err)
+	assert.NotNil(t, conn)
+	conn.Close()
+}

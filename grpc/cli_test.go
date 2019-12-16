@@ -15,6 +15,7 @@
 package grpc
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -64,7 +65,7 @@ func TestClientRegisterFlags(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			flags := pflag.NewFlagSet("pflags", pflag.PanicOnError)
-			cc := NewDefaultClientConfig()
+			cc := NewDefaultClientConfig(context.Background())
 
 			if test.expectPanic {
 				assert.Panics(t, func() {
@@ -85,11 +86,4 @@ func TestClientRegisterFlags(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestGetConn(t *testing.T) {
-	conn, err := NewDefaultClientConfig().GetConn()
-	assert.NoError(t, err)
-	assert.NotNil(t, conn)
-	conn.Close()
 }
