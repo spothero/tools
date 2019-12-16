@@ -15,6 +15,7 @@
 package service_test
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -59,7 +60,7 @@ func Example() {
 
 	// Using the config, create the cobra command by passing in an HTTP and GRPC registration
 	// callback function
-	_ = config.ServerCmd("", "", func(c service.Config) service.HTTPService {
+	_ = config.ServerCmd(context.Background(), "", "", func(c service.Config) service.HTTPService {
 		return handler{environment: c.Environment}
 	}, func(c service.Config) service.GRPCService {
 		return handler{environment: c.Environment}

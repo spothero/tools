@@ -15,6 +15,7 @@
 package service
 
 import (
+	"context"
 	"os"
 	"strings"
 	"syscall"
@@ -24,6 +25,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
 )
 
@@ -35,7 +37,20 @@ type mockGRPCService struct{}
 
 func (ms mockGRPCService) RegisterAPIs(*grpc.Server) {}
 
+type prePost struct {
+	mock.Mock
+}
+
+func (p *prePost) preStart(context.Context) error {
+	return p.Called().Error(0)
+}
+
+func (p *prePost) postShutdown(context.Context) error {
+	return p.Called().Error(0)
+}
+
 func TestDefaultServer(t *testing.T) {
+	mockPrePost := prePost{}
 	c := Config{
 		Name:          "test",
 		Environment:   "test",
@@ -43,8 +58,11 @@ func TestDefaultServer(t *testing.T) {
 		Version:       "0.1.0",
 		GitSHA:        "abc123",
 		CancelSignals: []os.Signal{syscall.SIGUSR1},
+		PreStart:      mockPrePost.preStart,
+		PostShutdown:  mockPrePost.postShutdown,
 	}
 	cmd := c.ServerCmd(
+		context.Background(),
 		"short",
 		"long",
 		func(Config) HTTPService { return mockHTTPService{} },
@@ -59,12 +77,18 @@ func TestDefaultServer(t *testing.T) {
 	assert.NotNil(t, cmd.PersistentPreRun)
 	assert.NotNil(t, cmd.RunE)
 	assert.True(t, cmd.Flags().HasFlags())
+	mockPrePost.On("preStart").Return(nil)
+	mockPrePost.On("postShutdown").Return(nil)
+	defer mockPrePost.AssertExpectations(t)
 
-	timer := time.NewTimer(100 * time.Millisecond)
+	done := make(chan bool)
 	go func() {
-		<-timer.C
-		assert.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGUSR1))
+		err := cmd.Execute()
+		assert.NoError(t, err)
+		close(done)
 	}()
-	err := cmd.Execute()
-	assert.NoError(t, err)
+	timer := time.NewTimer(100 * time.Millisecond)
+	<-timer.C
+	assert.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGUSR1))
+	<-done
 }
