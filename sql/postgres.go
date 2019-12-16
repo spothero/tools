@@ -16,7 +16,7 @@ package sql
 
 import (
 	"context"
-	goSQL "database/sql"
+	"database/sql"
 	"fmt"
 	"strconv"
 	"strings"
@@ -25,50 +25,41 @@ import (
 	"github.com/gchaincl/sqlhooks"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spothero/tools/log"
-	"github.com/spothero/tools/sql/middleware"
 	"go.uber.org/zap"
 )
 
-// pgDriverName is the name used to register the wrapped postgres SQL Driver with sql interface
-var pgDriverName = "instrumentedPostgres"
-
-// pgWrapped keeps track of whether or not the postgres client has already been wrapped
-var pgWrapped = false
-
-// defaultTimeout defines the default timeout for SQL connections to be established
-const defaultTimeout = 5 * time.Second
-
-// defaultMetricsFrequency defines the default core SQL metrics scrape frequency
-const defaultMetricsFrequency = 5 * time.Second
+const (
+	// If no override option is provided, this is the name of the wrapped Postgres driver that will be
+	// registered when calling PostgresConfig.Connect.
+	DefaultWrappedPgDriverName = "instrumentedPostgres"
+	// defaultTimeout defines the default timeout for SQL connections to be established
+	defaultTimeout = 5 * time.Second
+)
 
 // PostgresConfig defines Postgres SQL connection information
 type PostgresConfig struct {
-	ApplicationName  string                // The name of the application connecting. Useful for attributing db load.
-	Host             string                // The host where the database is located
-	Port             uint16                // The port on which the database is listening
-	Username         string                // The username for the database
-	Password         string                // The password for the database
-	Database         string                // The name of the database
-	ConnectTimeout   time.Duration         // Amount of time to wait before timing out
-	SSL              bool                  // If true, connect to the database with SSL
-	SSLCert          string                // Path to the SSL Certificate, if any
-	SSLKey           string                // Path to the SSL Key, if any
-	SSLRootCert      string                // Path to the SSL Root Certificate, if any
-	MetricsFrequency time.Duration         // How often to export core database metrics
-	Middleware       middleware.Middleware // List of SQL Middlewares to apply, if any
+	ApplicationName string        // The name of the application connecting. Useful for attributing db load.
+	Host            string        // The host where the database is located
+	Port            uint16        // The port on which the database is listening
+	Username        string        // The username for the database
+	Password        string        // The password for the database
+	Database        string        // The name of the database
+	ConnectTimeout  time.Duration // Amount of time to wait before timing out
+	SSL             bool          // If true, connect to the database with SSL
+	SSLCert         string        // Path to the SSL Certificate, if any
+	SSLKey          string        // Path to the SSL Key, if any
+	SSLRootCert     string        // Path to the SSL Root Certificate, if any
 }
 
 // NewDefaultPostgresConfig creates and return a default postgres configuration.
 func NewDefaultPostgresConfig(appName, dbName string) PostgresConfig {
 	return PostgresConfig{
-		ApplicationName:  appName,
-		Host:             "localhost",
-		Port:             5432,
-		Database:         dbName,
-		ConnectTimeout:   defaultTimeout,
-		MetricsFrequency: defaultMetricsFrequency,
+		ApplicationName: appName,
+		Host:            "localhost",
+		Port:            5432,
+		Database:        dbName,
+		ConnectTimeout:  defaultTimeout,
 	}
 }
 
@@ -114,30 +105,19 @@ func (pc PostgresConfig) buildConnectionString() (string, error) {
 	return fmt.Sprintf("%s?%s", url, strings.Join(options, "&")), nil
 }
 
-// instrumentPostgres registers an instrumented and wrapped Postgres driver with the SQL library
-// so that all calls capture metrics, are traced, and capture debug logs.
-func (pc PostgresConfig) instrumentPostgres() error {
-	if pgWrapped {
-		return fmt.Errorf("postgres already instrumented")
-	}
-	goSQL.Register(pgDriverName, sqlhooks.Wrap(&pq.Driver{}, &pc.Middleware))
-	pgWrapped = true
-	return nil
-}
-
 // Connect uses the given Config struct to establish a connection with the database.
-// Optionally, a prometheus registry may be provided. If no registry is provided, the global
-// registry will be used. Additionally, users may specify that failed metrics registration should
-// result in a panic via the `mustRegister` flag.
+// See the documentation for WrappedSQLOption functions to configure how the driver
+// gets wrapped. Note that calling Connect multiple times is not allowed with the
+// same driver name option.
 //
-// The database connection, deferable close function, and error are returned
-func (pc PostgresConfig) Connect(ctx context.Context, registry prometheus.Registerer, mustRegister bool) (*sqlx.DB, func(), error) {
-	if err := pc.instrumentPostgres(); err != nil {
-		log.Get(ctx).Warn(
-			"attempted to instrument sql.DB when it is already instrumented",
-			zap.Error(err),
-		)
+// If no error occurs, the database connection, and a close function are returned
+func (pc PostgresConfig) Connect(ctx context.Context, options ...WrappedSQLOption) (*sqlx.DB, func() error, error) {
+	opts := newDefaultWrappedSQLOptions(DefaultWrappedPgDriverName)
+	for _, option := range options {
+		option(&opts)
 	}
+	sql.Register(opts.driverName, sqlhooks.Wrap(&pq.Driver{}, opts.middleware))
+
 	log.Get(ctx).Info(
 		"connecting to postgres",
 		zap.String("database", pc.Database),
@@ -148,7 +128,7 @@ func (pc PostgresConfig) Connect(ctx context.Context, registry prometheus.Regist
 	if err != nil {
 		return nil, nil, err
 	}
-	db, err := sqlx.ConnectContext(ctx, pgDriverName, url)
+	db, err := sqlx.ConnectContext(ctx, opts.driverName, url)
 	if err != nil {
 		log.Get(ctx).Error("unable to connect to postgres")
 		return nil, nil, err
@@ -159,9 +139,10 @@ func (pc PostgresConfig) Connect(ctx context.Context, registry prometheus.Regist
 		zap.String("host", pc.Host),
 		zap.Uint16("port", pc.Port),
 	)
-	dbMetricsChannel := newMetrics(pc.Database, registry, mustRegister).exportMetrics(db.DB, pc.MetricsFrequency)
-	return db, func() {
-		dbMetricsChannel <- true
-		db.Close()
+	dbMetricsChannel := newMetrics(
+		pc.Database, opts.registerer, opts.mustRegister).exportMetrics(db.DB, opts.metricsCollectionFrequency)
+	return db, func() error {
+		close(dbMetricsChannel)
+		return db.Close()
 	}, nil
 }
