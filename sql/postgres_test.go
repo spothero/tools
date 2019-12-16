@@ -26,12 +26,11 @@ func TestNewDefaultPostgresConfig(t *testing.T) {
 		t,
 		NewDefaultPostgresConfig("test", "testdb"),
 		PostgresConfig{
-			ApplicationName:  "test",
-			Host:             "localhost",
-			Port:             5432,
-			Database:         "testdb",
-			ConnectTimeout:   5 * time.Second,
-			MetricsFrequency: 5 * time.Second,
+			ApplicationName: "test",
+			Host:            "localhost",
+			Port:            5432,
+			Database:        "testdb",
+			ConnectTimeout:  5 * time.Second,
 		},
 	)
 }
@@ -113,18 +112,4 @@ func TestPostgresConfigBuildConnectionString(t *testing.T) {
 			assert.Equal(t, test.expectedURL, url)
 		})
 	}
-}
-
-func TestInstrumentPostgres(t *testing.T) {
-	pc := PostgresConfig{}
-	assert.False(t, pgWrapped)
-	err := pc.instrumentPostgres()
-	assert.NoError(t, err)
-	assert.True(t, pgWrapped)
-	err = pc.instrumentPostgres()
-	assert.Error(t, err)
-}
-
-func TestPostgresConfigConnect(t *testing.T) {
-
 }

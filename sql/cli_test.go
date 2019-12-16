@@ -69,11 +69,6 @@ func TestPostgresConfigRegisterFlags(t *testing.T) {
 	sslRootCert, err := flags.GetString("pg-ssl-root-cert")
 	assert.NoError(t, err)
 	assert.Equal(t, "", sslRootCert)
-
-	mf, err := flags.GetDuration("pg-metrics-frequency")
-	assert.NoError(t, err)
-	assert.Equal(t, 0*time.Second, mf)
-
 }
 
 func TestMySQLConfig_RegisterFlags(t *testing.T) {
