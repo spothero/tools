@@ -20,6 +20,7 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware"
 	grpcot "github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing"
 	grpcprom "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/spothero/tools/tracing"
 	"google.golang.org/grpc"
 )
 
@@ -43,7 +44,7 @@ func NewDefaultClientConfig() ClientConfig {
 			grpc.WithUnaryInterceptor(
 				grpc_middleware.ChainUnaryClient(
 					grpcot.UnaryClientInterceptor(),
-					// TODO: Custom OT Tracer to add correlation_id
+					tracing.UnaryClientInterceptor,
 					// TODO: Custom Logger
 					grpcprom.UnaryClientInterceptor,
 					// TODO: Sentry
@@ -53,7 +54,7 @@ func NewDefaultClientConfig() ClientConfig {
 			grpc.WithStreamInterceptor(
 				grpc_middleware.ChainStreamClient(
 					grpcot.StreamClientInterceptor(),
-					// TODO: Custom OT Tracer to add correlation_id
+					tracing.StreamClientInterceptor,
 					// TODO: Custom Logger
 					grpcprom.StreamClientInterceptor,
 					// TODO: Sentry

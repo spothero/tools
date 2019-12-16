@@ -54,7 +54,7 @@ func UnaryClientInterceptor(
 	invoker grpc.UnaryInvoker,
 	opts ...grpc.CallOption,
 ) error {
-	return invoker(embedCorrelationID(ctx), method, req, reply, cc, opts...)
+	return invoker(embedCorrelationID(parentCtx), method, req, reply, cc, opts...)
 }
 
 // StreamClientInterceptor returns a new unary client interceptor that adds the correlation_id to
@@ -70,5 +70,5 @@ func StreamClientInterceptor(
 	streamer grpc.Streamer,
 	opts ...grpc.CallOption,
 ) (grpc.ClientStream, error) {
-	return streamer(embedCorrelationID(ctx), desc, cc, method, opts...)
+	return streamer(embedCorrelationID(parentCtx), desc, cc, method, opts...)
 }

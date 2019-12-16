@@ -69,23 +69,49 @@ func TestUnaryClientInterceptor(t *testing.T) {
 	defer closer.Close()
 	opentracing.SetGlobalTracer(tracer)
 
+	mockInvoker := func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, opts ...grpc.CallOption) error {
+		correlationId, ok := ctx.Value(CorrelationIDCtxKey).(string)
+		assert.Equal(t, true, ok)
+		assert.NotNil(t, correlationId)
+		assert.NotEqual(t, "", correlationId)
+		return nil
+	}
+
 	_, spanCtx := opentracing.StartSpanFromContext(context.Background(), "test")
 	assert.NoError(
 		t,
 		UnaryClientInterceptor(
 			spanCtx,
+			"method",
 			struct{}{}, struct{}{},
 			&grpc.ClientConn{},
-			grpc.UnaryInvoker{},
+			mockInvoker,
 		),
 	)
 }
 
-func TestStreamServerInterceptor(t *testing.T) {
-	//tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
-	//defer closer.Close()
-	//opentracing.SetGlobalTracer(tracer)
+func TestStreamClientInterceptor(t *testing.T) {
+	tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
+	defer closer.Close()
+	opentracing.SetGlobalTracer(tracer)
 
-	//_, spanCtx := opentracing.StartSpanFromContext(context.Background(), "test")
+	_, spanCtx := opentracing.StartSpanFromContext(context.Background(), "test")
 
+	mockStreamer := func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+		correlationId, ok := ctx.Value(CorrelationIDCtxKey).(string)
+		assert.Equal(t, true, ok)
+		assert.NotNil(t, correlationId)
+		assert.NotEqual(t, "", correlationId)
+		return nil, nil
+	}
+
+	stream, err := StreamClientInterceptor(
+		spanCtx,
+		&grpc.StreamDesc{},
+		&grpc.ClientConn{},
+		"method",
+		mockStreamer,
+	)
+	assert.NoError(t, err)
+	assert.Nil(t, stream)
 }
