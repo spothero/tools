@@ -64,7 +64,7 @@ func HTTPMiddleware(next http.Handler) http.Handler {
 			}
 			span.Finish()
 		}()
-		next.ServeHTTP(w, r.WithContext(embedCorrelationID(spanCtx)))
+		next.ServeHTTP(w, r.WithContext(EmbedCorrelationID(spanCtx)))
 	})
 }
 
@@ -108,5 +108,5 @@ func SQLMiddleware(ctx context.Context, queryName, query string, args ...interfa
 		}
 		return ctx, nil
 	}
-	return embedCorrelationID(spanCtx), mwEnd, nil
+	return EmbedCorrelationID(spanCtx), mwEnd, nil
 }

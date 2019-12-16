@@ -27,7 +27,7 @@ import (
 // interceptor should always appear *before* the logging interceptor to ensure that the
 // correlation_id is properly logged.
 func UnaryServerInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	return handler(embedCorrelationID(ctx), req)
+	return handler(EmbedCorrelationID(ctx), req)
 }
 
 // StreamServerInterceptor returns a new unary server interceptor that adds the correlation_id to
@@ -37,7 +37,7 @@ func UnaryServerInterceptor(ctx context.Context, req interface{}, info *grpc.Una
 // correlation_id is properly logged.
 func StreamServerInterceptor(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 	wrapped := grpc_middleware.WrapServerStream(stream)
-	wrapped.WrappedContext = embedCorrelationID(stream.Context())
+	wrapped.WrappedContext = EmbedCorrelationID(stream.Context())
 	return handler(srv, wrapped)
 }
 
@@ -54,7 +54,7 @@ func UnaryClientInterceptor(
 	invoker grpc.UnaryInvoker,
 	opts ...grpc.CallOption,
 ) error {
-	return invoker(embedCorrelationID(parentCtx), method, req, reply, cc, opts...)
+	return invoker(EmbedCorrelationID(parentCtx), method, req, reply, cc, opts...)
 }
 
 // StreamClientInterceptor returns a new unary client interceptor that adds the correlation_id to
@@ -70,5 +70,5 @@ func StreamClientInterceptor(
 	streamer grpc.Streamer,
 	opts ...grpc.CallOption,
 ) (grpc.ClientStream, error) {
-	return streamer(embedCorrelationID(parentCtx), desc, cc, method, opts...)
+	return streamer(EmbedCorrelationID(parentCtx), desc, cc, method, opts...)
 }

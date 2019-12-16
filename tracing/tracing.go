@@ -90,8 +90,8 @@ func TraceOutbound(r *http.Request, span opentracing.Span) error {
 		opentracing.HTTPHeadersCarrier(r.Header))
 }
 
-// embedCorrelationID embeds the current Trace ID as the correlation ID in the context logger
-func embedCorrelationID(ctx context.Context) context.Context {
+// EmbedCorrelationID embeds the current Trace ID as the correlation ID in the context logger
+func EmbedCorrelationID(ctx context.Context) context.Context {
 	// While this removes the veneer of OpenTracing abstraction, the current specification does not
 	// provide a method of accessing Trace ID directly. Until OpenTracing 2.0 is released with
 	// support for abstract access for Trace ID we will coerce the type to the underlying tracer.
