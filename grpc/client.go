@@ -49,6 +49,7 @@ func NewDefaultClientConfig() ClientConfig {
 					grpcprom.UnaryClientInterceptor,
 					// TODO: Sentry
 					// TODO: Auth header passer?
+					// TODO: Retry
 				),
 			),
 			grpc.WithStreamInterceptor(
@@ -59,6 +60,7 @@ func NewDefaultClientConfig() ClientConfig {
 					grpcprom.StreamClientInterceptor,
 					// TODO: Sentry
 					// TODO: Auth header passer?
+					// TODO: Retry
 				),
 			),
 			grpc.WithInsecure(),
