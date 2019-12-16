@@ -11,12 +11,12 @@ require (
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/gorilla/mux v1.7.1
 	github.com/grpc-ecosystem/go-grpc-middleware v1.1.0
-	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
+	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.1-0.20191002090509-6af20e3a5340
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/lib/pq v1.1.0
 	github.com/linkedin/goavro v2.1.0+incompatible
 	github.com/opentracing/opentracing-go v1.1.0
-	github.com/prometheus/client_golang v1.1.0
+	github.com/prometheus/client_golang v1.2.0
 	github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4
 	github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a
 	github.com/spf13/cobra v0.0.5

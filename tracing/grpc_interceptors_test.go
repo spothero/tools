@@ -63,3 +63,29 @@ func TestStreamServerInterceptor(t *testing.T) {
 	err := StreamServerInterceptor(nil, mockStream, info, mockHandler)
 	assert.NoError(t, err)
 }
+
+func TestUnaryClientInterceptor(t *testing.T) {
+	tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
+	defer closer.Close()
+	opentracing.SetGlobalTracer(tracer)
+
+	_, spanCtx := opentracing.StartSpanFromContext(context.Background(), "test")
+	assert.NoError(
+		t,
+		UnaryClientInterceptor(
+			spanCtx,
+			struct{}{}, struct{}{},
+			&grpc.ClientConn{},
+			grpc.UnaryInvoker{},
+		),
+	)
+}
+
+func TestStreamServerInterceptor(t *testing.T) {
+	//tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
+	//defer closer.Close()
+	//opentracing.SetGlobalTracer(tracer)
+
+	//_, spanCtx := opentracing.StartSpanFromContext(context.Background(), "test")
+
+}
