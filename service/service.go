@@ -157,7 +157,9 @@ func (c Config) ServerCmd(
 			}
 
 			if c.PreStart != nil {
-				if err := c.PreStart(ctx); err != nil {
+				var err error
+				ctx, err = c.PreStart(ctx)
+				if err != nil {
 					return err
 				}
 			}

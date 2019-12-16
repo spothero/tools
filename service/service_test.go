@@ -41,12 +41,13 @@ type prePost struct {
 	mock.Mock
 }
 
-func (p *prePost) preStart(context.Context) error {
-	return p.Called().Error(0)
+func (p *prePost) preStart(ctx context.Context) (context.Context, error) {
+	returns := p.Called(ctx)
+	return returns.Get(0).(context.Context), returns.Error(1)
 }
 
-func (p *prePost) postShutdown(context.Context) error {
-	return p.Called().Error(0)
+func (p *prePost) postShutdown(ctx context.Context) error {
+	return p.Called(ctx).Error(0)
 }
 
 func TestDefaultServer(t *testing.T) {
@@ -61,8 +62,9 @@ func TestDefaultServer(t *testing.T) {
 		PreStart:      mockPrePost.preStart,
 		PostShutdown:  mockPrePost.postShutdown,
 	}
+	ctx := context.Background()
 	cmd := c.ServerCmd(
-		context.Background(),
+		ctx,
 		"short",
 		"long",
 		func(Config) HTTPService { return mockHTTPService{} },
@@ -77,8 +79,8 @@ func TestDefaultServer(t *testing.T) {
 	assert.NotNil(t, cmd.PersistentPreRun)
 	assert.NotNil(t, cmd.RunE)
 	assert.True(t, cmd.Flags().HasFlags())
-	mockPrePost.On("preStart").Return(nil)
-	mockPrePost.On("postShutdown").Return(nil)
+	mockPrePost.On("preStart", ctx).Return(ctx, nil)
+	mockPrePost.On("postShutdown", ctx).Return(nil)
 	defer mockPrePost.AssertExpectations(t)
 
 	done := make(chan bool)
