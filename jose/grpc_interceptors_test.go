@@ -172,6 +172,6 @@ func TestSetHeaderMD(t *testing.T) {
 	opts := []grpc.CallOption{}
 	newOpts := setHeaderMD(ctx, opts)
 	assert.NotEqual(t, opts, newOpts)
-	expectedMD := metadata.New(map[string]string{authHeader: "jwt-data"})
+	expectedMD := metadata.New(map[string]string{authHeader: "Bearer jwt-data"})
 	assert.Equal(t, grpc.Header(&expectedMD), newOpts[0])
 }

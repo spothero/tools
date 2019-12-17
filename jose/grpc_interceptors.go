@@ -16,6 +16,7 @@ package jose
 
 import (
 	"context"
+	"fmt"
 
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/spothero/tools/log"
@@ -84,7 +85,7 @@ func StreamClientInterceptor(ctx context.Context, desc *grpc.StreamDesc, cc *grp
 // option in the client call options
 func setHeaderMD(ctx context.Context, opts []grpc.CallOption) []grpc.CallOption {
 	if jwtData, ok := ctx.Value(JWTClaimKey).(string); ok {
-		headerMD := metadata.New(map[string]string{authHeader: jwtData})
+		headerMD := metadata.New(map[string]string{authHeader: fmt.Sprintf("Bearer %s", jwtData)})
 		opts = append(opts, grpc.Header(&headerMD))
 	}
 	return opts
