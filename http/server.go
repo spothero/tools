@@ -157,7 +157,7 @@ func (s Server) Run() {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, s.cancelSignals...)
 	<-signals
-	log.Get(ctx).Info("received interrupt, shutting down")
+	log.Get(ctx).Info("received interrupt, shutting down http server")
 
 	// Wait for servers to finish exiting and initiate shutdown
 	shutdown, cancel := context.WithTimeout(ctx, 5*time.Second)
