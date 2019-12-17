@@ -15,6 +15,7 @@
 package jose
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
@@ -56,9 +57,10 @@ func GetHTTPMiddleware(jh JOSEHandler, authRequired bool) func(next http.Handler
 			}
 
 			var claims []Claim
+			bearerToken := ""
 			if len(parseErrMsg) == 0 {
 				claims = jh.GetClaims()
-				bearerToken := strings.TrimPrefix(authHeader, bearerPrefix)
+				bearerToken = strings.TrimPrefix(authHeader, bearerPrefix)
 				err := jh.ParseValidateJWT(bearerToken, claims...)
 				if err != nil {
 					logger.Debug(err.Error())
@@ -70,6 +72,8 @@ func GetHTTPMiddleware(jh JOSEHandler, authRequired bool) func(next http.Handler
 				for _, claim := range claims {
 					r = r.WithContext(claim.NewContext(r.Context()))
 				}
+				// Set the bearer token on the context so it can be passed to any downstream services
+				r = r.WithContext(context.WithValue(r.Context(), JWTClaimKey, bearerToken))
 			}
 
 			if len(parseErrMsg) != 0 {

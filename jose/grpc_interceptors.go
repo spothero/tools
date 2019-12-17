@@ -16,10 +16,13 @@ package jose
 
 import (
 	"context"
+	"fmt"
 
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/spothero/tools/log"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
@@ -54,6 +57,8 @@ func GetContextAuth(jh JOSEHandler, authRequired bool) func(context.Context) (co
 			for _, claim := range claims {
 				ctx = claim.NewContext(ctx)
 			}
+			// Set the header on the context so it can be passed to any downstream services
+			ctx = context.WithValue(ctx, JWTClaimKey, bearerToken)
 		}
 
 		var finalErr error
@@ -62,4 +67,26 @@ func GetContextAuth(jh JOSEHandler, authRequired bool) func(context.Context) (co
 		}
 		return ctx, finalErr
 	}
+}
+
+// UnaryClientInterceptor returns an interceptor that ensures that any authorization data on the
+// context is passed through to the downstream server
+func UnaryClientInterceptor(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+	return invoker(ctx, method, req, reply, cc, setHeaderMD(ctx, opts)...)
+}
+
+// StreamClientInterceptor returns an interceptor that ensures that any authorization data on the
+// context is passed through to the downstream server
+func StreamClientInterceptor(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+	return streamer(ctx, desc, cc, method, setHeaderMD(ctx, opts)...)
+}
+
+// setHeaderMD extracts the header JWT, if any, from the context and places it as a grpc header
+// option in the client call options
+func setHeaderMD(ctx context.Context, opts []grpc.CallOption) []grpc.CallOption {
+	if jwtData, ok := ctx.Value(JWTClaimKey).(string); ok {
+		headerMD := metadata.New(map[string]string{authHeader: fmt.Sprintf("Bearer %s", jwtData)})
+		opts = append(opts, grpc.Header(&headerMD))
+	}
+	return opts
 }

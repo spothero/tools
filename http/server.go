@@ -139,10 +139,10 @@ func (s Server) Run() {
 	go func() {
 		var err error
 		if s.tlsEnabled {
-			log.Get(ctx).Info(fmt.Sprintf("HTTPS server started on %s", s.httpServer.Addr))
+			log.Get(ctx).Info(fmt.Sprintf("https server started on %s", s.httpServer.Addr))
 			err = s.httpServer.ListenAndServeTLS(s.tlsCrtPath, s.tlsKeyPath)
 		} else {
-			log.Get(ctx).Info(fmt.Sprintf("HTTP server started on %s", s.httpServer.Addr))
+			log.Get(ctx).Info(fmt.Sprintf("http server started on %s", s.httpServer.Addr))
 			err = s.httpServer.ListenAndServe()
 		}
 		switch err {
@@ -157,7 +157,7 @@ func (s Server) Run() {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, s.cancelSignals...)
 	<-signals
-	log.Get(ctx).Info("Received interrupt, shutting down")
+	log.Get(ctx).Info("received interrupt, shutting down http server")
 
 	// Wait for servers to finish exiting and initiate shutdown
 	shutdown, cancel := context.WithTimeout(ctx, 5*time.Second)

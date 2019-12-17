@@ -22,21 +22,53 @@ import (
 )
 
 // UnaryServerInterceptor returns a new unary server interceptor that adds the correlation_id to
-// the logger context. Note that this middleware should *always* be placed after the opentracing
-// middleware to ensure that an opentracing context is present on the context. Additionally, this
-// middleware should always appear *before* the logging middleware to ensure that the
+// the logger context. Note that this interceptor should *always* be placed after the opentracing
+// interceptor to ensure that an opentracing context is present on the context. Additionally, this
+// interceptor should always appear *before* the logging interceptor to ensure that the
 // correlation_id is properly logged.
 func UnaryServerInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	return handler(embedCorrelationID(ctx), req)
+	return handler(EmbedCorrelationID(ctx), req)
 }
 
 // StreamServerInterceptor returns a new unary server interceptor that adds the correlation_id to
-// the logger context. Note that this middleware should *always* be placed after the opentracing
-// middleware to ensure that an opentracing context is present on the context. Additionally, this
-// middleware should always appear *before* the logging middleware to ensure that the
+// the logger context. Note that this interceptor should *always* be placed after the opentracing
+// interceptor to ensure that an opentracing context is present on the context. Additionally, this
+// interceptor should always appear *before* the logging interceptor to ensure that the
 // correlation_id is properly logged.
 func StreamServerInterceptor(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 	wrapped := grpc_middleware.WrapServerStream(stream)
-	wrapped.WrappedContext = embedCorrelationID(stream.Context())
+	wrapped.WrappedContext = EmbedCorrelationID(stream.Context())
 	return handler(srv, wrapped)
+}
+
+// UnaryClientInterceptor returns a new unary client interceptor that adds the correlation_id to
+// the logger context. Note that this interceptor should *always* be placed after the opentracing
+// interceptor to ensure that an opentracing context is present on the context. Additionally, this
+// interceptor should always appear *before* the logging interceptor to ensure that the
+// correlation_id is properly logged.
+func UnaryClientInterceptor(
+	parentCtx context.Context,
+	method string,
+	req, reply interface{},
+	cc *grpc.ClientConn,
+	invoker grpc.UnaryInvoker,
+	opts ...grpc.CallOption,
+) error {
+	return invoker(EmbedCorrelationID(parentCtx), method, req, reply, cc, opts...)
+}
+
+// StreamClientInterceptor returns a new unary client interceptor that adds the correlation_id to
+// the logger context. Note that this interceptor should *always* be placed after the opentracing
+// interceptor to ensure that an opentracing context is present on the context. Additionally, this
+// interceptor should always appear *before* the logging interceptor to ensure that the
+// correlation_id is properly logged.
+func StreamClientInterceptor(
+	parentCtx context.Context,
+	desc *grpc.StreamDesc,
+	cc *grpc.ClientConn,
+	method string,
+	streamer grpc.Streamer,
+	opts ...grpc.CallOption,
+) (grpc.ClientStream, error) {
+	return streamer(EmbedCorrelationID(parentCtx), desc, cc, method, opts...)
 }

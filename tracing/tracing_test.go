@@ -70,7 +70,7 @@ func TestEmbedCorrelationID(t *testing.T) {
 	opentracing.SetGlobalTracer(tracer)
 	_, spanCtx := opentracing.StartSpanFromContext(context.Background(), "test")
 
-	ctx := embedCorrelationID(spanCtx)
+	ctx := EmbedCorrelationID(spanCtx)
 	correlationId, ok := ctx.Value(CorrelationIDCtxKey).(string)
 	assert.Equal(t, true, ok)
 	assert.NotNil(t, correlationId)

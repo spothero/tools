@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -133,4 +134,44 @@ func TestGetContextAuth(t *testing.T) {
 			assert.Equal(t, test.errorCode, status.Code(err))
 		})
 	}
+}
+
+func TestUnaryClientInterceptor(t *testing.T) {
+	mockInvoker := func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, opts ...grpc.CallOption) error {
+		return nil
+	}
+	assert.NoError(
+		t,
+		UnaryClientInterceptor(
+			context.Background(),
+			"method",
+			struct{}{}, struct{}{},
+			&grpc.ClientConn{},
+			mockInvoker,
+		),
+	)
+}
+
+func TestStreamClientInterceptor(t *testing.T) {
+	mockStreamer := func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+		return nil, nil
+	}
+	stream, err := StreamClientInterceptor(
+		context.Background(),
+		&grpc.StreamDesc{},
+		&grpc.ClientConn{},
+		"method",
+		mockStreamer,
+	)
+	assert.NoError(t, err)
+	assert.Nil(t, stream)
+}
+
+func TestSetHeaderMD(t *testing.T) {
+	ctx := context.WithValue(context.Background(), JWTClaimKey, "jwt-data")
+	opts := []grpc.CallOption{}
+	newOpts := setHeaderMD(ctx, opts)
+	assert.NotEqual(t, opts, newOpts)
+	expectedMD := metadata.New(map[string]string{authHeader: "Bearer jwt-data"})
+	assert.Equal(t, grpc.Header(&expectedMD), newOpts[0])
 }

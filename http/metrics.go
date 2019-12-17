@@ -71,10 +71,10 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 		registry.MustRegister(counter)
 	} else {
 		if err := registry.Register(histogram); err != nil {
-			log.Get(context.Background()).Error("failed to register HTTP histogram", zap.Error(err))
+			log.Get(context.Background()).Error("failed to register http histogram", zap.Error(err))
 		}
 		if err := registry.Register(counter); err != nil {
-			log.Get(context.Background()).Error("failed to register HTTP counter", zap.Error(err))
+			log.Get(context.Background()).Error("failed to register http counter", zap.Error(err))
 		}
 	}
 	return Metrics{

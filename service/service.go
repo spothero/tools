@@ -22,6 +22,7 @@ import (
 
 	"github.com/gorilla/mux"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
+	grpcrecovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	grpcot "github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing"
 	grpcprom "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/spf13/cobra"
@@ -125,14 +126,12 @@ func (c Config) ServerCmd(
 				tracing.UnaryServerInterceptor,
 				log.UnaryServerInterceptor,
 				grpcprom.UnaryServerInterceptor,
-				sentry.UnaryServerInterceptor,
 			}
 			grpcConfig.StreamInterceptors = []grpc.StreamServerInterceptor{
 				grpcot.StreamServerInterceptor(),
 				tracing.StreamServerInterceptor,
 				log.StreamServerInterceptor,
 				grpcprom.StreamServerInterceptor,
-				sentry.StreamServerInterceptor,
 			}
 
 			// If the user has requested JOSE Auth, add JOSE Auth interceptors
@@ -155,6 +154,20 @@ func (c Config) ServerCmd(
 					jose.GetHTTPMiddleware(jh, jc.AuthRequired),
 				)
 			}
+
+			// Add panic handlers to the middleware. Panic handlers should always come last,
+			// because they can help recover error state such that it is correctly handled by
+			// upstream interceptors.
+			grpcConfig.UnaryInterceptors = append(
+				grpcConfig.UnaryInterceptors,
+				grpcrecovery.UnaryServerInterceptor(),
+				sentry.UnaryServerInterceptor,
+			)
+			grpcConfig.StreamInterceptors = append(
+				grpcConfig.StreamInterceptors,
+				grpcrecovery.StreamServerInterceptor(),
+				sentry.StreamServerInterceptor,
+			)
 
 			if c.PreStart != nil {
 				var err error

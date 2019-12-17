@@ -137,7 +137,7 @@ func (s Server) Run() (chan bool, error) {
 	done := make(chan bool)
 	go func() {
 		<-signals
-		log.Get(ctx).Info("received interrupt, shutting down gRPC server")
+		log.Get(ctx).Info("received interrupt, shutting down grpc server")
 		s.server.GracefulStop()
 		close(done)
 	}()
