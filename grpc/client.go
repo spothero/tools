@@ -29,9 +29,10 @@ import (
 
 // ClientConfig contains the configuration necessary for connecting to a GRPC Server.
 type ClientConfig struct {
-	Address string            // Address on which the server is accessible
-	Port    uint16            // Port on which the server is accessible
-	Options []grpc.DialOption // Additional server options
+	Address              string            // Address on which the server is accessible
+	Port                 uint16            // Port on which the server is accessible
+	PropagateAuthHeaders bool              // If true propagate any authorization header to the server
+	Options              []grpc.DialOption // Additional server options
 }
 
 // NewDefaultClientConfig returns the default SpotHero GRPC Client Configuration
@@ -41,8 +42,9 @@ func NewDefaultClientConfig(ctx context.Context) ClientConfig {
 	grpcprom.EnableClientStreamSendTimeHistogram()
 	grpcprom.EnableHandlingTimeHistogram()
 	return ClientConfig{
-		Address: "localhost",
-		Port:    9111,
+		Address:              "localhost",
+		Port:                 9111,
+		PropagateAuthHeaders: false,
 		Options: []grpc.DialOption{
 			grpc.WithUnaryInterceptor(
 				grpc_middleware.ChainUnaryClient(

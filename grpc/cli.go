@@ -53,4 +53,10 @@ func (cc *ClientConfig) RegisterFlags(flags *pflag.FlagSet, serverName string) {
 		cc.Port,
 		fmt.Sprintf("gRPC Port for remote server `%s`", serverName),
 	)
+	flags.BoolVar(
+		&cc.PropagateAuthHeaders,
+		fmt.Sprintf("%s-grpc-auth-propagate-headers", serverName),
+		cc.PropagateAuthHeaders,
+		fmt.Sprintf("If true, propagate headers to the gRPC remote server `%s`", serverName),
+	)
 }

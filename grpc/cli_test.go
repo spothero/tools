@@ -83,6 +83,10 @@ func TestClientRegisterFlags(t *testing.T) {
 				p, err := flags.GetUint16(fmt.Sprintf("%s-grpc-server-port", strings.ToLower(test.serverName)))
 				assert.NoError(t, err)
 				assert.Equal(t, cc.Port, p)
+
+				ph, err := flags.GetBool(fmt.Sprintf("%s-grpc-auth-propagate-headers", strings.ToLower(test.serverName)))
+				assert.NoError(t, err)
+				assert.Equal(t, cc.PropagateAuthHeaders, ph)
 			}
 		})
 	}
