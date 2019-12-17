@@ -7,20 +7,19 @@ import (
 	"database/sql"
 	"fmt"
 	"io/ioutil"
-	"time"
 
 	"github.com/gchaincl/sqlhooks"
 	"github.com/go-sql-driver/mysql"
-	"github.com/prometheus/client_golang/prometheus"
+	"github.com/jmoiron/sqlx"
 	"github.com/spothero/tools/log"
 	"go.uber.org/zap"
-
-	"github.com/spothero/tools/sql/middleware"
 )
 
 const (
-	wrappedMySQLDriverName = "wrappedMySQL"
-	tlsConfigName          = "MySQLTLSConfig"
+	// If no override option is provided, this is the name of the wrapped MySQL driver that will be
+	// registered when calling MySQLConfig.Connect.
+	DefaultWrappedMySQLDriverName = "wrappedMySQL"
+	tlsConfigName                 = "MySQLTLSConfig"
 )
 
 // MySQLConfig adds a path for a CA cert to mysql.Config. When CACertPath is set,
@@ -31,19 +30,17 @@ type MySQLConfig struct {
 	CACertPath string
 }
 
-// NewWrappedMySQLDrive builds a MySQL driver wrapped with the provided middleware and starts
-// a periodic task that collects database connection metrics in the provided prometheus registerer.
-// If the CACertPath is set in the passed in config, the database connection will be over SSL.
-// The returned function should be called close the database connection instead of calling Close()
-// directly as it stops the periodic metrics task.
-func NewWrappedMySQL(
-	ctx context.Context,
-	config MySQLConfig,
-	middleware middleware.Middleware,
-	registry prometheus.Registerer,
-	mustRegister bool,
-	collectionFrequency time.Duration,
-) (*sql.DB, func() error, error) {
+// Connect uses the given Config struct to establish a connection with the database.
+// See the documentation for WrappedSQLOption functions to configure how the driver
+// gets wrapped. Note that calling Connect multiple times is not allowed with the
+// same driver name option.
+//
+// If no error occurs, the database connection, and a close function are returned
+func (c MySQLConfig) Connect(ctx context.Context, options ...WrappedSQLOption) (*sqlx.DB, func() error, error) {
+	opts := newDefaultWrappedSQLOptions(DefaultWrappedMySQLDriverName)
+	for _, option := range options {
+		option(&opts)
+	}
 	stdLogger, err := zap.NewStdLogAt(log.Get(ctx).Named("mysql"), zap.ErrorLevel)
 	if err != nil {
 		log.Get(ctx).Error(
@@ -54,17 +51,18 @@ func NewWrappedMySQL(
 		// standard logger failed to build
 		_ = mysql.SetLogger(stdLogger)
 	}
-	sql.Register(wrappedMySQLDriverName, sqlhooks.Wrap(mysql.MySQLDriver{}, &middleware))
-	if config.CACertPath != "" && config.TLSConfig == "" {
-		if err := config.loadCACert(); err != nil {
+	sql.Register(opts.driverName, sqlhooks.Wrap(mysql.MySQLDriver{}, &opts.middleware))
+	if c.CACertPath != "" && c.TLSConfig == "" {
+		if err := c.loadCACert(); err != nil {
 			return nil, nil, err
 		}
 	}
-	db, err := sql.Open(wrappedMySQLDriverName, config.FormatDSN())
+	db, err := sqlx.ConnectContext(ctx, opts.driverName, c.FormatDSN())
 	if err != nil {
 		return nil, nil, err
 	}
-	metricsChannel := newMetrics(config.DBName, registry, mustRegister).exportMetrics(db, collectionFrequency)
+	metricsChannel := newMetrics(
+		c.DBName, opts.registerer, opts.mustRegister).exportMetrics(db.DB, opts.metricsCollectionFrequency)
 	return db, func() error {
 		close(metricsChannel)
 		return db.Close()

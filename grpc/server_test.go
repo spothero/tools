@@ -19,7 +19,6 @@ import (
 	"os"
 	"syscall"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
@@ -146,17 +145,14 @@ func TestRun(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			timer := time.NewTimer(20 * time.Millisecond)
-			go func() {
-				<-timer.C
-				assert.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGUSR1))
-			}()
-			err := test.server.Run()
+			done, err := test.server.Run()
 			if test.expectErr {
 				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
+				return
 			}
+			assert.NoError(t, err)
+			assert.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGUSR1))
+			<-done
 		})
 	}
 }

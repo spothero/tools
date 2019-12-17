@@ -91,20 +91,21 @@ func (c Config) NewServer() Server {
 		tlsEnabled:    c.TLSEnabled,
 		tlsCrtPath:    c.TLSCrtPath,
 		tlsKeyPath:    c.TLSKeyPath,
+		cancelSignals: c.CancelSignals,
 	}
 }
 
 // Run starts the GRPC server. The function returns an error if the GRPC server cannot bind to its
-// listen address. Additionally, this function is blocking and will not return until one of the
-// configured cancel signals is received.
-func (s Server) Run() error {
+// listen address. This function is non-blocking and will return immediately. If no error is returned
+// the server is running. The returned channel will be closed after the server shuts down.
+func (s Server) Run() (chan bool, error) {
 	ctx := context.Background()
 	var listener net.Listener
 	var err error
 	if s.tlsEnabled {
 		cert, err := tls.LoadX509KeyPair(s.tlsCrtPath, s.tlsKeyPath)
 		if err != nil {
-			return fmt.Errorf("failed to load tls x509 key pair: %w", err)
+			return nil, fmt.Errorf("failed to load tls x509 key pair: %w", err)
 		}
 		listener, err = tls.Listen(
 			"tcp",
@@ -112,12 +113,12 @@ func (s Server) Run() error {
 			&tls.Config{Certificates: []tls.Certificate{cert}},
 		)
 		if err != nil {
-			return fmt.Errorf("error starting tls grpc server listener: %w", err)
+			return nil, fmt.Errorf("error starting tls grpc server listener: %w", err)
 		}
 	} else {
 		listener, err = net.Listen("tcp", s.listenAddress)
 		if err != nil {
-			return fmt.Errorf("error starting grpc server listener: %w", err)
+			return nil, fmt.Errorf("error starting grpc server listener: %w", err)
 		}
 	}
 	go func() {
@@ -133,8 +134,12 @@ func (s Server) Run() error {
 	// Capture cancellation signal and gracefully shutdown goroutines
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, s.cancelSignals...)
-	<-signals
-	log.Get(ctx).Info("received interrupt, shutting down")
-	s.server.GracefulStop()
-	return nil
+	done := make(chan bool)
+	go func() {
+		<-signals
+		log.Get(ctx).Info("received interrupt, shutting down gRPC server")
+		s.server.GracefulStop()
+		close(done)
+	}()
+	return done, nil
 }

@@ -32,7 +32,6 @@ import (
 	"github.com/spothero/tools/log"
 	"github.com/spothero/tools/sentry"
 	"github.com/spothero/tools/tracing"
-	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 )
@@ -59,14 +58,13 @@ type GRPCService interface {
 //
 // Note that Version and GitSHA *must be specified* before calling this function.
 func (c Config) ServerCmd(
+	ctx context.Context,
 	shortDescription, longDescription string,
 	newHTTPService func(Config) HTTPService,
 	newGRPCService func(Config) GRPCService,
 ) *cobra.Command {
 	// HTTP Config
 	httpConfig := shHTTP.NewDefaultConfig(c.Name)
-	httpConfig.PreStart = c.PreStartHTTP
-	httpConfig.PostShutdown = c.PostShutdownHTTP
 	httpConfig.Middleware = []mux.MiddlewareFunc{
 		tracing.HTTPMiddleware,
 		shHTTP.NewMetrics(c.Registry, true).Middleware,
@@ -120,7 +118,7 @@ func (c Config) ServerCmd(
 			closer := tc.ConfigureTracer()
 			defer closer.Close()
 
-			// Ensure that GRPC Interceptors capture histograms
+			// Ensure that gRPC Interceptors capture histograms
 			grpcprom.EnableHandlingTimeHistogram()
 			grpcConfig.UnaryInterceptors = []grpc.UnaryServerInterceptor{
 				grpcot.UnaryServerInterceptor(),
@@ -157,26 +155,43 @@ func (c Config) ServerCmd(
 					jose.GetHTTPMiddleware(jh, jc.AuthRequired),
 				)
 			}
+
+			if c.PreStart != nil {
+				var err error
+				ctx, err = c.PreStart(ctx)
+				if err != nil {
+					return err
+				}
+			}
+
 			var wg sync.WaitGroup
 			if newGRPCService != nil {
+				grpcDone, err := grpcConfig.NewServer().Run()
+				if err != nil {
+					return err
+				}
 				wg.Add(1)
 				go func() {
-					defer wg.Done()
-					if err := grpcConfig.NewServer().Run(); err != nil {
-						log.Get(context.Background()).Error("failed to run the grpc server", zap.Error(err))
-					}
+					<-grpcDone
+					wg.Done()
 				}()
 			}
-			if newHTTPService != nil {
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				if newHTTPService != nil {
 					httpService := newHTTPService(c)
 					httpConfig.RegisterHandlers = httpService.RegisterHandlers
-					httpConfig.NewServer().Run()
-				}()
-			}
+				}
+				httpConfig.NewServer().Run()
+			}()
+
 			wg.Wait()
+			if c.PostShutdown != nil {
+				if err := c.PostShutdown(ctx); err != nil {
+					return err
+				}
+			}
 			return nil
 		},
 	}
