@@ -26,11 +26,17 @@ func TestNewDefaultClientConfig(t *testing.T) {
 	cc := NewDefaultClientConfig(context.Background())
 	assert.Equal(t, "localhost", cc.Address)
 	assert.Equal(t, uint16(9111), cc.Port)
+	assert.NotNil(t, cc.UnaryInterceptors)
+	assert.NotNil(t, cc.StreamInterceptors)
 	assert.NotNil(t, cc.Options)
 }
 
 func TestGetConn(t *testing.T) {
-	conn, err := ClientConfig{Options: []grpc.DialOption{grpc.WithInsecure()}}.GetConn()
+	conn, err := ClientConfig{
+		PropagateAuthHeaders: true,
+		RetryServerErrors:    true,
+		Options:              []grpc.DialOption{grpc.WithInsecure()},
+	}.GetConn()
 	assert.NoError(t, err)
 	assert.NotNil(t, conn)
 	conn.Close()

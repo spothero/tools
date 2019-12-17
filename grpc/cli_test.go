@@ -87,6 +87,10 @@ func TestClientRegisterFlags(t *testing.T) {
 				ph, err := flags.GetBool(fmt.Sprintf("%s-grpc-auth-propagate-headers", strings.ToLower(test.serverName)))
 				assert.NoError(t, err)
 				assert.Equal(t, cc.PropagateAuthHeaders, ph)
+
+				rse, err := flags.GetBool(fmt.Sprintf("%s-grpc-retry-server-errors", strings.ToLower(test.serverName)))
+				assert.NoError(t, err)
+				assert.Equal(t, cc.RetryServerErrors, rse)
 			}
 		})
 	}

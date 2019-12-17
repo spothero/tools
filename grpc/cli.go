@@ -59,4 +59,10 @@ func (cc *ClientConfig) RegisterFlags(flags *pflag.FlagSet, serverName string) {
 		cc.PropagateAuthHeaders,
 		fmt.Sprintf("If true, propagate headers to the gRPC remote server `%s`", serverName),
 	)
+	flags.BoolVar(
+		&cc.RetryServerErrors,
+		fmt.Sprintf("%s-grpc-retry-server-errors", serverName),
+		cc.RetryServerErrors,
+		fmt.Sprintf("If true, automatically retry on server errors from the gRPC remote server `%s`", serverName),
+	)
 }

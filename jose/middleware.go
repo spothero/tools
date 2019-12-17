@@ -15,6 +15,7 @@
 package jose
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
@@ -70,6 +71,8 @@ func GetHTTPMiddleware(jh JOSEHandler, authRequired bool) func(next http.Handler
 				for _, claim := range claims {
 					r = r.WithContext(claim.NewContext(r.Context()))
 				}
+				// Set the header on the context so it can be passed to any downstream services
+				r = r.WithContext(context.WithValue(r.Context(), JWTClaimKey, authHeader))
 			}
 
 			if len(parseErrMsg) != 0 {

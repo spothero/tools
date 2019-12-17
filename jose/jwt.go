@@ -66,6 +66,12 @@ type JOSE struct {
 	authRequired    bool
 }
 
+// JWTHeaderCtxKey is the type used to uniquely place the JWT Header in the context
+type JWTHeaderCtxKey int
+
+// JWTClaimKey is the value used to uniquely place the JWT Header within the context
+const JWTClaimKey JWTHeaderCtxKey = iota
+
 // NewJOSE creates and returns a JOSE client for use.
 func (c Config) NewJOSE() (JOSE, error) {
 	if len(c.JSONWebKeySetURL) == 0 {
