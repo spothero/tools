@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,6 +21,15 @@ func (mockRT MockRoundTripper) RoundTrip(req *http.Request) (*http.Response, err
 		return nil, fmt.Errorf("error in roundtripper")
 	}
 	return &http.Response{StatusCode: mockRT.responseStatusCode}, nil
+}
+
+func TestNewDefaultClient(t *testing.T) {
+	client := NewDefaultClient(NewMetrics(prometheus.NewRegistry(), true), nil)
+	assert.NotNil(t, client)
+	mrt, ok := client.Transport.(MiddlewareRoundTripper)
+	assert.True(t, ok)
+	assert.Equal(t, 4, len(mrt.Middleware))
+	assert.Equal(t, http.DefaultTransport, mrt.RoundTripper)
 }
 
 func TestRoundTrip(t *testing.T) {

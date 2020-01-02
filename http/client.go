@@ -3,6 +3,10 @@ package http
 import (
 	"fmt"
 	"net/http"
+
+	"github.com/spothero/tools/jose"
+	"github.com/spothero/tools/log"
+	"github.com/spothero/tools/tracing"
 )
 
 // ClientMiddleware defines an HTTP Client middleware function. The function is called prior to
@@ -15,6 +19,25 @@ type ClientMiddleware func(*http.Request) (*http.Request, func(*http.Response) e
 type MiddlewareRoundTripper struct {
 	RoundTripper http.RoundTripper
 	Middleware   []ClientMiddleware
+}
+
+// NewDefaultClient constructs the default HTTP Client with middleware. Providing an HTTP
+// RoundTripper is optional. If `nil` is received, the DefaultClient will be used.
+func NewDefaultClient(metrics Metrics, roundTripper http.RoundTripper) http.Client {
+	if roundTripper == nil {
+		roundTripper = http.DefaultTransport
+	}
+	return http.Client{
+		Transport: MiddlewareRoundTripper{
+			Middleware: []ClientMiddleware{
+				tracing.HTTPClientMiddleware,
+				log.HTTPClientMiddleware,
+				metrics.ClientMiddleware,
+				jose.HTTPClientMiddleware,
+			},
+			RoundTripper: roundTripper,
+		},
+	}
 }
 
 // RoundTrip completes the http request round trip and is responsible for invoking HTTP Client
@@ -49,13 +72,4 @@ func (mrt MiddlewareRoundTripper) RoundTrip(req *http.Request) (*http.Response, 
 		}
 	}
 	return resp, err
-}
-
-// BackoffClientMiddleware is middleware for use in HTTP Clients for automatically performing
-// exponential backoff and retries on failed HTTP requests
-func BackoffClientMiddleware(r *http.Request) (func(*http.Response) error, error) {
-	// TODO: Middleware!
-	return func(resp *http.Response) error {
-		return nil
-	}, nil
 }
