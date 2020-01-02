@@ -16,6 +16,7 @@ package jose
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -95,9 +96,9 @@ func GetHTTPMiddleware(jh JOSEHandler, authRequired bool) func(next http.Handler
 
 // HTTPClientMiddleware is middleware for use in HTTP Clients which propagates the Authorization
 // headers
-func HTTPClientMiddleware(r *http.Request) (func(*http.Response) error, error) {
-	// TODO: Middleware!
-	return func(resp *http.Response) error {
-		return nil
-	}, nil
+func HTTPClientMiddleware(r *http.Request) (*http.Request, func(*http.Response) error, error) {
+	if jwtData, ok := r.Context().Value(JWTClaimKey).(string); ok {
+		r.Header.Set(authHeader, fmt.Sprintf("%s%s", bearerPrefix, jwtData))
+	}
+	return r, func(resp *http.Response) error { return nil }, nil
 }

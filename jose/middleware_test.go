@@ -15,6 +15,7 @@
 package jose
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -181,4 +182,15 @@ func TestGetHTTPMiddleware(t *testing.T) {
 			assert.Equal(t, test.expectNextHandlerCalled, testHandlerCalled)
 		})
 	}
+}
+
+func TestHTTPClientMiddleware(t *testing.T) {
+	mockReq := httptest.NewRequest("GET", "/path", nil)
+	mockReq = mockReq.WithContext(context.WithValue(mockReq.Context(), JWTClaimKey, "jwt"))
+	req, respHandler, err := HTTPClientMiddleware(mockReq)
+	assert.NoError(t, err)
+	assert.NotNil(t, respHandler)
+	assert.NotNil(t, req)
+	assert.NoError(t, respHandler(&http.Response{}))
+	assert.Equal(t, mockReq.Header.Get(authHeader), fmt.Sprintf("%s%s", bearerPrefix, "jwt"))
 }
