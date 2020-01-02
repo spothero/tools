@@ -66,7 +66,7 @@ func HTTPMiddleware(next http.Handler) http.Handler {
 }
 
 // HTTPClientMiddleware is middleware for use in HTTP Clients which logs outbound requests
-func HTTPClientMiddleware(r *http.Request) (func(*http.Response) error, error) {
+func HTTPClientMiddleware(r *http.Request) (*http.Request, func(*http.Response) error, error) {
 	startTime := time.Now()
 	requestLogger := Get(r.Context())
 	logger := requestLogger.Named("http")
@@ -74,7 +74,7 @@ func HTTPClientMiddleware(r *http.Request) (func(*http.Response) error, error) {
 	path := zap.String("http.path", writer.FetchRoutePathTemplate(r))
 	query := zap.String("http.query", r.URL.Query().Encode())
 	logger.Debug("http request started", method, path, query)
-	return func(resp *http.Response) error {
+	return r, func(resp *http.Response) error {
 		logger.Info(
 			"http request completed",
 			zap.Int("http.status_code", resp.StatusCode),

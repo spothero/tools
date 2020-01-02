@@ -69,26 +69,26 @@ func HTTPMiddleware(next http.Handler) http.Handler {
 }
 
 // HTTPClientMiddleware is middleware for use in HTTP Clients
-func HTTPClientMiddleware(r *http.Request) (func(*http.Response) error, error) {
+func HTTPClientMiddleware(r *http.Request) (*http.Request, func(*http.Response) error, error) {
 	operationName := fmt.Sprintf("%s %s", r.Method, r.URL.String())
 	span, spanCtx := opentracing.StartSpanFromContext(r.Context(), operationName)
 	span = span.SetTag("http.method", r.Method)
 	span = span.SetTag("http.url", r.URL.String())
-	r = r.WithContext(EmbedCorrelationID(spanCtx))
-	return func(resp *http.Response) error {
-		span = span.SetTag("http.status_code", resp.Status)
-		if resp.StatusCode >= http.StatusBadRequest {
-			span = span.SetTag("error", true)
-		}
-		span.Finish()
-		return nil
-	}, TraceOutbound(r, span)
+	return r.WithContext(EmbedCorrelationID(spanCtx)),
+		func(resp *http.Response) error {
+			span = span.SetTag("http.status_code", resp.Status)
+			if resp.StatusCode >= http.StatusBadRequest {
+				span = span.SetTag("error", true)
+			}
+			span.Finish()
+			return nil
+		}, TraceOutbound(r, span)
 }
 
 // GetCorrelationID returns the correlation ID associated with the given
 // Context. This function only produces meaningful results for Contexts
-// associated with http.Requests which have passed through
-// tracing/HTTPMiddleware.
+// associated with gRPC or HTTP Requests which have passed through
+// their associated tracing middleware.
 func GetCorrelationID(ctx context.Context) string {
 	if maybeCorrelationID, ok := ctx.Value(CorrelationIDCtxKey).(string); ok {
 		return maybeCorrelationID

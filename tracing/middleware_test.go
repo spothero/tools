@@ -96,6 +96,41 @@ func TestHTTPMiddleware(t *testing.T) {
 	}
 }
 
+func TestHTTPClientMiddleware(t *testing.T) {
+	tests := []struct {
+		name       string
+		statusCode int
+	}{
+		{
+			"tracing client middleware correctly records 2XX responses",
+			http.StatusOK,
+		},
+		{
+			"tracing client middleware correctly records 5XX responses",
+			http.StatusInternalServerError,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
+			defer closer.Close()
+			opentracing.SetGlobalTracer(tracer)
+
+			mockReq := httptest.NewRequest("GET", "/path", nil)
+			mockReq, respHandler, err := HTTPClientMiddleware(mockReq)
+			assert.NoError(t, err)
+			assert.NotNil(t, respHandler)
+
+			correlationId, ok := mockReq.Context().Value(CorrelationIDCtxKey).(string)
+			assert.Equal(t, true, ok)
+			assert.NotNil(t, correlationId)
+			assert.NotEqual(t, "", correlationId)
+
+			assert.NoError(t, respHandler(&http.Response{StatusCode: test.statusCode}))
+		})
+	}
+}
+
 func TestGetCorrelationID(t *testing.T) {
 	// first, assert a request through the HTTPMiddleware contains a context
 	// which produces a meaningful result for GetCorrelationID()

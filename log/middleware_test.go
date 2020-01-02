@@ -65,7 +65,7 @@ func TestHTTPClientMiddleware(t *testing.T) {
 	recordedLogs := makeLoggerObservable(t, zapcore.DebugLevel)
 
 	mockReq := httptest.NewRequest("GET", "/path", nil)
-	responseHandler, err := HTTPClientMiddleware(mockReq)
+	mockReq, responseHandler, err := HTTPClientMiddleware(mockReq)
 	assert.NoError(t, err)
 	assert.NotNil(t, responseHandler)
 
