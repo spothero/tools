@@ -66,7 +66,9 @@ func TestNewMetrics(t *testing.T) {
 				}
 			}
 			assert.NotNil(t, metrics.counter)
+			assert.NotNil(t, metrics.clientCounter)
 			assert.NotNil(t, metrics.duration)
+			assert.NotNil(t, metrics.clientDuration)
 		})
 	}
 }
@@ -111,6 +113,7 @@ func TestMiddleware(t *testing.T) {
 		}
 	}
 	prometheus.Unregister(metrics.duration)
+	prometheus.Unregister(metrics.clientDuration)
 
 	// Check request counter
 	counter, err := metrics.counter.GetMetricWith(labels)
@@ -119,4 +122,50 @@ func TestMiddleware(t *testing.T) {
 	assert.NoError(t, counter.Write(pb))
 	assert.Equal(t, 1, int(pb.Counter.GetValue()))
 	prometheus.Unregister(metrics.counter)
+	prometheus.Unregister(metrics.clientCounter)
+}
+
+func TestClientMiddleware(t *testing.T) {
+	metrics := NewMetrics(nil, true)
+
+	mockReq := httptest.NewRequest("GET", "/path", nil)
+	req, respHandler, err := metrics.ClientMiddleware(mockReq)
+	assert.NotNil(t, req)
+	assert.NoError(t, err)
+	assert.NoError(t, respHandler(&http.Response{StatusCode: http.StatusOK}))
+
+	// Expected prometheus labels after this request
+	labels := prometheus.Labels{
+		"path":        "/path",
+		"status_code": "200",
+	}
+
+	// Check duration histogram
+	histogram, err := metrics.clientDuration.GetMetricWith(labels)
+	assert.NoError(t, err)
+	pb := &dto.Metric{}
+	assert.NoError(t, histogram.(prometheus.Histogram).Write(pb))
+	buckets := pb.Histogram.GetBucket()
+	assert.NotEmpty(t, buckets)
+	for _, bucket := range pb.Histogram.GetBucket() {
+		// Choose a bucket which gives a full second to this test and ensure we have a count of at
+		// least one. This just ensures that our timer is working. This request should never take
+		// longer than a millisecond, but we hugely increase the threshold to ensure we dont
+		// introduce tests that periodically fail for no clear reason.
+		if bucket.GetUpperBound() >= 1.0 {
+			assert.Equal(t, uint64(1), bucket.GetCumulativeCount())
+			break
+		}
+	}
+	prometheus.Unregister(metrics.duration)
+	prometheus.Unregister(metrics.clientDuration)
+
+	// Check request counter
+	counter, err := metrics.clientCounter.GetMetricWith(labels)
+	assert.NoError(t, err)
+	pb = &dto.Metric{}
+	assert.NoError(t, counter.Write(pb))
+	assert.Equal(t, 1, int(pb.Counter.GetValue()))
+	prometheus.Unregister(metrics.counter)
+	prometheus.Unregister(metrics.clientCounter)
 }
