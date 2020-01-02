@@ -56,16 +56,33 @@ func HTTPMiddleware(next http.Handler) http.Handler {
 
 		defer func() {
 			if statusRecorder, ok := w.(*writer.StatusRecorder); ok {
-				span.SetTag("http.status_code", strconv.Itoa(statusRecorder.StatusCode))
+				span = span.SetTag("http.status_code", strconv.Itoa(statusRecorder.StatusCode))
 				// 5XX Errors are our fault -- note that this span belongs to an errored request
 				if statusRecorder.StatusCode >= http.StatusInternalServerError {
-					span.SetTag("error", true)
+					span = span.SetTag("error", true)
 				}
 			}
 			span.Finish()
 		}()
 		next.ServeHTTP(w, r.WithContext(EmbedCorrelationID(spanCtx)))
 	})
+}
+
+// HTTPClientMiddleware is middleware for use in HTTP Clients
+func HTTPClientMiddleware(r *http.Request) (func(*http.Response) error, error) {
+	operationName := fmt.Sprintf("%s %s", r.Method, r.URL.String())
+	span, spanCtx := opentracing.StartSpanFromContext(r.Context(), operationName)
+	span = span.SetTag("http.method", r.Method)
+	span = span.SetTag("http.url", r.URL.String())
+	r = r.WithContext(EmbedCorrelationID(spanCtx))
+	return func(resp *http.Response) error {
+		span = span.SetTag("http.status_code", resp.Status)
+		if resp.StatusCode >= http.StatusBadRequest {
+			span = span.SetTag("error", true)
+		}
+		span.Finish()
+		return nil
+	}, TraceOutbound(r, span)
 }
 
 // GetCorrelationID returns the correlation ID associated with the given

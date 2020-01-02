@@ -92,3 +92,12 @@ func GetHTTPMiddleware(jh JOSEHandler, authRequired bool) func(next http.Handler
 		})
 	}
 }
+
+// HTTPClientMiddleware is middleware for use in HTTP Clients which propagates the Authorization
+// headers
+func HTTPClientMiddleware(r *http.Request) (func(*http.Response) error, error) {
+	// TODO: Middleware!
+	return func(resp *http.Response) error {
+		return nil
+	}, nil
+}

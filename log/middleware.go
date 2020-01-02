@@ -17,6 +17,7 @@ package log
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/spothero/tools/http/writer"
 	sqlMiddleware "github.com/spothero/tools/sql/middleware"
@@ -37,24 +38,52 @@ import (
 // to show up in logs.
 func HTTPMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		startTime := time.Now()
 		requestLogger := Get(r.Context())
 		logger := requestLogger.Named("http")
-		method := zap.String("http_method", r.Method)
-		path := zap.String("path", writer.FetchRoutePathTemplate(r))
-		query := zap.String("query_string", r.URL.Query().Encode())
-		logger.Debug("request received", method, path, query)
+		method := zap.String("http.method", r.Method)
+		path := zap.String("http.path", writer.FetchRoutePathTemplate(r))
+		query := zap.String("http.query", r.URL.Query().Encode())
+		logger.Debug("http request received", method, path, query)
 		defer func() {
 			var responseCodeField zap.Field
 			if statusRecorder, ok := w.(*writer.StatusRecorder); ok {
-				responseCodeField = zap.Int("response_code", statusRecorder.StatusCode)
+				responseCodeField = zap.Int("http.status_code", statusRecorder.StatusCode)
 			} else {
 				responseCodeField = zap.Skip()
 			}
-			logger.Info("returning response", responseCodeField)
+			logger.Info(
+				"http response returned",
+				responseCodeField,
+				method,
+				path,
+				zap.Duration("http.duration", time.Since(startTime)),
+			)
 		}()
 		// ensure that a logger is present for downstream handlers in the request context
 		next.ServeHTTP(w, r.WithContext(NewContext(r.Context(), requestLogger)))
 	})
+}
+
+// HTTPClientMiddleware is middleware for use in HTTP Clients which logs outbound requests
+func HTTPClientMiddleware(r *http.Request) (func(*http.Response) error, error) {
+	startTime := time.Now()
+	requestLogger := Get(r.Context())
+	logger := requestLogger.Named("http")
+	method := zap.String("http.method", r.Method)
+	path := zap.String("http.path", writer.FetchRoutePathTemplate(r))
+	query := zap.String("http.query", r.URL.Query().Encode())
+	logger.Debug("http request started", method, path, query)
+	return func(resp *http.Response) error {
+		logger.Info(
+			"http request completed",
+			zap.Int("http.status_code", resp.StatusCode),
+			method,
+			path,
+			zap.Duration("http.duration", time.Since(startTime)),
+		)
+		return nil
+	}, nil
 }
 
 // SQLMiddleware debug logs requests made against SQL databases.

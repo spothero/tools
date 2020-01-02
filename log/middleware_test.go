@@ -50,15 +50,44 @@ func TestHTTPMiddleware(t *testing.T) {
 	for idx, field := range currLogs[0].Context {
 		foundLogKeysRequest[idx] = field.Key
 	}
-	assert.ElementsMatch(t, []string{"http_method", "path", "query_string"}, foundLogKeysRequest)
+	assert.ElementsMatch(t, []string{"http.method", "http.path", "http.query"}, foundLogKeysRequest)
 
 	// Test that response parameters are appropriately logged to our standards
 	foundLogKeysResponse := make([]string, len(currLogs[1].Context))
 	for idx, field := range currLogs[1].Context {
 		foundLogKeysResponse[idx] = field.Key
 	}
-	assert.ElementsMatch(t, []string{"response_code"}, foundLogKeysResponse)
+	assert.ElementsMatch(t, []string{"http.path", "http.method", "http.status_code", "http.duration"}, foundLogKeysResponse)
 	assert.Equal(t, currLogs[1].Context[0].Integer, int64(statusCode))
+}
+
+func TestHTTPClientMiddleware(t *testing.T) {
+	recordedLogs := makeLoggerObservable(t, zapcore.DebugLevel)
+
+	mockReq := httptest.NewRequest("GET", "/path", nil)
+	responseHandler, err := HTTPClientMiddleware(mockReq)
+	assert.NoError(t, err)
+	assert.NotNil(t, responseHandler)
+
+	mockResp := &http.Response{StatusCode: http.StatusOK}
+	assert.NoError(t, responseHandler(mockResp))
+
+	// Test that request parameters are appropriately logged to our standards
+	currLogs := recordedLogs.All()
+	assert.Len(t, currLogs, 2)
+	foundLogKeysRequest := make([]string, len(currLogs[0].Context))
+	for idx, field := range currLogs[0].Context {
+		foundLogKeysRequest[idx] = field.Key
+	}
+	assert.ElementsMatch(t, []string{"http.method", "http.path", "http.query"}, foundLogKeysRequest)
+
+	// Test that response parameters are appropriately logged to our standards
+	foundLogKeysResponse := make([]string, len(currLogs[1].Context))
+	for idx, field := range currLogs[1].Context {
+		foundLogKeysResponse[idx] = field.Key
+	}
+	assert.ElementsMatch(t, []string{"http.path", "http.method", "http.status_code", "http.duration"}, foundLogKeysResponse)
+	assert.Equal(t, currLogs[1].Context[0].Integer, int64(http.StatusOK))
 }
 
 func TestSQLMiddleware(t *testing.T) {

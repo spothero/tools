@@ -100,3 +100,11 @@ func (m Metrics) Middleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+
+// MetricsClientMiddleware is middleware for use in HTTP Clients for capturing prometheus metrics
+func MetricsClientMiddleware(r *http.Request) (func(*http.Response) error, error) {
+	// TODO: Middleware!
+	return func(resp *http.Response) error {
+		return nil
+	}, nil
+}
