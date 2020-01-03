@@ -16,6 +16,7 @@ package http
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -27,8 +28,12 @@ import (
 
 // Metrics is a bundle of prometheus HTTP metrics recorders
 type Metrics struct {
-	counter  *prometheus.CounterVec
-	duration *prometheus.HistogramVec
+	counter             *prometheus.CounterVec
+	duration            *prometheus.HistogramVec
+	contentLength       *prometheus.HistogramVec
+	clientCounter       *prometheus.CounterVec
+	clientDuration      *prometheus.HistogramVec
+	clientContentLength *prometheus.HistogramVec
 }
 
 // NewMetrics creates and returns a metrics bundle. The user may optionally
@@ -36,6 +41,7 @@ type Metrics struct {
 // Registry is used. Finally, if mustRegister is true, and a registration error is encountered,
 // the application will panic.
 func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
+	labels := []string{"path", "status_code"}
 	histogram := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "http_request_duration_seconds",
@@ -43,24 +49,48 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 			// Power of 2 time - 1ms, 2ms, 4ms ... 32768ms, +Inf ms
 			Buckets: prometheus.ExponentialBuckets(0.001, 2.0, 16),
 		},
-		[]string{
-			// The path recording the request
-			"path",
-			// The Specific HTTP Status Code
-			"status_code",
+		labels,
+	)
+	clientHistogram := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "http_client_request_duration_seconds",
+			Help: "Total duration histogram for the HTTP client requests",
+			// Power of 2 time - 1ms, 2ms, 4ms ... 32768ms, +Inf ms
+			Buckets: prometheus.ExponentialBuckets(0.001, 2.0, 16),
 		},
+		labels,
 	)
 	counter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "http_requests_total",
 			Help: "Total number of HTTP Requests received",
 		},
-		[]string{
-			// The path recording the request
-			"path",
-			// The Specific HTTP Status Code
-			"status_code",
+		labels,
+	)
+	clientCounter := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "http_client_requests_total",
+			Help: "Total number of HTTP Client Requests sent",
 		},
+		labels,
+	)
+	contentLength := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "http_content_length_bytes",
+			Help: "HTTP Request content length histogram, buckets range from 1B to 16MB",
+			// Power of 2 bytes, starts at 1 byte and works up to 16MB
+			Buckets: prometheus.ExponentialBuckets(1, 2.0, 24),
+		},
+		labels,
+	)
+	clientContentLength := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "http_client_content_length_bytes",
+			Help: "HTTP Client Request content length histogram, buckets range from 1B to 16MB",
+			// Power of 2 bytes, starts at 1 byte and works up to 16MB
+			Buckets: prometheus.ExponentialBuckets(1, 2.0, 24),
+		},
+		labels,
 	)
 	// If the user hasnt provided a Prometheus Registry, use the global Registry
 	if registry == nil {
@@ -68,18 +98,44 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 	}
 	if mustRegister {
 		registry.MustRegister(histogram)
+		registry.MustRegister(clientHistogram)
 		registry.MustRegister(counter)
+		registry.MustRegister(clientCounter)
+		registry.MustRegister(contentLength)
+		registry.MustRegister(clientContentLength)
 	} else {
-		if err := registry.Register(histogram); err != nil {
-			log.Get(context.Background()).Error("failed to register http histogram", zap.Error(err))
+		toRegister := map[string]prometheus.Collector{
+			"duration":            histogram,
+			"clientDuration":      clientHistogram,
+			"counter":             counter,
+			"clientCounter":       clientCounter,
+			"contentLength":       contentLength,
+			"clientContentLength": clientContentLength,
 		}
-		if err := registry.Register(counter); err != nil {
-			log.Get(context.Background()).Error("failed to register http counter", zap.Error(err))
+		for name, collector := range toRegister {
+			if err := registry.Register(collector); err != nil {
+				switch err.(type) {
+				case prometheus.AlreadyRegisteredError:
+					log.Get(context.Background()).Debug(
+						fmt.Sprintf("http metric `%v` already registered", name),
+						zap.Error(err),
+					)
+				default:
+					log.Get(context.Background()).Error(
+						fmt.Sprintf("failed to register http metric `%v`", name),
+						zap.Error(err),
+					)
+				}
+			}
 		}
 	}
 	return Metrics{
-		counter,
-		histogram,
+		counter:             counter,
+		clientCounter:       clientCounter,
+		duration:            histogram,
+		clientDuration:      clientHistogram,
+		contentLength:       contentLength,
+		clientContentLength: clientContentLength,
 	}
 }
 
@@ -94,9 +150,38 @@ func (m Metrics) Middleware(next http.Handler) http.Handler {
 				labels["status_code"] = strconv.Itoa(statusRecorder.StatusCode)
 			}
 			m.counter.With(labels).Inc()
+			if contentLengthStr := r.Header.Get("Content-Length"); len(contentLengthStr) > 0 {
+				if contentLength, err := strconv.Atoi(contentLengthStr); err == nil {
+					m.contentLength.With(labels).Observe(float64(contentLength))
+				}
+			}
 			m.duration.With(labels).Observe(durationSec)
 		}))
 		defer timer.ObserveDuration()
 		next.ServeHTTP(w, r)
 	})
+}
+
+// ClientMiddleware is middleware for use in HTTP Clients for capturing prometheus metrics
+func (m Metrics) ClientMiddleware(r *http.Request) (*http.Request, func(*http.Response) error, error) {
+	var receivedResp *http.Response
+	observerFunc := func(durationSec float64) {
+		labels := prometheus.Labels{
+			"path":        r.URL.Path,
+			"status_code": strconv.Itoa(receivedResp.StatusCode),
+		}
+		m.clientCounter.With(labels).Inc()
+		if contentLengthStr := r.Header.Get("Content-Length"); len(contentLengthStr) > 0 {
+			if contentLength, err := strconv.Atoi(contentLengthStr); err == nil {
+				m.clientContentLength.With(labels).Observe(float64(contentLength))
+			}
+		}
+		m.clientDuration.With(labels).Observe(durationSec)
+	}
+	timer := prometheus.NewTimer(prometheus.ObserverFunc(observerFunc))
+	return r, func(resp *http.Response) error {
+		receivedResp = resp
+		timer.ObserveDuration()
+		return nil
+	}, nil
 }

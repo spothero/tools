@@ -17,13 +17,31 @@ package log
 import (
 	"context"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/spothero/tools/http/writer"
 	sqlMiddleware "github.com/spothero/tools/sql/middleware"
 	"go.uber.org/zap"
 )
 
-// HTTPMiddleware logs a series of standard attributes for every HTTP request and attaches
+// getFields returns appropriate zap logger fields given the HTTP Request
+func getFields(r *http.Request) []zap.Field {
+	fields := []zap.Field{
+		zap.String("http.method", r.Method),
+		zap.String("http.url", r.URL.String()),
+		zap.String("http.path", writer.FetchRoutePathTemplate(r)),
+		zap.String("http.user_agent", r.UserAgent()),
+	}
+	if contentLengthStr := r.Header.Get("Content-Length"); len(contentLengthStr) > 0 {
+		if contentLength, err := strconv.Atoi(contentLengthStr); err == nil {
+			fields = append(fields, zap.Int("http.content_length", contentLength))
+		}
+	}
+	return fields
+}
+
+// HTTPServerMiddleware logs a series of standard attributes for every HTTP request and attaches
 // a logger onto the request context.
 //
 //  On inbound request received these attributes include:
@@ -33,28 +51,40 @@ import (
 // On outbound response return these attributes include all of the above as well as:
 // * HTTP response code
 // Note that this middleware must be attached after writer.StatusRecorderMiddleware
-// for HTTP response code logging to function and after tracing.HTTPMiddleware for trace ids
+// for HTTP response code logging to function and after tracing.HTTPServerMiddleware for trace ids
 // to show up in logs.
-func HTTPMiddleware(next http.Handler) http.Handler {
+func HTTPServerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestLogger := Get(r.Context())
-		logger := requestLogger.Named("http")
-		method := zap.String("http_method", r.Method)
-		path := zap.String("path", writer.FetchRoutePathTemplate(r))
-		query := zap.String("query_string", r.URL.Query().Encode())
-		logger.Debug("request received", method, path, query)
+		startTime := time.Now()
+		logger := Get(r.Context()).Named("http")
+		fields := getFields(r)
+		logger.Debug("http request received", fields...)
 		defer func() {
 			var responseCodeField zap.Field
 			if statusRecorder, ok := w.(*writer.StatusRecorder); ok {
-				responseCodeField = zap.Int("response_code", statusRecorder.StatusCode)
+				responseCodeField = zap.Int("http.status_code", statusRecorder.StatusCode)
 			} else {
 				responseCodeField = zap.Skip()
 			}
-			logger.Info("returning response", responseCodeField)
+			fields := append(fields, responseCodeField, zap.Duration("http.duration", time.Since(startTime)))
+			logger.Info("http response returned", fields...)
 		}()
 		// ensure that a logger is present for downstream handlers in the request context
-		next.ServeHTTP(w, r.WithContext(NewContext(r.Context(), requestLogger)))
+		next.ServeHTTP(w, r.WithContext(NewContext(r.Context(), logger)))
 	})
+}
+
+// HTTPClientMiddleware is middleware for use in HTTP Clients which logs outbound requests
+func HTTPClientMiddleware(r *http.Request) (*http.Request, func(*http.Response) error, error) {
+	startTime := time.Now()
+	logger := Get(r.Context()).Named("http")
+	fields := getFields(r)
+	logger.Debug("http request started", fields...)
+	return r, func(resp *http.Response) error {
+		fields := append(fields, zap.Int("http.status_code", resp.StatusCode), zap.Duration("http.duration", time.Since(startTime)))
+		logger.Info("http request completed", fields...)
+		return nil
+	}, nil
 }
 
 // SQLMiddleware debug logs requests made against SQL databases.

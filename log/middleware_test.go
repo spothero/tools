@@ -27,7 +27,19 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func TestHTTPMiddleware(t *testing.T) {
+func TestGetFields(t *testing.T) {
+	mockReq := httptest.NewRequest("GET", "/path", nil)
+	mockReq.Header.Set("Content-Length", "1")
+	fields := getFields(mockReq)
+	assert.Equal(t, 5, len(fields))
+	keys := make([]string, 5)
+	for idx, field := range fields {
+		keys[idx] = field.Key
+	}
+	assert.ElementsMatch(t, keys, []string{"http.method", "http.url", "http.path", "http.user_agent", "http.content_length"})
+}
+
+func TestHTTPServerMiddleware(t *testing.T) {
 	recordedLogs := makeLoggerObservable(t, zapcore.DebugLevel)
 
 	// setup a test server with logging middleware and a handler that sets the status code
@@ -36,9 +48,9 @@ func TestHTTPMiddleware(t *testing.T) {
 		w.WriteHeader(statusCode)
 		verifyLogContext(t, r.Context())
 	})
-	testServer := httptest.NewServer(writer.StatusRecorderMiddleware(HTTPMiddleware(testHandler)))
+	testServer := httptest.NewServer(writer.StatusRecorderMiddleware(HTTPServerMiddleware(testHandler)))
 	defer testServer.Close()
-	res, err := http.Get(testServer.URL)
+	res, err := http.Post(testServer.URL, "text/plain", nil)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 	defer res.Body.Close()
@@ -50,15 +62,46 @@ func TestHTTPMiddleware(t *testing.T) {
 	for idx, field := range currLogs[0].Context {
 		foundLogKeysRequest[idx] = field.Key
 	}
-	assert.ElementsMatch(t, []string{"http_method", "path", "query_string"}, foundLogKeysRequest)
+	assert.ElementsMatch(t, []string{"http.method", "http.url", "http.path", "http.user_agent", "http.content_length"}, foundLogKeysRequest)
 
 	// Test that response parameters are appropriately logged to our standards
 	foundLogKeysResponse := make([]string, len(currLogs[1].Context))
 	for idx, field := range currLogs[1].Context {
 		foundLogKeysResponse[idx] = field.Key
 	}
-	assert.ElementsMatch(t, []string{"response_code"}, foundLogKeysResponse)
-	assert.Equal(t, currLogs[1].Context[0].Integer, int64(statusCode))
+	assert.ElementsMatch(t, []string{"http.url", "http.method", "http.path", "http.status_code", "http.duration", "http.user_agent", "http.content_length"}, foundLogKeysResponse)
+	assert.Equal(t, currLogs[1].Context[len(currLogs[1].Context)-2].Integer, int64(statusCode))
+}
+
+func TestHTTPClientMiddleware(t *testing.T) {
+	recordedLogs := makeLoggerObservable(t, zapcore.DebugLevel)
+
+	mockReq := httptest.NewRequest("GET", "/path", nil)
+	mockReq.Header.Set("Content-Length", "1")
+	req, responseHandler, err := HTTPClientMiddleware(mockReq)
+	assert.NoError(t, err)
+	assert.NotNil(t, responseHandler)
+	assert.NotNil(t, req)
+
+	mockResp := &http.Response{StatusCode: http.StatusOK}
+	assert.NoError(t, responseHandler(mockResp))
+
+	// Test that request parameters are appropriately logged to our standards
+	currLogs := recordedLogs.All()
+	assert.Len(t, currLogs, 2)
+	foundLogKeysRequest := make([]string, len(currLogs[0].Context))
+	for idx, field := range currLogs[0].Context {
+		foundLogKeysRequest[idx] = field.Key
+	}
+	assert.ElementsMatch(t, []string{"http.method", "http.url", "http.path", "http.user_agent", "http.content_length"}, foundLogKeysRequest)
+
+	// Test that response parameters are appropriately logged to our standards
+	foundLogKeysResponse := make([]string, len(currLogs[1].Context))
+	for idx, field := range currLogs[1].Context {
+		foundLogKeysResponse[idx] = field.Key
+	}
+	assert.ElementsMatch(t, []string{"http.url", "http.path", "http.method", "http.status_code", "http.user_agent", "http.duration", "http.content_length"}, foundLogKeysResponse)
+	assert.Equal(t, currLogs[1].Context[len(currLogs[1].Context)-2].Integer, int64(http.StatusOK))
 }
 
 func TestSQLMiddleware(t *testing.T) {

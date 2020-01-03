@@ -15,6 +15,7 @@
 package jose
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -24,7 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetHTTPMiddleware(t *testing.T) {
+func TestGetHTTPServerMiddleware(t *testing.T) {
 	tests := []struct {
 		name                    string
 		authHeaderPresent       bool
@@ -156,7 +157,7 @@ func TestGetHTTPMiddleware(t *testing.T) {
 				}
 			})
 
-			joseMiddleware := GetHTTPMiddleware(handler, test.authRequired)
+			joseMiddleware := GetHTTPServerMiddleware(handler, test.authRequired)
 			testServer := httptest.NewServer(joseMiddleware(testHandler))
 			defer testServer.Close()
 
@@ -181,4 +182,15 @@ func TestGetHTTPMiddleware(t *testing.T) {
 			assert.Equal(t, test.expectNextHandlerCalled, testHandlerCalled)
 		})
 	}
+}
+
+func TestHTTPClientMiddleware(t *testing.T) {
+	mockReq := httptest.NewRequest("GET", "/path", nil)
+	mockReq = mockReq.WithContext(context.WithValue(mockReq.Context(), JWTClaimKey, "jwt"))
+	req, respHandler, err := HTTPClientMiddleware(mockReq)
+	assert.NoError(t, err)
+	assert.NotNil(t, respHandler)
+	assert.NotNil(t, req)
+	assert.NoError(t, respHandler(&http.Response{}))
+	assert.Equal(t, mockReq.Header.Get(authHeader), fmt.Sprintf("%s%s", bearerPrefix, "jwt"))
 }
