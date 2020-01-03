@@ -69,6 +69,8 @@ func TestNewMetrics(t *testing.T) {
 			assert.NotNil(t, metrics.clientCounter)
 			assert.NotNil(t, metrics.duration)
 			assert.NotNil(t, metrics.clientDuration)
+			assert.NotNil(t, metrics.contentLength)
+			assert.NotNil(t, metrics.clientContentLength)
 		})
 	}
 }
@@ -115,7 +117,13 @@ func TestMiddleware(t *testing.T) {
 	prometheus.Unregister(metrics.duration)
 	prometheus.Unregister(metrics.clientDuration)
 
-	// TODO: VERIFY CONTENTS
+	// Check content-length histogram
+	contentLengthHistogram, err := metrics.contentLength.GetMetricWith(labels)
+	assert.NoError(t, err)
+	pb = &dto.Metric{}
+	assert.NoError(t, contentLengthHistogram.(prometheus.Histogram).Write(pb))
+	buckets = pb.Histogram.GetBucket()
+	assert.NotEmpty(t, buckets)
 	prometheus.Unregister(metrics.contentLength)
 	prometheus.Unregister(metrics.clientContentLength)
 
@@ -164,7 +172,13 @@ func TestClientMiddleware(t *testing.T) {
 	prometheus.Unregister(metrics.duration)
 	prometheus.Unregister(metrics.clientDuration)
 
-	// TODO: VERIFY CONTENTS
+	// Check content-length histogram
+	contentLengthHistogram, err := metrics.clientContentLength.GetMetricWith(labels)
+	assert.NoError(t, err)
+	pb = &dto.Metric{}
+	assert.NoError(t, contentLengthHistogram.(prometheus.Histogram).Write(pb))
+	buckets = pb.Histogram.GetBucket()
+	assert.NotEmpty(t, buckets)
 	prometheus.Unregister(metrics.contentLength)
 	prometheus.Unregister(metrics.clientContentLength)
 

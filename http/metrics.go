@@ -26,9 +26,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// BYTES_IN_MB defines the total number of bytes in a megabyte
-const BYTES_IN_MB = 100000
-
 // Metrics is a bundle of prometheus HTTP metrics recorders
 type Metrics struct {
 	counter             *prometheus.CounterVec
@@ -79,17 +76,19 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 	)
 	contentLength := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "http_content_length_bytes",
-			Help:    "HTTP Request content length histogram",
-			Buckets: prometheus.LinearBuckets(BYTES_IN_MB, BYTES_IN_MB, 10),
+			Name: "http_content_length_bytes",
+			Help: "HTTP Request content length histogram",
+			// Power of 2 bytes, starts at 1 byte and works up to 10MB
+			Buckets: prometheus.ExponentialBuckets(1, 2.0, 24),
 		},
 		labels,
 	)
 	clientContentLength := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "http_client_content_length_bytes",
-			Help:    "HTTP Client Request content length histogram",
-			Buckets: prometheus.LinearBuckets(BYTES_IN_MB, BYTES_IN_MB, 10),
+			Name: "http_client_content_length_bytes",
+			Help: "HTTP Client Request content length histogram",
+			// Power of 2 bytes, starts at 1 byte and works up to 10MB
+			Buckets: prometheus.ExponentialBuckets(1, 2.0, 24),
 		},
 		labels,
 	)
