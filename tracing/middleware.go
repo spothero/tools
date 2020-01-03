@@ -27,7 +27,7 @@ import (
 	sql "github.com/spothero/tools/sql/middleware"
 )
 
-// HTTPMiddleware extracts the OpenTracing context on all incoming HTTP requests, if present. if
+// HTTPServerMiddleware extracts the OpenTracing context on all incoming HTTP requests, if present. if
 // no trace ID is present in the headers, a trace is initiated.
 //
 // The following tags are placed on all incoming HTTP requests:
@@ -41,7 +41,7 @@ import (
 // The returned HTTP Request includes the wrapped OpenTracing Span Context.
 // Note that this middleware must be attached after writer.StatusRecorderMiddleware
 // for HTTP response span tagging to function.
-func HTTPMiddleware(next http.Handler) http.Handler {
+func HTTPServerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := log.Get(r.Context())
 		wireContext, err := opentracing.GlobalTracer().Extract(
@@ -55,7 +55,7 @@ func HTTPMiddleware(next http.Handler) http.Handler {
 		span = span.SetTag("http.url", r.URL.String())
 		span = span.SetTag("http.path", writer.FetchRoutePathTemplate(r))
 		span = span.SetTag("http.user_agent", r.UserAgent())
-
+		span = span.SetTag("http.content_length", r.Header.Get("Content-Length"))
 		defer func() {
 			if statusRecorder, ok := w.(*writer.StatusRecorder); ok {
 				span = span.SetTag("http.status_code", strconv.Itoa(statusRecorder.StatusCode))
@@ -78,6 +78,7 @@ func HTTPClientMiddleware(r *http.Request) (*http.Request, func(*http.Response) 
 	span = span.SetTag("http.url", r.URL.String())
 	span = span.SetTag("http.path", writer.FetchRoutePathTemplate(r))
 	span = span.SetTag("http.user_agent", r.UserAgent())
+	span = span.SetTag("http.content_length", r.Header.Get("Content-Length"))
 	return r.WithContext(EmbedCorrelationID(spanCtx)),
 		func(resp *http.Response) error {
 			span = span.SetTag("http.status_code", resp.Status)

@@ -18,7 +18,16 @@ type ClientMiddleware func(*http.Request) (*http.Request, func(*http.Response) e
 // with middleware
 type MiddlewareRoundTripper struct {
 	RoundTripper http.RoundTripper
-	Middleware   []ClientMiddleware
+	// Middleware consist of a function which is called prior to the execution of a request. This
+	// function returns the potentially modified request, the post-response handler, and an error,
+	// if any. The response handler is invoked after the HTTP request has been made.
+	//
+	// Middleware are called in the order they are specified. In otherwords, the first item in the
+	// slice is the first middleware applied, and the last item in the slice is the last middleware
+	// applied. Each response handler is called in the reverse order of the middleware. Meaning,
+	// the last middleware called will be the first to have its response handler called, and
+	// likewise, the first middleware called will be the last to have its handler called.
+	Middleware []ClientMiddleware
 }
 
 // NewDefaultClient constructs the default HTTP Client with middleware. Providing an HTTP
@@ -45,17 +54,21 @@ func NewDefaultClient(metrics Metrics, roundTripper http.RoundTripper) http.Clie
 func (mrt MiddlewareRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Ensure the RoundTripper was set on the MiddlewareRoundTripper
 	if mrt.RoundTripper == nil {
-		return nil, fmt.Errorf("no roundtripper provided to middleware round tripper")
+		panic("no roundtripper provided to middleware round tripper")
 	}
 
 	// Call all middleware
-	responseHandlers := make([]func(*http.Response) error, len(mrt.Middleware))
+	numMiddleware := len(mrt.Middleware)
+	responseHandlers := make([]func(*http.Response) error, numMiddleware)
 	for idx, middleware := range mrt.Middleware {
 		updatedReq, callback, err := middleware(req)
 		if err != nil {
 			return nil, fmt.Errorf("error invoking http client middleware: %w", err)
 		}
-		responseHandlers[idx] = callback
+		// Append handlers in reverse order so that nesting is reverse on response handling.
+		// Always call the last middleware's response handler first, the second to last
+		// middleware's response handler second, and so on.
+		responseHandlers[numMiddleware-idx-1] = callback
 		req = updatedReq
 	}
 

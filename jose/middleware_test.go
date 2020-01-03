@@ -25,7 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetHTTPMiddleware(t *testing.T) {
+func TestGetHTTPServerMiddleware(t *testing.T) {
 	tests := []struct {
 		name                    string
 		authHeaderPresent       bool
@@ -157,7 +157,7 @@ func TestGetHTTPMiddleware(t *testing.T) {
 				}
 			})
 
-			joseMiddleware := GetHTTPMiddleware(handler, test.authRequired)
+			joseMiddleware := GetHTTPServerMiddleware(handler, test.authRequired)
 			testServer := httptest.NewServer(joseMiddleware(testHandler))
 			defer testServer.Close()
 

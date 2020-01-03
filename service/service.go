@@ -67,9 +67,9 @@ func (c Config) ServerCmd(
 	// HTTP Config
 	httpConfig := shHTTP.NewDefaultConfig(c.Name)
 	httpConfig.Middleware = []mux.MiddlewareFunc{
-		tracing.HTTPMiddleware,
+		tracing.HTTPServerMiddleware,
 		shHTTP.NewMetrics(c.Registry, true).Middleware,
-		log.HTTPMiddleware,
+		log.HTTPServerMiddleware,
 		sentry.NewMiddleware().HTTP,
 	}
 
@@ -151,7 +151,7 @@ func (c Config) ServerCmd(
 				)
 				httpConfig.Middleware = append(
 					httpConfig.Middleware,
-					jose.GetHTTPMiddleware(jh, jc.AuthRequired),
+					jose.GetHTTPServerMiddleware(jh, jc.AuthRequired),
 				)
 			}
 

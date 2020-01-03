@@ -27,7 +27,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func TestHTTPMiddleware(t *testing.T) {
+func TestHTTPServerMiddleware(t *testing.T) {
 	recordedLogs := makeLoggerObservable(t, zapcore.DebugLevel)
 
 	// setup a test server with logging middleware and a handler that sets the status code
@@ -36,7 +36,7 @@ func TestHTTPMiddleware(t *testing.T) {
 		w.WriteHeader(statusCode)
 		verifyLogContext(t, r.Context())
 	})
-	testServer := httptest.NewServer(writer.StatusRecorderMiddleware(HTTPMiddleware(testHandler)))
+	testServer := httptest.NewServer(writer.StatusRecorderMiddleware(HTTPServerMiddleware(testHandler)))
 	defer testServer.Close()
 	res, err := http.Get(testServer.URL)
 	require.NoError(t, err)
@@ -50,14 +50,14 @@ func TestHTTPMiddleware(t *testing.T) {
 	for idx, field := range currLogs[0].Context {
 		foundLogKeysRequest[idx] = field.Key
 	}
-	assert.ElementsMatch(t, []string{"http.method", "http.url", "http.path", "http.user_agent"}, foundLogKeysRequest)
+	assert.ElementsMatch(t, []string{"http.method", "http.url", "http.path", "http.user_agent", "http.content_length"}, foundLogKeysRequest)
 
 	// Test that response parameters are appropriately logged to our standards
 	foundLogKeysResponse := make([]string, len(currLogs[1].Context))
 	for idx, field := range currLogs[1].Context {
 		foundLogKeysResponse[idx] = field.Key
 	}
-	assert.ElementsMatch(t, []string{"http.url", "http.method", "http.path", "http.status_code", "http.duration", "http.user_agent"}, foundLogKeysResponse)
+	assert.ElementsMatch(t, []string{"http.url", "http.method", "http.path", "http.status_code", "http.duration", "http.user_agent", "http.content_length"}, foundLogKeysResponse)
 	assert.Equal(t, currLogs[1].Context[0].Integer, int64(statusCode))
 }
 
@@ -80,14 +80,14 @@ func TestHTTPClientMiddleware(t *testing.T) {
 	for idx, field := range currLogs[0].Context {
 		foundLogKeysRequest[idx] = field.Key
 	}
-	assert.ElementsMatch(t, []string{"http.method", "http.url", "http.path", "http.user_agent"}, foundLogKeysRequest)
+	assert.ElementsMatch(t, []string{"http.method", "http.url", "http.path", "http.user_agent", "http.content_length"}, foundLogKeysRequest)
 
 	// Test that response parameters are appropriately logged to our standards
 	foundLogKeysResponse := make([]string, len(currLogs[1].Context))
 	for idx, field := range currLogs[1].Context {
 		foundLogKeysResponse[idx] = field.Key
 	}
-	assert.ElementsMatch(t, []string{"http.url", "http.path", "http.method", "http.status_code", "http.user_agent", "http.duration"}, foundLogKeysResponse)
+	assert.ElementsMatch(t, []string{"http.url", "http.path", "http.method", "http.status_code", "http.user_agent", "http.duration", "http.content_length"}, foundLogKeysResponse)
 	assert.Equal(t, currLogs[1].Context[0].Integer, int64(http.StatusOK))
 }
 

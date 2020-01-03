@@ -37,11 +37,11 @@ const (
 	noBearerToken        = "no authorization bearer token found"
 )
 
-// GetHTTPMiddleware returns an HTTP middleware function which extracts the Authorization header,
-// if present, on all incoming HTTP requests. If an Authorization header is found, this middleware
-// attempts to parse and validate that value as a JWT with the configured Credential types for
-// the given JOSE provider.
-func GetHTTPMiddleware(jh JOSEHandler, authRequired bool) func(next http.Handler) http.Handler {
+// GetHTTPServerMiddleware returns an HTTP middleware function which extracts the Authorization
+// header, if present, on all incoming HTTP requests. If an Authorization header is found, this
+// middleware attempts to parse and validate that value as a JWT with the configured Credential
+// types for the given JOSE provider.
+func GetHTTPServerMiddleware(jh JOSEHandler, authRequired bool) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			logger := log.Get(r.Context())

@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestHTTPMiddleware(t *testing.T) {
+func TestHTTPServerMiddleware(t *testing.T) {
 	testHandler := http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		assert.True(t, sentry.HasHubOnContext(r.Context()))
 		hub := sentry.GetHubFromContext(r.Context())
@@ -22,7 +22,7 @@ func TestHTTPMiddleware(t *testing.T) {
 		assert.NotEqual(t, clone.Scope(), hub.Scope())
 	})
 
-	testServer := httptest.NewServer(tracing.HTTPMiddleware(NewMiddleware().HTTP(testHandler)))
+	testServer := httptest.NewServer(tracing.HTTPServerMiddleware(NewMiddleware().HTTP(testHandler)))
 	defer testServer.Close()
 	res, err := http.Get(testServer.URL)
 	require.NoError(t, err)

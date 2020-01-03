@@ -24,7 +24,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// HTTPMiddleware logs a series of standard attributes for every HTTP request and attaches
+// HTTPServerMiddleware logs a series of standard attributes for every HTTP request and attaches
 // a logger onto the request context.
 //
 //  On inbound request received these attributes include:
@@ -34,9 +34,9 @@ import (
 // On outbound response return these attributes include all of the above as well as:
 // * HTTP response code
 // Note that this middleware must be attached after writer.StatusRecorderMiddleware
-// for HTTP response code logging to function and after tracing.HTTPMiddleware for trace ids
+// for HTTP response code logging to function and after tracing.HTTPServerMiddleware for trace ids
 // to show up in logs.
-func HTTPMiddleware(next http.Handler) http.Handler {
+func HTTPServerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
 		requestLogger := Get(r.Context())
@@ -45,7 +45,8 @@ func HTTPMiddleware(next http.Handler) http.Handler {
 		url := zap.String("http.url", r.URL.String())
 		path := zap.String("http.path", writer.FetchRoutePathTemplate(r))
 		userAgent := zap.String("http.user_agent", r.UserAgent())
-		logger.Debug("http request received", method, url, path, userAgent)
+		contentLength := zap.String("http.content_length", r.Header.Get("Content-Length"))
+		logger.Debug("http request received", method, url, path, userAgent, contentLength)
 		defer func() {
 			var responseCodeField zap.Field
 			if statusRecorder, ok := w.(*writer.StatusRecorder); ok {
@@ -60,6 +61,7 @@ func HTTPMiddleware(next http.Handler) http.Handler {
 				url,
 				path,
 				userAgent,
+				contentLength,
 				zap.Duration("http.duration", time.Since(startTime)),
 			)
 		}()
@@ -77,7 +79,8 @@ func HTTPClientMiddleware(r *http.Request) (*http.Request, func(*http.Response) 
 	url := zap.String("http.url", r.URL.String())
 	path := zap.String("http.path", writer.FetchRoutePathTemplate(r))
 	userAgent := zap.String("http.user_agent", r.UserAgent())
-	logger.Debug("http request started", method, url, path, userAgent)
+	contentLength := zap.String("http.content_length", r.Header.Get("Content-Length"))
+	logger.Debug("http request started", method, url, path, userAgent, contentLength)
 	return r, func(resp *http.Response) error {
 		logger.Info(
 			"http request completed",
@@ -86,6 +89,7 @@ func HTTPClientMiddleware(r *http.Request) (*http.Request, func(*http.Response) 
 			url,
 			path,
 			userAgent,
+			contentLength,
 			zap.Duration("http.duration", time.Since(startTime)),
 		)
 		return nil

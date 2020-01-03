@@ -39,10 +39,12 @@ func TestRoundTrip(t *testing.T) {
 		middlewareErr  bool
 		respHandlerErr bool
 		expectErr      bool
+		expectPanic    bool
 	}{
 		{
-			"no round tripper results in an error",
+			"no round tripper results in a panic",
 			nil,
+			false,
 			false,
 			false,
 			true,
@@ -53,6 +55,7 @@ func TestRoundTrip(t *testing.T) {
 			false,
 			false,
 			false,
+			false,
 		},
 		{
 			"round tripper with middleware error returns an error",
@@ -60,6 +63,7 @@ func TestRoundTrip(t *testing.T) {
 			true,
 			false,
 			true,
+			false,
 		},
 		{
 			"round tripper with internal roundtripper error returns an error",
@@ -67,6 +71,7 @@ func TestRoundTrip(t *testing.T) {
 			false,
 			false,
 			true,
+			false,
 		},
 		{
 			"round tripper with resp handler error returns an error",
@@ -74,6 +79,7 @@ func TestRoundTrip(t *testing.T) {
 			false,
 			true,
 			true,
+			false,
 		},
 	}
 	for _, test := range tests {
@@ -103,14 +109,20 @@ func TestRoundTrip(t *testing.T) {
 				},
 			}
 			mockReq := httptest.NewRequest("GET", "/path", nil)
-			resp, err := mrt.RoundTrip(mockReq)
-			if test.expectErr {
-				assert.Error(t, err)
+			if !test.expectPanic {
+				resp, err := mrt.RoundTrip(mockReq)
+				if test.expectErr {
+					assert.Error(t, err)
+				} else {
+					assert.NoError(t, err)
+					assert.NotNil(t, resp)
+					assert.True(t, middlewareCalled)
+					assert.True(t, respHandlerCalled)
+				}
 			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, resp)
-				assert.True(t, middlewareCalled)
-				assert.True(t, respHandlerCalled)
+				assert.Panics(t, func() {
+					_, _ = mrt.RoundTrip(mockReq)
+				})
 			}
 		})
 	}

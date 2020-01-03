@@ -28,7 +28,7 @@ import (
 	jaeger "github.com/uber/jaeger-client-go"
 )
 
-func TestHTTPMiddleware(t *testing.T) {
+func TestHTTPServerMiddleware(t *testing.T) {
 	tests := []struct {
 		name              string
 		withExistingTrace bool
@@ -86,7 +86,7 @@ func TestHTTPMiddleware(t *testing.T) {
 			})
 
 			testServer := httptest.NewServer(
-				writer.StatusRecorderMiddleware(existingSpanMiddleware(HTTPMiddleware(testHandler))))
+				writer.StatusRecorderMiddleware(existingSpanMiddleware(HTTPServerMiddleware(testHandler))))
 			defer testServer.Close()
 			res, err := http.Get(testServer.URL)
 			require.NoError(t, err)
@@ -132,7 +132,7 @@ func TestHTTPClientMiddleware(t *testing.T) {
 }
 
 func TestGetCorrelationID(t *testing.T) {
-	// first, assert a request through the HTTPMiddleware contains a context
+	// first, assert a request through the HTTPServerMiddleware contains a context
 	// which produces a meaningful result for GetCorrelationID()
 	tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
 	defer closer.Close()
@@ -151,7 +151,7 @@ func TestGetCorrelationID(t *testing.T) {
 		assert.Equal(t, correlationId, _correlationId)
 	})
 
-	testServer := httptest.NewServer(writer.StatusRecorderMiddleware(HTTPMiddleware(testHandler)))
+	testServer := httptest.NewServer(writer.StatusRecorderMiddleware(HTTPServerMiddleware(testHandler)))
 	defer testServer.Close()
 	res, err := http.Get(testServer.URL)
 	require.NoError(t, err)
