@@ -42,9 +42,10 @@ func HTTPMiddleware(next http.Handler) http.Handler {
 		requestLogger := Get(r.Context())
 		logger := requestLogger.Named("http")
 		method := zap.String("http.method", r.Method)
+		url := zap.String("http.url", r.URL.String())
 		path := zap.String("http.path", writer.FetchRoutePathTemplate(r))
-		query := zap.String("http.query", r.URL.Query().Encode())
-		logger.Debug("http request received", method, path, query)
+		userAgent := zap.String("http.user_agent", r.UserAgent())
+		logger.Debug("http request received", method, url, path, userAgent)
 		defer func() {
 			var responseCodeField zap.Field
 			if statusRecorder, ok := w.(*writer.StatusRecorder); ok {
@@ -56,7 +57,9 @@ func HTTPMiddleware(next http.Handler) http.Handler {
 				"http response returned",
 				responseCodeField,
 				method,
+				url,
 				path,
+				userAgent,
 				zap.Duration("http.duration", time.Since(startTime)),
 			)
 		}()
@@ -71,15 +74,18 @@ func HTTPClientMiddleware(r *http.Request) (*http.Request, func(*http.Response) 
 	requestLogger := Get(r.Context())
 	logger := requestLogger.Named("http")
 	method := zap.String("http.method", r.Method)
+	url := zap.String("http.url", r.URL.String())
 	path := zap.String("http.path", writer.FetchRoutePathTemplate(r))
-	query := zap.String("http.query", r.URL.Query().Encode())
-	logger.Debug("http request started", method, path, query)
+	userAgent := zap.String("http.user_agent", r.UserAgent())
+	logger.Debug("http request started", method, url, path, userAgent)
 	return r, func(resp *http.Response) error {
 		logger.Info(
 			"http request completed",
 			zap.Int("http.status_code", resp.StatusCode),
 			method,
+			url,
 			path,
+			userAgent,
 			zap.Duration("http.duration", time.Since(startTime)),
 		)
 		return nil

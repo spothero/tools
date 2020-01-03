@@ -50,14 +50,14 @@ func TestHTTPMiddleware(t *testing.T) {
 	for idx, field := range currLogs[0].Context {
 		foundLogKeysRequest[idx] = field.Key
 	}
-	assert.ElementsMatch(t, []string{"http.method", "http.path", "http.query"}, foundLogKeysRequest)
+	assert.ElementsMatch(t, []string{"http.method", "http.url", "http.path", "http.user_agent"}, foundLogKeysRequest)
 
 	// Test that response parameters are appropriately logged to our standards
 	foundLogKeysResponse := make([]string, len(currLogs[1].Context))
 	for idx, field := range currLogs[1].Context {
 		foundLogKeysResponse[idx] = field.Key
 	}
-	assert.ElementsMatch(t, []string{"http.path", "http.method", "http.status_code", "http.duration"}, foundLogKeysResponse)
+	assert.ElementsMatch(t, []string{"http.url", "http.method", "http.path", "http.status_code", "http.duration", "http.user_agent"}, foundLogKeysResponse)
 	assert.Equal(t, currLogs[1].Context[0].Integer, int64(statusCode))
 }
 
@@ -80,14 +80,14 @@ func TestHTTPClientMiddleware(t *testing.T) {
 	for idx, field := range currLogs[0].Context {
 		foundLogKeysRequest[idx] = field.Key
 	}
-	assert.ElementsMatch(t, []string{"http.method", "http.path", "http.query"}, foundLogKeysRequest)
+	assert.ElementsMatch(t, []string{"http.method", "http.url", "http.path", "http.user_agent"}, foundLogKeysRequest)
 
 	// Test that response parameters are appropriately logged to our standards
 	foundLogKeysResponse := make([]string, len(currLogs[1].Context))
 	for idx, field := range currLogs[1].Context {
 		foundLogKeysResponse[idx] = field.Key
 	}
-	assert.ElementsMatch(t, []string{"http.path", "http.method", "http.status_code", "http.duration"}, foundLogKeysResponse)
+	assert.ElementsMatch(t, []string{"http.url", "http.path", "http.method", "http.status_code", "http.user_agent", "http.duration"}, foundLogKeysResponse)
 	assert.Equal(t, currLogs[1].Context[0].Integer, int64(http.StatusOK))
 }
 
