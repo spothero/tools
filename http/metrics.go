@@ -16,6 +16,7 @@ package http
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -100,17 +101,27 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 		registry.MustRegister(counter)
 		registry.MustRegister(clientCounter)
 	} else {
-		if err := registry.Register(histogram); err != nil {
-			log.Get(context.Background()).Error("failed to register http histogram", zap.Error(err))
+		toRegister := map[string]prometheus.Collector{
+			"duration":       histogram,
+			"clientDuration": clientHistogram,
+			"counter":        counter,
+			"clientCounter":  clientCounter,
 		}
-		if err := registry.Register(clientHistogram); err != nil {
-			log.Get(context.Background()).Error("failed to register http client histogram", zap.Error(err))
-		}
-		if err := registry.Register(counter); err != nil {
-			log.Get(context.Background()).Error("failed to register http counter", zap.Error(err))
-		}
-		if err := registry.Register(clientCounter); err != nil {
-			log.Get(context.Background()).Error("failed to register http client counter", zap.Error(err))
+		for name, collector := range toRegister {
+			if err := registry.Register(collector); err != nil {
+				switch err.(type) {
+				case prometheus.AlreadyRegisteredError:
+					log.Get(context.Background()).Debug(
+						fmt.Sprintf("http metric `%v` already registered", name),
+						zap.Error(err),
+					)
+				default:
+					log.Get(context.Background()).Error(
+						fmt.Sprintf("failed to register http metric `%v`", name),
+						zap.Error(err),
+					)
+				}
+			}
 		}
 	}
 	return Metrics{
