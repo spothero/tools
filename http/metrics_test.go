@@ -115,6 +115,10 @@ func TestMiddleware(t *testing.T) {
 	prometheus.Unregister(metrics.duration)
 	prometheus.Unregister(metrics.clientDuration)
 
+	// TODO: VERIFY CONTENTS
+	prometheus.Unregister(metrics.contentLength)
+	prometheus.Unregister(metrics.clientContentLength)
+
 	// Check request counter
 	counter, err := metrics.counter.GetMetricWith(labels)
 	assert.NoError(t, err)
@@ -159,6 +163,10 @@ func TestClientMiddleware(t *testing.T) {
 	}
 	prometheus.Unregister(metrics.duration)
 	prometheus.Unregister(metrics.clientDuration)
+
+	// TODO: VERIFY CONTENTS
+	prometheus.Unregister(metrics.contentLength)
+	prometheus.Unregister(metrics.clientContentLength)
 
 	// Check request counter
 	counter, err := metrics.clientCounter.GetMetricWith(labels)

@@ -26,12 +26,17 @@ import (
 	"go.uber.org/zap"
 )
 
+// BYTES_IN_MB defines the total number of bytes in a megabyte
+const BYTES_IN_MB = 100000
+
 // Metrics is a bundle of prometheus HTTP metrics recorders
 type Metrics struct {
-	counter        *prometheus.CounterVec
-	duration       *prometheus.HistogramVec
-	clientCounter  *prometheus.CounterVec
-	clientDuration *prometheus.HistogramVec
+	counter             *prometheus.CounterVec
+	duration            *prometheus.HistogramVec
+	contentLength       *prometheus.HistogramVec
+	clientCounter       *prometheus.CounterVec
+	clientDuration      *prometheus.HistogramVec
+	clientContentLength *prometheus.HistogramVec
 }
 
 // NewMetrics creates and returns a metrics bundle. The user may optionally
@@ -39,6 +44,7 @@ type Metrics struct {
 // Registry is used. Finally, if mustRegister is true, and a registration error is encountered,
 // the application will panic.
 func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
+	labels := []string{"path", "status_code"}
 	histogram := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "http_request_duration_seconds",
@@ -46,12 +52,7 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 			// Power of 2 time - 1ms, 2ms, 4ms ... 32768ms, +Inf ms
 			Buckets: prometheus.ExponentialBuckets(0.001, 2.0, 16),
 		},
-		[]string{
-			// The path recording the request
-			"path",
-			// The Specific HTTP Status Code
-			"status_code",
-		},
+		labels,
 	)
 	clientHistogram := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
@@ -60,36 +61,37 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 			// Power of 2 time - 1ms, 2ms, 4ms ... 32768ms, +Inf ms
 			Buckets: prometheus.ExponentialBuckets(0.001, 2.0, 16),
 		},
-		[]string{
-			// The path recording the request
-			"path",
-			// The Specific HTTP Status Code
-			"status_code",
-		},
+		labels,
 	)
 	counter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "http_requests_total",
 			Help: "Total number of HTTP Requests received",
 		},
-		[]string{
-			// The path recording the request
-			"path",
-			// The Specific HTTP Status Code
-			"status_code",
-		},
+		labels,
 	)
 	clientCounter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "http_client_requests_total",
 			Help: "Total number of HTTP Client Requests sent",
 		},
-		[]string{
-			// The path recording the request
-			"path",
-			// The Specific HTTP Status Code
-			"status_code",
+		labels,
+	)
+	contentLength := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "http_content_length_bytes",
+			Help:    "HTTP Request content length histogram",
+			Buckets: prometheus.LinearBuckets(BYTES_IN_MB, BYTES_IN_MB, 10),
 		},
+		labels,
+	)
+	clientContentLength := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "http_client_content_length_bytes",
+			Help:    "HTTP Client Request content length histogram",
+			Buckets: prometheus.LinearBuckets(BYTES_IN_MB, BYTES_IN_MB, 10),
+		},
+		labels,
 	)
 	// If the user hasnt provided a Prometheus Registry, use the global Registry
 	if registry == nil {
@@ -100,12 +102,16 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 		registry.MustRegister(clientHistogram)
 		registry.MustRegister(counter)
 		registry.MustRegister(clientCounter)
+		registry.MustRegister(contentLength)
+		registry.MustRegister(clientContentLength)
 	} else {
 		toRegister := map[string]prometheus.Collector{
-			"duration":       histogram,
-			"clientDuration": clientHistogram,
-			"counter":        counter,
-			"clientCounter":  clientCounter,
+			"duration":            histogram,
+			"clientDuration":      clientHistogram,
+			"counter":             counter,
+			"clientCounter":       clientCounter,
+			"contentLength":       contentLength,
+			"clientContentLength": clientContentLength,
 		}
 		for name, collector := range toRegister {
 			if err := registry.Register(collector); err != nil {
@@ -125,10 +131,12 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 		}
 	}
 	return Metrics{
-		counter:        counter,
-		clientCounter:  clientCounter,
-		duration:       histogram,
-		clientDuration: clientHistogram,
+		counter:             counter,
+		clientCounter:       clientCounter,
+		duration:            histogram,
+		clientDuration:      clientHistogram,
+		contentLength:       contentLength,
+		clientContentLength: clientContentLength,
 	}
 }
 
