@@ -77,8 +77,8 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 	contentLength := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "http_content_length_bytes",
-			Help: "HTTP Request content length histogram",
-			// Power of 2 bytes, starts at 1 byte and works up to 10MB
+			Help: "HTTP Request content length histogram, buckets range from 1B to 16MB",
+			// Power of 2 bytes, starts at 1 byte and works up to 16MB
 			Buckets: prometheus.ExponentialBuckets(1, 2.0, 24),
 		},
 		labels,
@@ -86,8 +86,8 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 	clientContentLength := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "http_client_content_length_bytes",
-			Help: "HTTP Client Request content length histogram",
-			// Power of 2 bytes, starts at 1 byte and works up to 10MB
+			Help: "HTTP Client Request content length histogram, buckets range from 1B to 16MB",
+			// Power of 2 bytes, starts at 1 byte and works up to 16MB
 			Buckets: prometheus.ExponentialBuckets(1, 2.0, 24),
 		},
 		labels,
