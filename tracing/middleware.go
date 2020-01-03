@@ -53,6 +53,8 @@ func HTTPMiddleware(next http.Handler) http.Handler {
 		span, spanCtx := opentracing.StartSpanFromContext(r.Context(), writer.FetchRoutePathTemplate(r), ext.RPCServerOption(wireContext))
 		span = span.SetTag("http.method", r.Method)
 		span = span.SetTag("http.url", r.URL.String())
+		span = span.SetTag("http.path", writer.FetchRoutePathTemplate(r))
+		span = span.SetTag("http.user_agent", r.UserAgent())
 
 		defer func() {
 			if statusRecorder, ok := w.(*writer.StatusRecorder); ok {
@@ -74,6 +76,8 @@ func HTTPClientMiddleware(r *http.Request) (*http.Request, func(*http.Response) 
 	span, spanCtx := opentracing.StartSpanFromContext(r.Context(), operationName)
 	span = span.SetTag("http.method", r.Method)
 	span = span.SetTag("http.url", r.URL.String())
+	span = span.SetTag("http.path", writer.FetchRoutePathTemplate(r))
+	span = span.SetTag("http.user_agent", r.UserAgent())
 	return r.WithContext(EmbedCorrelationID(spanCtx)),
 		func(resp *http.Response) error {
 			span = span.SetTag("http.status_code", resp.Status)
