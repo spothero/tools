@@ -27,6 +27,20 @@ import (
 	sql "github.com/spothero/tools/sql/middleware"
 )
 
+// setSpanTags sets default HTTP span tags
+func setSpanTags(r *http.Request, span opentracing.Span) opentracing.Span {
+	span = span.SetTag("http.method", r.Method)
+	span = span.SetTag("http.url", r.URL.String())
+	span = span.SetTag("http.path", writer.FetchRoutePathTemplate(r))
+	span = span.SetTag("http.user_agent", r.UserAgent())
+	if contentLengthStr := r.Header.Get("Content-Length"); len(contentLengthStr) > 0 {
+		if contentLength, err := strconv.Atoi(contentLengthStr); err == nil {
+			span = span.SetTag("http.content_length", contentLength)
+		}
+	}
+	return span
+}
+
 // HTTPServerMiddleware extracts the OpenTracing context on all incoming HTTP requests, if present. if
 // no trace ID is present in the headers, a trace is initiated.
 //
@@ -51,11 +65,7 @@ func HTTPServerMiddleware(next http.Handler) http.Handler {
 			logger.Debug("failed to extract opentracing context on an incoming http request")
 		}
 		span, spanCtx := opentracing.StartSpanFromContext(r.Context(), writer.FetchRoutePathTemplate(r), ext.RPCServerOption(wireContext))
-		span = span.SetTag("http.method", r.Method)
-		span = span.SetTag("http.url", r.URL.String())
-		span = span.SetTag("http.path", writer.FetchRoutePathTemplate(r))
-		span = span.SetTag("http.user_agent", r.UserAgent())
-		span = span.SetTag("http.content_length", r.Header.Get("Content-Length"))
+		span = setSpanTags(r, span)
 		defer func() {
 			if statusRecorder, ok := w.(*writer.StatusRecorder); ok {
 				span = span.SetTag("http.status_code", strconv.Itoa(statusRecorder.StatusCode))
@@ -74,11 +84,7 @@ func HTTPServerMiddleware(next http.Handler) http.Handler {
 func HTTPClientMiddleware(r *http.Request) (*http.Request, func(*http.Response) error, error) {
 	operationName := fmt.Sprintf("%s %s", r.Method, r.URL.String())
 	span, spanCtx := opentracing.StartSpanFromContext(r.Context(), operationName)
-	span = span.SetTag("http.method", r.Method)
-	span = span.SetTag("http.url", r.URL.String())
-	span = span.SetTag("http.path", writer.FetchRoutePathTemplate(r))
-	span = span.SetTag("http.user_agent", r.UserAgent())
-	span = span.SetTag("http.content_length", r.Header.Get("Content-Length"))
+	span = setSpanTags(r, span)
 	return r.WithContext(EmbedCorrelationID(spanCtx)),
 		func(resp *http.Response) error {
 			span = span.SetTag("http.status_code", resp.Status)

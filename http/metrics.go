@@ -151,6 +151,11 @@ func (m Metrics) Middleware(next http.Handler) http.Handler {
 				labels["status_code"] = strconv.Itoa(statusRecorder.StatusCode)
 			}
 			m.counter.With(labels).Inc()
+			if contentLengthStr := r.Header.Get("Content-Length"); len(contentLengthStr) > 0 {
+				if contentLength, err := strconv.Atoi(contentLengthStr); err == nil {
+					m.contentLength.With(labels).Observe(float64(contentLength))
+				}
+			}
 			m.duration.With(labels).Observe(durationSec)
 		}))
 		defer timer.ObserveDuration()
@@ -167,6 +172,11 @@ func (m Metrics) ClientMiddleware(r *http.Request) (*http.Request, func(*http.Re
 			"status_code": strconv.Itoa(receivedResp.StatusCode),
 		}
 		m.clientCounter.With(labels).Inc()
+		if contentLengthStr := r.Header.Get("Content-Length"); len(contentLengthStr) > 0 {
+			if contentLength, err := strconv.Atoi(contentLengthStr); err == nil {
+				m.clientContentLength.With(labels).Observe(float64(contentLength))
+			}
+		}
 		m.clientDuration.With(labels).Observe(durationSec)
 	}
 	timer := prometheus.NewTimer(prometheus.ObserverFunc(observerFunc))

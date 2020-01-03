@@ -28,6 +28,20 @@ import (
 	jaeger "github.com/uber/jaeger-client-go"
 )
 
+func TestSetSpanTags(t *testing.T) {
+	tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
+	defer closer.Close()
+	opentracing.SetGlobalTracer(tracer)
+	span, _ := opentracing.StartSpanFromContext(context.Background(), "test")
+
+	mockReq := httptest.NewRequest("POST", "/path", nil)
+	mockReq.Header.Set("Content-Length", "1")
+
+	// There's not much we can test here since we can't access the underlying tags
+	span = setSpanTags(mockReq, span)
+	assert.NotNil(t, span)
+}
+
 func TestHTTPServerMiddleware(t *testing.T) {
 	tests := []struct {
 		name              string
