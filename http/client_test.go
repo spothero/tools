@@ -29,10 +29,13 @@ func TestNewDefaultClient(t *testing.T) {
 	mrt, ok := client.Transport.(MiddlewareRoundTripper)
 	assert.True(t, ok)
 	assert.Equal(t, 4, len(mrt.Middleware))
-	assert.Equal(t, http.DefaultTransport, mrt.RoundTripper)
+
+	rrt, ok := mrt.RoundTripper.(RetryRoundTripper)
+	assert.True(t, ok)
+	assert.Equal(t, http.DefaultTransport, rrt.RoundTripper)
 }
 
-func TestRoundTrip(t *testing.T) {
+func TestMiddlewareRoundTrip(t *testing.T) {
 	tests := []struct {
 		name           string
 		roundTripper   http.RoundTripper
@@ -122,6 +125,50 @@ func TestRoundTrip(t *testing.T) {
 			} else {
 				assert.Panics(t, func() {
 					_, _ = mrt.RoundTrip(mockReq)
+				})
+			}
+		})
+	}
+}
+
+func TestRetryRoundTrip(t *testing.T) {
+	tests := []struct {
+		name         string
+		roundTripper http.RoundTripper
+		expectErr    bool
+		expectPanic  bool
+	}{
+		{
+			"no round tripper results in a panic",
+			nil,
+			false,
+			true,
+		},
+		{
+			"round tripper with no error invokes middleware correctly",
+			MockRoundTripper{200, false},
+			false,
+			false,
+		},
+		// TODO: TEST ERROR CONDITIONS!
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			rrt := RetryRoundTripper{
+				RoundTripper: test.roundTripper,
+			}
+			mockReq := httptest.NewRequest("GET", "/path", nil)
+			if !test.expectPanic {
+				resp, err := rrt.RoundTrip(mockReq)
+				if test.expectErr {
+					assert.Error(t, err)
+				} else {
+					assert.NoError(t, err)
+					assert.NotNil(t, resp)
+				}
+			} else {
+				assert.Panics(t, func() {
+					_, _ = rrt.RoundTrip(mockReq)
 				})
 			}
 		})
