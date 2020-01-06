@@ -142,16 +142,25 @@ func TestMetricsRoundTrip(t *testing.T) {
 	tests := []struct {
 		name         string
 		roundTripper http.RoundTripper
+		expectErr    bool
 		expectPanic  bool
 	}{
 		{
 			"no roundtripper results in a panic",
 			nil,
+			false,
 			true,
+		},
+		{
+			"an error on roundtrip is reported to the caller",
+			&roundtrip.MockRoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: true},
+			true,
+			false,
 		},
 		{
 			"http requests are measured and status code is recorded on request",
 			&roundtrip.MockRoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
+			false,
 			false,
 		},
 	}
@@ -166,7 +175,12 @@ func TestMetricsRoundTrip(t *testing.T) {
 				assert.Panics(t, func() {
 					_, _ = metricsRT.RoundTrip(mockReq)
 				})
+			} else if test.expectErr {
+				resp, err := metricsRT.RoundTrip(mockReq)
+				assert.Nil(t, resp)
+				assert.Error(t, err)
 			} else {
+				mockReq.Header.Set("Content-Length", "1")
 				resp, err := metricsRT.RoundTrip(mockReq)
 				assert.NotNil(t, resp)
 				assert.NoError(t, err)

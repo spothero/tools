@@ -179,6 +179,9 @@ func (metricsRT MetricsRoundTripper) RoundTrip(r *http.Request) (*http.Response,
 	// Make the request
 	var resp *http.Response
 	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(durationSec float64) {
+		if resp == nil {
+			return
+		}
 		labels := prometheus.Labels{
 			"path":        r.URL.Path,
 			"status_code": strconv.Itoa(resp.StatusCode),
