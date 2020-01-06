@@ -140,7 +140,7 @@ func TestRetryRoundTrip(t *testing.T) {
 		name               string
 		roundTripper       http.RoundTripper
 		expectedStatusCode int
-		numRetries         uint64
+		numRetries         uint8
 		expectErr          bool
 		expectPanic        bool
 	}{
@@ -220,7 +220,7 @@ func TestRetryRoundTrip(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			rrt := RetryRoundTripper{
-				RetriableStatusCodes: []int{http.StatusInternalServerError},
+				RetriableStatusCodes: map[int]bool{http.StatusInternalServerError: true},
 				MaxRetries:           test.numRetries,
 				InitialInterval:      1 * time.Nanosecond,
 				RoundTripper:         test.roundTripper,
