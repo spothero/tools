@@ -138,7 +138,7 @@ func TestMiddleware(t *testing.T) {
 	prometheus.Unregister(metrics.clientCounter)
 }
 
-func TestClientMiddleware(t *testing.T) {
+func TestMetricsRoundTrip(t *testing.T) {
 	tests := []struct {
 		name         string
 		roundTripper http.RoundTripper
