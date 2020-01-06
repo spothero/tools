@@ -22,6 +22,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
+	"github.com/spothero/tools/http/roundtrip"
 	"github.com/spothero/tools/http/writer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -150,7 +151,7 @@ func TestClientMiddleware(t *testing.T) {
 		},
 		{
 			"http requests are measured and status code is recorded on request",
-			&MockRoundTripper{responseStatusCodes: []int{http.StatusOK}, createErr: false},
+			&roundtrip.MockRoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
 			false,
 		},
 	}

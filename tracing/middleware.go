@@ -80,20 +80,33 @@ func HTTPServerMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// HTTPClientMiddleware is middleware for use in HTTP Clients
-func HTTPClientMiddleware(r *http.Request) (*http.Request, func(*http.Response) error, error) {
+// RoundTripper provides a proxied HTTP RoundTripper which traces client HTTP request details
+type RoundTripper struct {
+	RoundTripper http.RoundTripper
+}
+
+// RoundTrip completes HTTP roundtrips while tracing HTTP request details
+func (rt RoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
+	// Ensure the inner RoundTripper was set on the RoundTripper
+	if rt.RoundTripper == nil {
+		panic("no roundtripper provided to tracing round tripper")
+	}
+
 	operationName := fmt.Sprintf("%s %s", r.Method, r.URL.String())
 	span, spanCtx := opentracing.StartSpanFromContext(r.Context(), operationName)
+	defer span.Finish()
 	span = setSpanTags(r, span)
-	return r.WithContext(EmbedCorrelationID(spanCtx)),
-		func(resp *http.Response) error {
-			span = span.SetTag("http.status_code", resp.Status)
-			if resp.StatusCode >= http.StatusBadRequest {
-				span = span.SetTag("error", true)
-			}
-			span.Finish()
-			return nil
-		}, TraceOutbound(r, span)
+
+	resp, err := rt.RoundTripper.RoundTrip(r.WithContext(EmbedCorrelationID(spanCtx)))
+	if err != nil {
+		return nil, fmt.Errorf("http client request failed: %w", err)
+	}
+
+	span = span.SetTag("http.status_code", resp.Status)
+	if resp.StatusCode >= http.StatusBadRequest {
+		span = span.SetTag("error", true)
+	}
+	return resp, err
 }
 
 // GetCorrelationID returns the correlation ID associated with the given

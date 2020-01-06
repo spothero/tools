@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/spothero/tools/http/roundtrip"
 	"github.com/spothero/tools/http/writer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -110,37 +111,59 @@ func TestHTTPServerMiddleware(t *testing.T) {
 	}
 }
 
-func TestHTTPClientMiddleware(t *testing.T) {
+func TestRoundTrip(t *testing.T) {
 	tests := []struct {
-		name       string
-		statusCode int
+		name         string
+		roundTripper http.RoundTripper
+		expectErr    bool
+		expectPanic  bool
 	}{
 		{
-			"tracing client middleware correctly records 2XX responses",
-			http.StatusOK,
+			"no round tripper results in a panic",
+			nil,
+			false,
+			true,
 		},
 		{
-			"tracing client middleware correctly records 5XX responses",
-			http.StatusInternalServerError,
+			"roundtripper errors are returned to the caller",
+			&roundtrip.MockRoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: true},
+			true,
+			false,
+		},
+		{
+			"successful requests are traced appropriately in client calls",
+			&roundtrip.MockRoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
+			false,
+			false,
+		},
+		{
+			"failed requests are traced appropriately in client calls",
+			&roundtrip.MockRoundTripper{ResponseStatusCodes: []int{http.StatusInternalServerError}, CreateErr: false},
+			false,
+			false,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
-			defer closer.Close()
-			opentracing.SetGlobalTracer(tracer)
+			rt := RoundTripper{RoundTripper: test.roundTripper}
+			if test.expectPanic {
+				assert.Panics(t, func() {
+					_, _ = rt.RoundTrip(nil)
+				})
+			} else if test.expectErr {
+				resp, err := rt.RoundTrip(httptest.NewRequest("GET", "/path", nil))
+				assert.Error(t, err)
+				assert.Nil(t, resp)
+			} else {
+				tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
+				defer closer.Close()
+				opentracing.SetGlobalTracer(tracer)
 
-			mockReq := httptest.NewRequest("GET", "/path", nil)
-			mockReq, respHandler, err := HTTPClientMiddleware(mockReq)
-			assert.NoError(t, err)
-			assert.NotNil(t, respHandler)
-
-			correlationId, ok := mockReq.Context().Value(CorrelationIDCtxKey).(string)
-			assert.Equal(t, true, ok)
-			assert.NotNil(t, correlationId)
-			assert.NotEqual(t, "", correlationId)
-
-			assert.NoError(t, respHandler(&http.Response{StatusCode: test.statusCode}))
+				mockReq := httptest.NewRequest("GET", "/path", nil)
+				resp, err := rt.RoundTrip(mockReq)
+				assert.NoError(t, err)
+				assert.NotNil(t, resp)
+			}
 		})
 	}
 }

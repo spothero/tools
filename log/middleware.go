@@ -16,6 +16,7 @@ package log
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -74,17 +75,31 @@ func HTTPServerMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// HTTPClientMiddleware is middleware for use in HTTP Clients which logs outbound requests
-func HTTPClientMiddleware(r *http.Request) (*http.Request, func(*http.Response) error, error) {
+// RoundTripper provides a proxied HTTP RoundTripper which logs client HTTP request details
+type RoundTripper struct {
+	RoundTripper http.RoundTripper
+}
+
+// RoundTrip completes HTTP roundtrips while logging HTTP request details
+func (rt RoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
+	// Ensure the inner RoundTripper was set on the RoundTripper
+	if rt.RoundTripper == nil {
+		panic("no roundtripper provided to log round tripper")
+	}
+
 	startTime := time.Now()
 	logger := Get(r.Context()).Named("http")
 	fields := getFields(r)
 	logger.Debug("http request started", fields...)
-	return r, func(resp *http.Response) error {
-		fields := append(fields, zap.Int("http.status_code", resp.StatusCode), zap.Duration("http.duration", time.Since(startTime)))
-		logger.Info("http request completed", fields...)
-		return nil
-	}, nil
+
+	resp, err := rt.RoundTripper.RoundTrip(r)
+	if err != nil {
+		return nil, fmt.Errorf("http client request failed: %w", err)
+	}
+
+	fields = append(fields, zap.Int("http.status_code", resp.StatusCode), zap.Duration("http.duration", time.Since(startTime)))
+	logger.Info("http request completed", fields...)
+	return resp, err
 }
 
 // SQLMiddleware debug logs requests made against SQL databases.

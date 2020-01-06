@@ -21,6 +21,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/spothero/tools/http/roundtrip"
 	"github.com/spothero/tools/http/writer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -73,35 +74,71 @@ func TestHTTPServerMiddleware(t *testing.T) {
 	assert.Equal(t, currLogs[1].Context[len(currLogs[1].Context)-2].Integer, int64(statusCode))
 }
 
-func TestHTTPClientMiddleware(t *testing.T) {
-	recordedLogs := makeLoggerObservable(t, zapcore.DebugLevel)
-
-	mockReq := httptest.NewRequest("GET", "/path", nil)
-	mockReq.Header.Set("Content-Length", "1")
-	req, responseHandler, err := HTTPClientMiddleware(mockReq)
-	assert.NoError(t, err)
-	assert.NotNil(t, responseHandler)
-	assert.NotNil(t, req)
-
-	mockResp := &http.Response{StatusCode: http.StatusOK}
-	assert.NoError(t, responseHandler(mockResp))
-
-	// Test that request parameters are appropriately logged to our standards
-	currLogs := recordedLogs.All()
-	assert.Len(t, currLogs, 2)
-	foundLogKeysRequest := make([]string, len(currLogs[0].Context))
-	for idx, field := range currLogs[0].Context {
-		foundLogKeysRequest[idx] = field.Key
+func TestRoundTripper(t *testing.T) {
+	tests := []struct {
+		name         string
+		roundTripper http.RoundTripper
+		expectErr    bool
+		expectPanic  bool
+	}{
+		{
+			"no round tripper results in a panic",
+			nil,
+			false,
+			true,
+		},
+		{
+			"roundtripper errors are returned to the caller",
+			&roundtrip.MockRoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: true},
+			true,
+			false,
+		},
+		{
+			"requests are logged appropriately in client calls",
+			&roundtrip.MockRoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
+			false,
+			false,
+		},
 	}
-	assert.ElementsMatch(t, []string{"http.method", "http.url", "http.path", "http.user_agent", "http.content_length"}, foundLogKeysRequest)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			rt := RoundTripper{RoundTripper: test.roundTripper}
+			if test.expectPanic {
+				assert.Panics(t, func() {
+					_, _ = rt.RoundTrip(nil)
+				})
+			} else if test.expectErr {
+				resp, err := rt.RoundTrip(httptest.NewRequest("GET", "/path", nil))
+				assert.Error(t, err)
+				assert.Nil(t, resp)
+			} else {
+				recordedLogs := makeLoggerObservable(t, zapcore.DebugLevel)
 
-	// Test that response parameters are appropriately logged to our standards
-	foundLogKeysResponse := make([]string, len(currLogs[1].Context))
-	for idx, field := range currLogs[1].Context {
-		foundLogKeysResponse[idx] = field.Key
+				mockReq := httptest.NewRequest("GET", "/path", nil)
+				mockReq.Header.Set("Content-Length", "1")
+				resp, err := rt.RoundTrip(mockReq)
+				assert.NoError(t, err)
+				assert.NotNil(t, resp)
+
+				// Test that request parameters are appropriately logged to our standards
+				currLogs := recordedLogs.All()
+				assert.Len(t, currLogs, 2)
+				foundLogKeysRequest := make([]string, len(currLogs[0].Context))
+				for idx, field := range currLogs[0].Context {
+					foundLogKeysRequest[idx] = field.Key
+				}
+				assert.ElementsMatch(t, []string{"http.method", "http.url", "http.path", "http.user_agent", "http.content_length"}, foundLogKeysRequest)
+
+				// Test that response parameters are appropriately logged to our standards
+				foundLogKeysResponse := make([]string, len(currLogs[1].Context))
+				for idx, field := range currLogs[1].Context {
+					foundLogKeysResponse[idx] = field.Key
+				}
+				assert.ElementsMatch(t, []string{"http.url", "http.path", "http.method", "http.status_code", "http.user_agent", "http.duration", "http.content_length"}, foundLogKeysResponse)
+				assert.Equal(t, currLogs[1].Context[len(currLogs[1].Context)-2].Integer, int64(http.StatusOK))
+			}
+		})
 	}
-	assert.ElementsMatch(t, []string{"http.url", "http.path", "http.method", "http.status_code", "http.user_agent", "http.duration", "http.content_length"}, foundLogKeysResponse)
-	assert.Equal(t, currLogs[1].Context[len(currLogs[1].Context)-2].Integer, int64(http.StatusOK))
 }
 
 func TestSQLMiddleware(t *testing.T) {
