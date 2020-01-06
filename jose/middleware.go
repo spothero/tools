@@ -94,21 +94,21 @@ func GetHTTPServerMiddleware(jh JOSEHandler, authRequired bool) func(next http.H
 	}
 }
 
-// AuthRoundTripper implements an http.RoundTripper which passes along any auth headers automatically
-type AuthRoundTripper struct {
+// RoundTripper implements an http.RoundTripper which passes along any auth headers automatically
+type RoundTripper struct {
 	RoundTripper http.RoundTripper
 }
 
 // RoundTrip is intended for use in HTTP Clients and it propagates the Authorization
 // headers on outgoing HTTP calls automatically
-func (art AuthRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
+func (rt RoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	// Ensure the RoundTripper was set on the MiddlewareRoundTripper
-	if art.RoundTripper == nil {
+	if rt.RoundTripper == nil {
 		panic("no roundtripper provided to auth round tripper")
 	}
 
 	if jwtData, ok := r.Context().Value(JWTClaimKey).(string); ok {
 		r.Header.Set(authHeader, fmt.Sprintf("%s%s", bearerPrefix, jwtData))
 	}
-	return art.RoundTripper.RoundTrip(r)
+	return rt.RoundTripper.RoundTrip(r)
 }

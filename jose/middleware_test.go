@@ -204,15 +204,15 @@ func TestRoundTrip(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			art := AuthRoundTripper{RoundTripper: test.roundTripper}
+			rt := RoundTripper{RoundTripper: test.roundTripper}
 			if test.expectPanic {
 				assert.Panics(t, func() {
-					_, _ = art.RoundTrip(nil)
+					_, _ = rt.RoundTrip(nil)
 				})
 			} else {
 				mockReq := httptest.NewRequest("GET", "/path", nil)
 				mockReq = mockReq.WithContext(context.WithValue(mockReq.Context(), JWTClaimKey, "jwt"))
-				resp, err := art.RoundTrip(mockReq)
+				resp, err := rt.RoundTrip(mockReq)
 				assert.NoError(t, err)
 				assert.NotNil(t, resp)
 			}

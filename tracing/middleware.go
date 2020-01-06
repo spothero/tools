@@ -94,11 +94,11 @@ func (rt RoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 
 	operationName := fmt.Sprintf("%s %s", r.Method, r.URL.String())
 	span, spanCtx := opentracing.StartSpanFromContext(r.Context(), operationName)
-	defer span.Finish()
 	span = setSpanTags(r, span)
 
 	resp, err := rt.RoundTripper.RoundTrip(r.WithContext(EmbedCorrelationID(spanCtx)))
 	if err != nil {
+		span.Finish()
 		return nil, fmt.Errorf("http client request failed: %w", err)
 	}
 
@@ -106,6 +106,7 @@ func (rt RoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	if resp.StatusCode >= http.StatusBadRequest {
 		span = span.SetTag("error", true)
 	}
+	span.Finish()
 	return resp, err
 }
 
