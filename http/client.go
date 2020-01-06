@@ -77,7 +77,7 @@ func NewDefaultClient(metrics Metrics, roundTripper http.RoundTripper) http.Clie
 			Middleware: []ClientMiddleware{
 				tracing.HTTPClientMiddleware,
 				log.HTTPClientMiddleware,
-				metrics.ClientMiddleware,
+				//metrics.ClientMiddleware,
 				jose.HTTPClientMiddleware,
 			},
 			RoundTripper: retryRoundTripper,

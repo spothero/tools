@@ -138,56 +138,83 @@ func TestMiddleware(t *testing.T) {
 }
 
 func TestClientMiddleware(t *testing.T) {
-	metrics := NewMetrics(nil, true)
-
-	mockReq := httptest.NewRequest("GET", "/path", nil)
-	req, respHandler, err := metrics.ClientMiddleware(mockReq)
-	assert.NotNil(t, req)
-	assert.NoError(t, err)
-	assert.NoError(t, respHandler(&http.Response{StatusCode: http.StatusOK}))
-
-	// Expected prometheus labels after this request
-	labels := prometheus.Labels{
-		"path":        "/path",
-		"status_code": "200",
+	tests := []struct {
+		name         string
+		roundTripper http.RoundTripper
+		expectPanic  bool
+	}{
+		{
+			"no roundtripper results in a panic",
+			nil,
+			true,
+		},
+		{
+			"http requests are measured and status code is recorded on request",
+			&MockRoundTripper{responseStatusCodes: []int{http.StatusOK}, createErr: false},
+			false,
+		},
 	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			metricsRT := MetricsRoundTripper{
+				RoundTripper: test.roundTripper,
+				metrics:      NewMetrics(nil, true),
+			}
+			mockReq := httptest.NewRequest("GET", "/path", nil)
+			if test.expectPanic {
+				assert.Panics(t, func() {
+					_, _ = metricsRT.RoundTrip(mockReq)
+				})
+			} else {
+				resp, err := metricsRT.RoundTrip(mockReq)
+				assert.NotNil(t, resp)
+				assert.NoError(t, err)
 
-	// Check duration histogram
-	histogram, err := metrics.clientDuration.GetMetricWith(labels)
-	assert.NoError(t, err)
-	pb := &dto.Metric{}
-	assert.NoError(t, histogram.(prometheus.Histogram).Write(pb))
-	buckets := pb.Histogram.GetBucket()
-	assert.NotEmpty(t, buckets)
-	for _, bucket := range pb.Histogram.GetBucket() {
-		// Choose a bucket which gives a full second to this test and ensure we have a count of at
-		// least one. This just ensures that our timer is working. This request should never take
-		// longer than a millisecond, but we hugely increase the threshold to ensure we dont
-		// introduce tests that periodically fail for no clear reason.
-		if bucket.GetUpperBound() >= 1.0 {
-			assert.Equal(t, uint64(1), bucket.GetCumulativeCount())
-			break
-		}
+				// Expected prometheus labels after this request
+				labels := prometheus.Labels{
+					"path":        "/path",
+					"status_code": "200",
+				}
+
+				// Check duration histogram
+				histogram, err := metricsRT.metrics.clientDuration.GetMetricWith(labels)
+				assert.NoError(t, err)
+				pb := &dto.Metric{}
+				assert.NoError(t, histogram.(prometheus.Histogram).Write(pb))
+				buckets := pb.Histogram.GetBucket()
+				assert.NotEmpty(t, buckets)
+				for _, bucket := range pb.Histogram.GetBucket() {
+					// Choose a bucket which gives a full second to this test and ensure we have a count of at
+					// least one. This just ensures that our timer is working. This request should never take
+					// longer than a millisecond, but we hugely increase the threshold to ensure we dont
+					// introduce tests that periodically fail for no clear reason.
+					if bucket.GetUpperBound() >= 1.0 {
+						assert.Equal(t, uint64(1), bucket.GetCumulativeCount())
+						break
+					}
+				}
+
+				// Check content-length histogram
+				contentLengthHistogram, err := metricsRT.metrics.clientContentLength.GetMetricWith(labels)
+				assert.NoError(t, err)
+				pb = &dto.Metric{}
+				assert.NoError(t, contentLengthHistogram.(prometheus.Histogram).Write(pb))
+				buckets = pb.Histogram.GetBucket()
+				assert.NotEmpty(t, buckets)
+
+				// Check request counter
+				counter, err := metricsRT.metrics.clientCounter.GetMetricWith(labels)
+				assert.NoError(t, err)
+				pb = &dto.Metric{}
+				assert.NoError(t, counter.Write(pb))
+				assert.Equal(t, 1, int(pb.Counter.GetValue()))
+			}
+			prometheus.Unregister(metricsRT.metrics.duration)
+			prometheus.Unregister(metricsRT.metrics.clientDuration)
+			prometheus.Unregister(metricsRT.metrics.contentLength)
+			prometheus.Unregister(metricsRT.metrics.clientContentLength)
+			prometheus.Unregister(metricsRT.metrics.counter)
+			prometheus.Unregister(metricsRT.metrics.clientCounter)
+		})
 	}
-	prometheus.Unregister(metrics.duration)
-	prometheus.Unregister(metrics.clientDuration)
-
-	// Check content-length histogram
-	contentLengthHistogram, err := metrics.clientContentLength.GetMetricWith(labels)
-	assert.NoError(t, err)
-	pb = &dto.Metric{}
-	assert.NoError(t, contentLengthHistogram.(prometheus.Histogram).Write(pb))
-	buckets = pb.Histogram.GetBucket()
-	assert.NotEmpty(t, buckets)
-	prometheus.Unregister(metrics.contentLength)
-	prometheus.Unregister(metrics.clientContentLength)
-
-	// Check request counter
-	counter, err := metrics.clientCounter.GetMetricWith(labels)
-	assert.NoError(t, err)
-	pb = &dto.Metric{}
-	assert.NoError(t, counter.Write(pb))
-	assert.Equal(t, 1, int(pb.Counter.GetValue()))
-	prometheus.Unregister(metrics.counter)
-	prometheus.Unregister(metrics.clientCounter)
 }

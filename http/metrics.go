@@ -162,26 +162,39 @@ func (m Metrics) Middleware(next http.Handler) http.Handler {
 	})
 }
 
-// ClientMiddleware is middleware for use in HTTP Clients for capturing prometheus metrics
-func (m Metrics) ClientMiddleware(r *http.Request) (*http.Request, func(*http.Response) error, error) {
-	var receivedResp *http.Response
-	observerFunc := func(durationSec float64) {
+// MiddlewareRoundTripper implements a proxied net/http RoundTripper so that http requests may be
+// measured with metrics
+type MetricsRoundTripper struct {
+	RoundTripper http.RoundTripper
+	metrics      Metrics // An instantiated http.Metrics bundle for measuring timings and status codes
+}
+
+// RoundTrip measures HTTP client call duration and status codes
+func (metricsRT MetricsRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
+	// Ensure the RoundTripper was set on the MiddlewareRoundTripper
+	if metricsRT.RoundTripper == nil {
+		panic("no roundtripper provided to middleware round tripper")
+	}
+
+	// Make the request
+	var resp *http.Response
+	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(durationSec float64) {
 		labels := prometheus.Labels{
 			"path":        r.URL.Path,
-			"status_code": strconv.Itoa(receivedResp.StatusCode),
+			"status_code": strconv.Itoa(resp.StatusCode),
 		}
-		m.clientCounter.With(labels).Inc()
+		metricsRT.metrics.clientCounter.With(labels).Inc()
 		if contentLengthStr := r.Header.Get("Content-Length"); len(contentLengthStr) > 0 {
 			if contentLength, err := strconv.Atoi(contentLengthStr); err == nil {
-				m.clientContentLength.With(labels).Observe(float64(contentLength))
+				metricsRT.metrics.clientContentLength.With(labels).Observe(float64(contentLength))
 			}
 		}
-		m.clientDuration.With(labels).Observe(durationSec)
+		metricsRT.metrics.clientDuration.With(labels).Observe(durationSec)
+	}))
+	defer timer.ObserveDuration()
+	resp, err := metricsRT.RoundTripper.RoundTrip(r)
+	if err != nil {
+		return nil, fmt.Errorf("http client request failed: %w", err)
 	}
-	timer := prometheus.NewTimer(prometheus.ObserverFunc(observerFunc))
-	return r, func(resp *http.Response) error {
-		receivedResp = resp
-		timer.ObserveDuration()
-		return nil
-	}, nil
+	return resp, err
 }
