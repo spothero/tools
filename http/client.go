@@ -36,38 +36,39 @@ type MiddlewareRoundTripper struct {
 // RetryRoundTripper wraps a roundtripper with retry logic
 type RetryRoundTripper struct {
 	RoundTripper         http.RoundTripper
-	RetriableStatusCodes []int
+	RetriableStatusCodes map[int]bool
 	InitialInterval      time.Duration
 	RandomizationFactor  float64
 	Multiplier           float64
 	MaxInterval          time.Duration
-	MaxRetries           uint64
+	MaxRetries           uint8
 }
 
 // NewDefaultClient constructs the default HTTP Client with middleware. Providing an HTTP
 // RoundTripper is optional. If `nil` is received, the DefaultClient will be used.
+//
+// By default, the client is provides exponential backoff on 500-504 errors. The default
+// configuration for exponential backoff is to start with an interval of 100 milliseconds, a
+// multiplier of two, a randomization factor of 0.5 (for jitter), a max interval of 10 seconds,
+// and finally, the retry will attempt 5 times before failing if the error is retriable.
+//
+// In addition, the middleware included will instrument HTTP calls with prometheus metrics,
+// jaeger tracing, auth header passthrough, and zap logging.
 func NewDefaultClient(metrics Metrics, roundTripper http.RoundTripper) http.Client {
 	if roundTripper == nil {
 		roundTripper = http.DefaultTransport
 	}
 	retryRoundTripper := RetryRoundTripper{
 		RoundTripper: roundTripper,
-		RetriableStatusCodes: []int{
-			http.StatusInternalServerError,
-			http.StatusNotImplemented,
-			http.StatusBadGateway,
-			http.StatusServiceUnavailable,
-			http.StatusGatewayTimeout,
-			http.StatusHTTPVersionNotSupported,
-			http.StatusVariantAlsoNegotiates,
-			http.StatusInsufficientStorage,
-			http.StatusLoopDetected,
-			http.StatusNotExtended,
-			http.StatusNetworkAuthenticationRequired,
+		RetriableStatusCodes: map[int]bool{
+			http.StatusInternalServerError: true,
+			http.StatusBadGateway:          true,
+			http.StatusServiceUnavailable:  true,
+			http.StatusGatewayTimeout:      true,
 		},
 		InitialInterval:     100 * time.Millisecond,
 		Multiplier:          2,
-		MaxInterval:         30 * time.Second,
+		MaxInterval:         10 * time.Second,
 		RandomizationFactor: 0.5,
 		MaxRetries:          5,
 	}
@@ -147,12 +148,9 @@ func (rrt RetryRoundTripper) RoundTrip(req *http.Request) (*http.Response, error
 		}
 
 		// Check to see if this status code is retriable
-		for _, retriableCode := range rrt.RetriableStatusCodes {
-			if resp.StatusCode == retriableCode {
-				// Return an error indicating a retriable error condition
-				log.Get(req.Context()).Debug("retrying retriable http request", zap.Int("http.status_code", resp.StatusCode))
-				return fmt.Errorf("status code `%v` is retriable", resp.StatusCode)
-			}
+		if _, ok := rrt.RetriableStatusCodes[resp.StatusCode]; ok {
+			log.Get(req.Context()).Debug("retrying retriable http request", zap.Int("http.status_code", resp.StatusCode))
+			return fmt.Errorf("status code `%v` is retriable", resp.StatusCode)
 		}
 
 		// The status code is not retriable
@@ -168,7 +166,7 @@ func (rrt RetryRoundTripper) RoundTrip(req *http.Request) (*http.Response, error
 	expBackOff.MaxInterval = rrt.MaxInterval
 	expBackOff.RandomizationFactor = rrt.RandomizationFactor
 	backoffPolicy := backoff.WithContext(
-		backoff.WithMaxRetries(expBackOff, rrt.MaxRetries),
+		backoff.WithMaxRetries(expBackOff, uint64(rrt.MaxRetries)),
 		req.Context(),
 	)
 	if retryErr := backoff.Retry(makeRequestRetriable, backoffPolicy); retryErr != nil {
