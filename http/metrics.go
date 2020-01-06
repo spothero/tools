@@ -173,7 +173,7 @@ type MetricsRoundTripper struct {
 func (metricsRT MetricsRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	// Ensure the RoundTripper was set on the MiddlewareRoundTripper
 	if metricsRT.RoundTripper == nil {
-		panic("no roundtripper provided to middleware round tripper")
+		panic("no roundtripper provided to metrics round tripper")
 	}
 
 	// Make the request

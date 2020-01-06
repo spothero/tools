@@ -78,7 +78,7 @@ func NewDefaultClient(metrics Metrics, roundTripper http.RoundTripper) http.Clie
 func (rrt RetryRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Ensure the RoundTripper was set on the MiddlewareRoundTripper
 	if rrt.RoundTripper == nil {
-		panic("no roundtripper provided to middleware round tripper")
+		panic("no roundtripper provided to retry round tripper")
 	}
 
 	var resp *http.Response
