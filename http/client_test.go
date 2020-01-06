@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
@@ -12,15 +13,18 @@ import (
 
 // This roundtripper is embedded within the MiddlewareRoundTripper as a noop
 type MockRoundTripper struct {
-	responseStatusCode int
-	createErr          bool
+	responseStatusCodes []int
+	createErr           bool
+	callNumber          int
 }
 
-func (mockRT MockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+func (mockRT *MockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	currCallNumber := mockRT.callNumber
+	mockRT.callNumber++
 	if mockRT.createErr {
 		return nil, fmt.Errorf("error in roundtripper")
 	}
-	return &http.Response{StatusCode: mockRT.responseStatusCode}, nil
+	return &http.Response{StatusCode: mockRT.responseStatusCodes[currCallNumber]}, nil
 }
 
 func TestNewDefaultClient(t *testing.T) {
@@ -29,10 +33,13 @@ func TestNewDefaultClient(t *testing.T) {
 	mrt, ok := client.Transport.(MiddlewareRoundTripper)
 	assert.True(t, ok)
 	assert.Equal(t, 4, len(mrt.Middleware))
-	assert.Equal(t, http.DefaultTransport, mrt.RoundTripper)
+
+	rrt, ok := mrt.RoundTripper.(RetryRoundTripper)
+	assert.True(t, ok)
+	assert.Equal(t, http.DefaultTransport, rrt.RoundTripper)
 }
 
-func TestRoundTrip(t *testing.T) {
+func TestMiddlewareRoundTrip(t *testing.T) {
 	tests := []struct {
 		name           string
 		roundTripper   http.RoundTripper
@@ -51,7 +58,7 @@ func TestRoundTrip(t *testing.T) {
 		},
 		{
 			"round tripper with no error invokes middleware correctly",
-			MockRoundTripper{200, false},
+			&MockRoundTripper{responseStatusCodes: []int{http.StatusOK}, createErr: false},
 			false,
 			false,
 			false,
@@ -59,7 +66,7 @@ func TestRoundTrip(t *testing.T) {
 		},
 		{
 			"round tripper with middleware error returns an error",
-			MockRoundTripper{200, false},
+			&MockRoundTripper{responseStatusCodes: []int{http.StatusOK}, createErr: false},
 			true,
 			false,
 			true,
@@ -67,7 +74,7 @@ func TestRoundTrip(t *testing.T) {
 		},
 		{
 			"round tripper with internal roundtripper error returns an error",
-			MockRoundTripper{200, true},
+			&MockRoundTripper{responseStatusCodes: []int{http.StatusOK}, createErr: true},
 			false,
 			false,
 			true,
@@ -75,7 +82,7 @@ func TestRoundTrip(t *testing.T) {
 		},
 		{
 			"round tripper with resp handler error returns an error",
-			MockRoundTripper{200, false},
+			&MockRoundTripper{responseStatusCodes: []int{http.StatusOK}, createErr: false},
 			false,
 			true,
 			true,
@@ -122,6 +129,115 @@ func TestRoundTrip(t *testing.T) {
 			} else {
 				assert.Panics(t, func() {
 					_, _ = mrt.RoundTrip(mockReq)
+				})
+			}
+		})
+	}
+}
+
+func TestRetryRoundTrip(t *testing.T) {
+	tests := []struct {
+		name               string
+		roundTripper       http.RoundTripper
+		expectedStatusCode int
+		numRetries         uint8
+		expectErr          bool
+		expectPanic        bool
+	}{
+		{
+			"no round tripper results in a panic",
+			nil,
+			http.StatusOK, // doesn't matter
+			0,
+			false,
+			true,
+		},
+		{
+			"round tripper with no error invokes middleware correctly",
+			&MockRoundTripper{responseStatusCodes: []int{http.StatusOK}, createErr: false},
+			http.StatusOK,
+			0,
+			false,
+			false,
+		},
+		{
+			"round tripper with an unresolved error returns an error",
+			&MockRoundTripper{
+				responseStatusCodes: []int{
+					http.StatusInternalServerError,
+					http.StatusInternalServerError,
+				},
+				createErr: false,
+			},
+			http.StatusInternalServerError,
+			1,
+			false,
+			false,
+		},
+		{
+			"round tripper with an unretriable error returns an error",
+			&MockRoundTripper{
+				responseStatusCodes: []int{
+					http.StatusNotImplemented,
+				},
+				createErr: false,
+			},
+			http.StatusNotImplemented,
+			1,
+			false,
+			false,
+		},
+		{
+			"round tripper that encounters an http err is retried",
+			&MockRoundTripper{
+				responseStatusCodes: []int{
+					http.StatusBadRequest,
+					http.StatusBadRequest,
+				},
+				createErr: true,
+			},
+			http.StatusBadRequest,
+			1,
+			true,
+			false,
+		},
+		{
+			"retries are stopped when a successful or non-retriable status code is given",
+			&MockRoundTripper{
+				responseStatusCodes: []int{
+					http.StatusInternalServerError,
+					http.StatusOK,
+					http.StatusInternalServerError,
+				},
+				createErr: true,
+			},
+			http.StatusOK,
+			2,
+			true,
+			false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			rrt := RetryRoundTripper{
+				RetriableStatusCodes: map[int]bool{http.StatusInternalServerError: true},
+				MaxRetries:           test.numRetries,
+				InitialInterval:      1 * time.Nanosecond,
+				RoundTripper:         test.roundTripper,
+			}
+			mockReq := httptest.NewRequest("GET", "/path", nil)
+			if !test.expectPanic {
+				resp, err := rrt.RoundTrip(mockReq)
+				if test.expectErr {
+					assert.Error(t, err)
+				} else {
+					assert.NoError(t, err)
+					assert.NotNil(t, resp)
+					assert.Equal(t, test.expectedStatusCode, resp.StatusCode)
+				}
+			} else {
+				assert.Panics(t, func() {
+					_, _ = rrt.RoundTrip(mockReq)
 				})
 			}
 		})

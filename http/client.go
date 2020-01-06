@@ -3,10 +3,13 @@ package http
 import (
 	"fmt"
 	"net/http"
+	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/spothero/tools/jose"
 	"github.com/spothero/tools/log"
 	"github.com/spothero/tools/tracing"
+	"go.uber.org/zap"
 )
 
 // ClientMiddleware defines an HTTP Client middleware function. The function is called prior to
@@ -30,11 +33,44 @@ type MiddlewareRoundTripper struct {
 	Middleware []ClientMiddleware
 }
 
+// RetryRoundTripper wraps a roundtripper with retry logic
+type RetryRoundTripper struct {
+	RoundTripper         http.RoundTripper
+	RetriableStatusCodes map[int]bool
+	InitialInterval      time.Duration
+	RandomizationFactor  float64
+	Multiplier           float64
+	MaxInterval          time.Duration
+	MaxRetries           uint8
+}
+
 // NewDefaultClient constructs the default HTTP Client with middleware. Providing an HTTP
 // RoundTripper is optional. If `nil` is received, the DefaultClient will be used.
+//
+// By default, the client is provides exponential backoff on 500-504 errors. The default
+// configuration for exponential backoff is to start with an interval of 100 milliseconds, a
+// multiplier of two, a randomization factor of 0.5 (for jitter), a max interval of 10 seconds,
+// and finally, the retry will attempt 5 times before failing if the error is retriable.
+//
+// In addition, the middleware included will instrument HTTP calls with prometheus metrics,
+// jaeger tracing, auth header passthrough, and zap logging.
 func NewDefaultClient(metrics Metrics, roundTripper http.RoundTripper) http.Client {
 	if roundTripper == nil {
 		roundTripper = http.DefaultTransport
+	}
+	retryRoundTripper := RetryRoundTripper{
+		RoundTripper: roundTripper,
+		RetriableStatusCodes: map[int]bool{
+			http.StatusInternalServerError: true,
+			http.StatusBadGateway:          true,
+			http.StatusServiceUnavailable:  true,
+			http.StatusGatewayTimeout:      true,
+		},
+		InitialInterval:     100 * time.Millisecond,
+		Multiplier:          2,
+		MaxInterval:         10 * time.Second,
+		RandomizationFactor: 0.5,
+		MaxRetries:          5,
 	}
 	return http.Client{
 		Transport: MiddlewareRoundTripper{
@@ -44,7 +80,7 @@ func NewDefaultClient(metrics Metrics, roundTripper http.RoundTripper) http.Clie
 				metrics.ClientMiddleware,
 				jose.HTTPClientMiddleware,
 			},
-			RoundTripper: roundTripper,
+			RoundTripper: retryRoundTripper,
 		},
 	}
 }
@@ -83,6 +119,58 @@ func (mrt MiddlewareRoundTripper) RoundTrip(req *http.Request) (*http.Response, 
 		if err := callback(resp); err != nil {
 			return nil, fmt.Errorf("error invoking http client response handler middleware: %w", err)
 		}
+	}
+	return resp, err
+}
+
+// RoundTrip completes the http request round trip but attempts retries for configured error codes
+func (rrt RetryRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Ensure the RoundTripper was set on the MiddlewareRoundTripper
+	if rrt.RoundTripper == nil {
+		panic("no roundtripper provided to middleware round tripper")
+	}
+
+	var resp *http.Response
+	var err error
+	makeRequestRetriable := func() error {
+		resp, err = rrt.RoundTripper.RoundTrip(req)
+
+		// If an error was encountered, retry. This typically indicates a failure to get a
+		// response.
+		if err != nil {
+			log.Get(req.Context()).Debug("retrying failed http request", zap.Error(err))
+			return err
+		}
+
+		// If no error was encountered, return immediately
+		if resp.StatusCode < http.StatusBadRequest {
+			return nil
+		}
+
+		// Check to see if this status code is retriable
+		if _, ok := rrt.RetriableStatusCodes[resp.StatusCode]; ok {
+			log.Get(req.Context()).Debug("retrying retriable http request", zap.Int("http.status_code", resp.StatusCode))
+			return fmt.Errorf("status code `%v` is retriable", resp.StatusCode)
+		}
+
+		// The status code is not retriable
+		log.Get(req.Context()).Debug("could not retry failed http request", zap.Int("http.status_code", resp.StatusCode))
+		return nil
+	}
+
+	// Each backoff policy contains state, so unfortunately we must create a fresh backoff
+	// policy for every request
+	expBackOff := backoff.NewExponentialBackOff()
+	expBackOff.InitialInterval = rrt.InitialInterval
+	expBackOff.Multiplier = rrt.Multiplier
+	expBackOff.MaxInterval = rrt.MaxInterval
+	expBackOff.RandomizationFactor = rrt.RandomizationFactor
+	backoffPolicy := backoff.WithContext(
+		backoff.WithMaxRetries(expBackOff, uint64(rrt.MaxRetries)),
+		req.Context(),
+	)
+	if retryErr := backoff.Retry(makeRequestRetriable, backoffPolicy); retryErr != nil {
+		log.Get(req.Context()).Debug("failed retrying http request")
 	}
 	return resp, err
 }
