@@ -42,7 +42,7 @@ type RetryRoundTripper struct {
 // passthrough, and logging. Providing the base HTTP RoundTripper is optional.
 // If `nil` is received, the net/http DefaultClient will be used.
 //
-// By default, the client provides exponential backoff on 500-504 errors. The default
+// By default, the client provides exponential backoff on [500-504] errors. The default
 // configuration for exponential backoff is to start with an interval of 100 milliseconds, a
 // multiplier of two, a randomization factor of up to 0.5 milliseconds (for jitter), a max
 // interval of 10 seconds, and finally, the retry will attempt 5 times before failing if the
