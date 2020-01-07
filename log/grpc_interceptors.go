@@ -41,11 +41,11 @@ func UnaryServerInterceptor(ctx context.Context, req interface{}, info *grpc.Una
 	newCtx := NewContext(ctx, requestLogger)
 	resp, err := handler(newCtx, req)
 	code := status.Code(err)
-	Get(newCtx).Check(grpc_zap.DefaultCodeToLevel(code), "returning response").Write(
+	Get(newCtx).With(
 		zap.String("grpc.code", code.String()),
 		zap.Duration("grpc.duration", time.Since(startTime)),
 		zap.Error(err),
-	)
+	).Check(grpc_zap.DefaultCodeToLevel(code), "returning response").Write()
 	return resp, err
 }
 
@@ -65,11 +65,11 @@ func StreamServerInterceptor(srv interface{}, stream grpc.ServerStream, info *gr
 	wrapped.WrappedContext = newCtx
 	err := handler(srv, wrapped)
 	code := status.Code(err)
-	Get(newCtx).Check(grpc_zap.DefaultCodeToLevel(code), "returning response").Write(
+	Get(newCtx).With(
 		zap.String("grpc.code", code.String()),
 		zap.Duration("grpc.duration", time.Since(startTime)),
 		zap.Error(err),
-	)
+	).Check(grpc_zap.DefaultCodeToLevel(code), "returning response").Write()
 	return err
 }
 

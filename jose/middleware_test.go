@@ -21,6 +21,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/spothero/tools/http/roundtrip"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -184,13 +185,37 @@ func TestGetHTTPServerMiddleware(t *testing.T) {
 	}
 }
 
-func TestHTTPClientMiddleware(t *testing.T) {
-	mockReq := httptest.NewRequest("GET", "/path", nil)
-	mockReq = mockReq.WithContext(context.WithValue(mockReq.Context(), JWTClaimKey, "jwt"))
-	req, respHandler, err := HTTPClientMiddleware(mockReq)
-	assert.NoError(t, err)
-	assert.NotNil(t, respHandler)
-	assert.NotNil(t, req)
-	assert.NoError(t, respHandler(&http.Response{}))
-	assert.Equal(t, mockReq.Header.Get(authHeader), fmt.Sprintf("%s%s", bearerPrefix, "jwt"))
+func TestRoundTrip(t *testing.T) {
+	tests := []struct {
+		name         string
+		roundTripper http.RoundTripper
+		expectPanic  bool
+	}{
+		{
+			"no round tripper results in a panic",
+			nil,
+			true,
+		},
+		{
+			"if auth data is present in the context it is set on outbound requests",
+			&roundtrip.MockRoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
+			false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			rt := RoundTripper{RoundTripper: test.roundTripper}
+			if test.expectPanic {
+				assert.Panics(t, func() {
+					_, _ = rt.RoundTrip(nil)
+				})
+			} else {
+				mockReq := httptest.NewRequest("GET", "/path", nil)
+				mockReq = mockReq.WithContext(context.WithValue(mockReq.Context(), JWTClaimKey, "jwt"))
+				resp, err := rt.RoundTrip(mockReq)
+				assert.NoError(t, err)
+				assert.NotNil(t, resp)
+			}
+		})
+	}
 }
