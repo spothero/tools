@@ -4,25 +4,30 @@ go 1.13
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.3.3
-	github.com/Shopify/sarama v1.22.0
+	github.com/Shopify/sarama v1.24.1
 	github.com/cenkalti/backoff/v4 v4.0.0
 	github.com/cep21/circuit/v3 v3.1.0
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
+	github.com/deathowl/go-metrics-prometheus v0.0.0-20190530215645-35bace25558f
+	github.com/eapache/go-resiliency v1.2.0 // indirect
 	github.com/gchaincl/sqlhooks v1.1.0
 	github.com/getsentry/sentry-go v0.3.1
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/gorilla/mux v1.7.1
 	github.com/grpc-ecosystem/go-grpc-middleware v1.1.0
-	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.1-0.20191002090509-6af20e3a5340
+	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
+	github.com/jcmturner/gofork v1.0.0 // indirect
 	github.com/jmoiron/sqlx v1.2.0
+	github.com/klauspost/compress v1.9.7 // indirect
 	github.com/lib/pq v1.1.0
 	github.com/linkedin/goavro v2.1.0+incompatible
 	github.com/opentracing/opentracing-go v1.1.0
-	github.com/prometheus/client_golang v1.2.0
+	github.com/pierrec/lz4 v2.4.0+incompatible // indirect
+	github.com/prometheus/client_golang v1.1.0
 	github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4
-	github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a
+	github.com/rcrowley/go-metrics v0.0.0-20190826022208-cac0b30c2563
 	github.com/spf13/cobra v0.0.5
-	github.com/spf13/pflag v1.0.3
+	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.3.2
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.4.0
@@ -30,8 +35,11 @@ require (
 	github.com/uber/jaeger-client-go v2.16.0+incompatible
 	github.com/uber/jaeger-lib v2.0.0+incompatible // indirect
 	go.uber.org/zap v1.10.0
+	golang.org/x/crypto v0.0.0-20191227163750-53104e6ec876 // indirect
+	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553 // indirect
 	google.golang.org/appengine v1.6.3 // indirect
 	google.golang.org/grpc v1.25.1
+	gopkg.in/jcmturner/gokrb5.v7 v7.3.0 // indirect
 	gopkg.in/linkedin/goavro.v1 v1.0.5 // indirect
 	gopkg.in/square/go-jose.v2 v2.3.1
 )

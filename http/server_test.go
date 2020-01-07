@@ -143,8 +143,8 @@ func TestRun(t *testing.T) {
 				postShutdown:  mockPostShutdown,
 				cancelSignals: []os.Signal{syscall.SIGUSR1},
 				tlsEnabled:    true,
-				tlsCrtPath:    "testdata/fake-crt.pem",
-				tlsKeyPath:    "testdata/fake-key.pem",
+				tlsCrtPath:    "../testdata/fake-crt.pem",
+				tlsKeyPath:    "../testdata/fake-key.pem",
 			},
 		},
 	}
