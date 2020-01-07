@@ -57,9 +57,8 @@ func getFields(r *http.Request) []zap.Field {
 func HTTPServerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
-		logger := Get(r.Context()).Named("http")
-		fields := getFields(r)
-		logger.Debug("http request received", fields...)
+		logger := Get(r.Context()).Named("http").With(getFields(r)...)
+		logger.Debug("http request received")
 		defer func() {
 			var responseCodeField zap.Field
 			if statusRecorder, ok := w.(*writer.StatusRecorder); ok {
@@ -67,8 +66,9 @@ func HTTPServerMiddleware(next http.Handler) http.Handler {
 			} else {
 				responseCodeField = zap.Skip()
 			}
-			fields := append(fields, responseCodeField, zap.Duration("http.duration", time.Since(startTime)))
-			logger.Info("http response returned", fields...)
+			logger = logger.With(responseCodeField, zap.Duration("http.duration", time.Since(startTime)))
+			logger.Info("http response returned")
+			r = r.WithContext(NewContext(r.Context(), logger))
 		}()
 		// ensure that a logger is present for downstream handlers in the request context
 		next.ServeHTTP(w, r.WithContext(NewContext(r.Context(), logger)))
@@ -88,35 +88,32 @@ func (rt RoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	}
 
 	startTime := time.Now()
-	logger := Get(r.Context()).Named("http")
-	fields := getFields(r)
-	logger.Debug("http request started", fields...)
-
+	logger := Get(r.Context()).Named("http").With(getFields(r)...)
+	logger.Debug("http request started")
 	resp, err := rt.RoundTripper.RoundTrip(r)
 	if err != nil {
 		return nil, fmt.Errorf("http client request failed: %w", err)
 	}
 
-	fields = append(fields, zap.Int("http.status_code", resp.StatusCode), zap.Duration("http.duration", time.Since(startTime)))
-	logger.Info("http request completed", fields...)
+	logger = logger.With(zap.Int("http.status_code", resp.StatusCode), zap.Duration("http.duration", time.Since(startTime)))
+	logger.Info("http request completed")
 	return resp, err
 }
 
 // SQLMiddleware debug logs requests made against SQL databases.
 func SQLMiddleware(ctx context.Context, queryName, query string, args ...interface{}) (context.Context, sqlMiddleware.MiddlewareEnd, error) {
-	var fields []zap.Field
+	logger = Get(ctx)
 	if queryName != "" {
-		fields = []zap.Field{zap.String("query", query), zap.String("query_name", queryName)}
+		logger = logger.With(zap.String("query", query), zap.String("query_name", queryName))
 	} else {
-		fields = []zap.Field{zap.String("query", query)}
+		logger = logger.With(zap.String("query", query))
 	}
-	Get(ctx).Debug("attempting sql query", fields...)
+	logger.Debug("attempting sql query")
 	mwEnd := func(ctx context.Context, queryName, query string, queryErr error, args ...interface{}) (context.Context, error) {
 		if queryErr != nil {
-			fields = append(fields, zap.Error(queryErr))
-			Get(ctx).Error("failed sql query", fields...)
+			logger.With(zap.Error(queryErr)).Error("failed sql query")
 		} else {
-			Get(ctx).Debug("completed sql query", fields...)
+			Get(ctx).Debug("completed sql query")
 		}
 		return ctx, nil
 	}

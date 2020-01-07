@@ -162,7 +162,7 @@ func (m Metrics) Middleware(next http.Handler) http.Handler {
 	})
 }
 
-// MiddlewareRoundTripper implements a proxied net/http RoundTripper so that http requests may be
+// MetricsRoundTripper implements a proxied net/http RoundTripper so that http requests may be
 // measured with metrics
 type MetricsRoundTripper struct {
 	RoundTripper http.RoundTripper
