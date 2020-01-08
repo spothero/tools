@@ -104,9 +104,13 @@ func TestAsyncProducer_AsyncClose(t *testing.T) {
 
 	producer.AsyncClose()
 
-	// ensure the wrapped channels are closed
+	// make sure messages in flight are still processed
 	assert.NotNil(t, <-producer.Successes())
 	assert.NotNil(t, <-producer.Errors())
+
+	// ensure the wrapped channels are closed
+	<-producer.Successes()
+	<-producer.Errors()
 	assert.Panics(t, func() {
 		producer.successes <- &sarama.ProducerMessage{}
 	})
