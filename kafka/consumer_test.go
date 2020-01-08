@@ -15,6 +15,7 @@
 package kafka
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/Shopify/sarama"
@@ -34,10 +35,13 @@ func TestConsumer_ConsumePartition(t *testing.T) {
 	assert.NotNil(t, pc.(PartitionConsumer).PartitionConsumer)
 	assert.NotNil(t, pc.(PartitionConsumer).messages)
 	assert.NotNil(t, pc.(PartitionConsumer).errors)
+	assert.NotNil(t, pc.(PartitionConsumer).wg)
+	assert.NotNil(t, pc.(PartitionConsumer).metrics)
 	assert.NoError(t, pc.Close())
 }
 
-func TestPartitionConsumer_run(t *testing.T) {
+func newPartitionConsumer(t *testing.T) PartitionConsumer {
+	t.Helper()
 	mockSaramaConsumer := mocks.NewConsumer(t, nil)
 	mockSaramaConsumer.ExpectConsumePartition("topic", 0, 0)
 	saramaPartitionConsumer, err := mockSaramaConsumer.ConsumePartition("topic", 0, 0)
@@ -50,22 +54,28 @@ func TestPartitionConsumer_run(t *testing.T) {
 		metrics:           metrics,
 		messages:          make(chan *sarama.ConsumerMessage, 1),
 		errors:            make(chan *sarama.ConsumerError, 1),
+		wg:                &sync.WaitGroup{},
 	}
+	return pc
+}
+
+func TestPartitionConsumer_run(t *testing.T) {
+	pc := newPartitionConsumer(t)
 	pc.run("topic", 0)
 
 	// send messages through the partition consumer
-	saramaPartitionConsumer.(*mocks.PartitionConsumer).YieldMessage(&sarama.ConsumerMessage{})
-	saramaPartitionConsumer.(*mocks.PartitionConsumer).YieldError(&sarama.ConsumerError{})
+	pc.PartitionConsumer.(*mocks.PartitionConsumer).YieldMessage(&sarama.ConsumerMessage{})
+	pc.PartitionConsumer.(*mocks.PartitionConsumer).YieldError(&sarama.ConsumerError{})
 	<-pc.messages
 	<-pc.errors
 
 	// get the metrics out of the prometheus registry
 	labels := prometheus.Labels{"topic": "topic", "partition": "0"}
-	processed, err := metrics.messagesConsumed.GetMetricWith(labels)
+	processed, err := pc.metrics.messagesConsumed.GetMetricWith(labels)
 	require.NoError(t, err)
 	processedMetric := &dto.Metric{}
 	require.NoError(t, processed.Write(processedMetric))
-	errored, err := metrics.errorsConsumed.GetMetricWith(labels)
+	errored, err := pc.metrics.errorsConsumed.GetMetricWith(labels)
 	require.NoError(t, err)
 	erroredMetric := &dto.Metric{}
 	require.NoError(t, errored.Write(erroredMetric))
@@ -81,6 +91,41 @@ func TestPartitionConsumer_Messages(t *testing.T) {
 
 func TestPartitionConsumer_Errors(t *testing.T) {
 	assert.NotNil(t, PartitionConsumer{errors: make(chan *sarama.ConsumerError)}.Errors())
+}
+
+func TestPartitionConsumer_AsyncClose(t *testing.T) {
+	pc := newPartitionConsumer(t)
+	pc.PartitionConsumer.(*mocks.PartitionConsumer).ExpectMessagesDrainedOnClose()
+	pc.PartitionConsumer.(*mocks.PartitionConsumer).ExpectErrorsDrainedOnClose()
+	pc.PartitionConsumer.(*mocks.PartitionConsumer).YieldMessage(&sarama.ConsumerMessage{})
+	pc.PartitionConsumer.(*mocks.PartitionConsumer).YieldError(&sarama.ConsumerError{})
+	pc.AsyncClose()
+	<-pc.messages
+	<-pc.errors
+
+	// make sure the channels were closed after they were drained by attempting to send a message through
+	assert.Panics(t, func() {
+		pc.messages <- &sarama.ConsumerMessage{}
+	})
+	assert.Panics(t, func() {
+		pc.errors <- &sarama.ConsumerError{}
+	})
+}
+
+func TestPartitionConsumer_Close(t *testing.T) {
+	pc := newPartitionConsumer(t)
+	pc.PartitionConsumer.(*mocks.PartitionConsumer).YieldMessage(&sarama.ConsumerMessage{})
+	pc.PartitionConsumer.(*mocks.PartitionConsumer).YieldError(&sarama.ConsumerError{})
+	err := pc.Close()
+	assert.NotNil(t, err)
+
+	// make sure the channels were closed after they were drained by attempting to send a message through
+	assert.Panics(t, func() {
+		pc.messages <- &sarama.ConsumerMessage{}
+	})
+	assert.Panics(t, func() {
+		pc.errors <- &sarama.ConsumerError{}
+	})
 }
 
 func TestNewConsumerMetrics(t *testing.T) {

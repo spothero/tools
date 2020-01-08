@@ -16,6 +16,7 @@ package kafka
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/Shopify/sarama"
 	"github.com/prometheus/client_golang/prometheus"
@@ -36,6 +37,7 @@ type PartitionConsumer struct {
 	messages chan *sarama.ConsumerMessage
 	errors   chan *sarama.ConsumerError
 	metrics  ConsumerMetrics
+	wg       *sync.WaitGroup
 }
 
 // NewConsumerFromClient creates a new Consumer from a sarama Client with the
@@ -63,6 +65,7 @@ func (c Consumer) ConsumePartition(topic string, partition int32, offset int64) 
 		messages:          make(chan *sarama.ConsumerMessage, cap(partitionConsumer.Messages())),
 		errors:            make(chan *sarama.ConsumerError, cap(partitionConsumer.Errors())),
 		metrics:           c.metrics,
+		wg:                &sync.WaitGroup{},
 	}
 	pc.run(topic, partition)
 	return pc, nil
@@ -76,17 +79,20 @@ func (pc PartitionConsumer) run(topic string, partition int32) {
 		"topic":     topic,
 		"partition": fmt.Sprintf("%d", partition),
 	}
+	pc.wg.Add(2)
 	go func() {
 		for msg := range pc.PartitionConsumer.Messages() {
 			pc.messages <- msg
 			pc.metrics.messagesConsumed.With(labels).Inc()
 		}
+		pc.wg.Done()
 	}()
 	go func() {
 		for err := range pc.PartitionConsumer.Errors() {
 			pc.errors <- err
 			pc.metrics.errorsConsumed.With(labels).Inc()
 		}
+		pc.wg.Done()
 	}()
 }
 
@@ -98,6 +104,27 @@ func (pc PartitionConsumer) Messages() <-chan *sarama.ConsumerMessage {
 // Errors returns the read channel of errors that occurred during consumption
 func (pc PartitionConsumer) Errors() <-chan *sarama.ConsumerError {
 	return pc.errors
+}
+
+// AsyncClose initiates a shutdown of the PartitionConsumer. This method
+// returns immediately. Once the consumer is shutdown, the message and
+// error channels are closed.
+func (pc PartitionConsumer) AsyncClose() {
+	go func() {
+		pc.wg.Wait()
+		close(pc.messages)
+		close(pc.errors)
+	}()
+	pc.PartitionConsumer.AsyncClose()
+}
+
+// Close synchronously shuts down the partition consumer and returns any
+// outstanding errors.
+func (pc PartitionConsumer) Close() error {
+	err := pc.PartitionConsumer.Close()
+	close(pc.messages)
+	close(pc.errors)
+	return err
 }
 
 // ConsumerMetrics is a collection of Prometheus metrics for tracking a Kafka consumer's performance
