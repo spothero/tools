@@ -28,7 +28,9 @@ const Auth0ClaimKey Auth0CtxKey = iota
 // intermediate Claim objects without specific knowledge of the underlying implementing types.
 type Auth0Generator struct{}
 
-// Auth0Claim defines a JWT Claim for tokens issued by the AWS Auth0 Service
+// Auth0Claim defines a JWT Claim for tokens issued by Auth0. Note that for Client Credentials
+// JWTs, ClientID will be populated. For normal User authentication UserID will be populated. Both
+// UserID and ClientID will not be populated together.
 type Auth0Claim struct {
 	UserID   string `json:"sub"`
 	ClientID string `json:"aud"`
