@@ -99,7 +99,12 @@ func (c Config) ServerCmd(
 	// Tracing Config
 	tc := tracing.Config{ServiceName: c.Name}
 	// Jose Config
-	jc := jose.Config{ClaimGenerators: []jose.ClaimGenerator{jose.CognitoGenerator{}}}
+	jc := jose.Config{
+		ClaimGenerators: []jose.ClaimGenerator{
+			jose.CognitoGenerator{},
+			jose.Auth0Generator{},
+		},
+	}
 	cmd := &cobra.Command{
 		Use:              c.Name,
 		Short:            shortDescription,
