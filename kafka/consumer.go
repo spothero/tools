@@ -41,7 +41,8 @@ type PartitionConsumer struct {
 }
 
 // NewConsumerFromClient creates a new Consumer from a sarama Client with the
-// a given set of metrics.
+// a given set of metrics. Note that error metrics can only be collected if the
+// consumer is configured to return errors.
 func NewConsumerFromClient(client sarama.Client, metrics ConsumerMetrics) (Consumer, error) {
 	c, err := sarama.NewConsumerFromClient(client)
 	if err != nil {
@@ -82,15 +83,15 @@ func (pc PartitionConsumer) run(topic string, partition int32) {
 	pc.wg.Add(2)
 	go func() {
 		for msg := range pc.PartitionConsumer.Messages() {
-			pc.messages <- msg
 			pc.metrics.messagesConsumed.With(labels).Inc()
+			pc.messages <- msg
 		}
 		pc.wg.Done()
 	}()
 	go func() {
 		for err := range pc.PartitionConsumer.Errors() {
-			pc.errors <- err
 			pc.metrics.errorsConsumed.With(labels).Inc()
+			pc.errors <- err
 		}
 		pc.wg.Done()
 	}()
@@ -102,6 +103,7 @@ func (pc PartitionConsumer) Messages() <-chan *sarama.ConsumerMessage {
 }
 
 // Errors returns the read channel of errors that occurred during consumption
+// if ConsumerReturnErrors was true when configuring the client.
 func (pc PartitionConsumer) Errors() <-chan *sarama.ConsumerError {
 	return pc.errors
 }
