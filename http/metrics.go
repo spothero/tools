@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/afex/hystrix-go/hystrix"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spothero/tools/http/writer"
 	"github.com/spothero/tools/log"
@@ -34,6 +35,7 @@ type Metrics struct {
 	clientCounter       *prometheus.CounterVec
 	clientDuration      *prometheus.HistogramVec
 	clientContentLength *prometheus.HistogramVec
+	circuitBreakerOpen  *prometheus.CounterVec
 }
 
 // NewMetrics creates and returns a metrics bundle. The user may optionally
@@ -92,6 +94,13 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 		},
 		labels,
 	)
+	circuitBreakerOpen := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "http_client_circuit_breaker_open_total",
+			Help: "Total number of times the HTTP client circuit breaker has opened",
+		},
+		[]string{"host"},
+	)
 	// If the user hasnt provided a Prometheus Registry, use the global Registry
 	if registry == nil {
 		registry = prometheus.DefaultRegisterer
@@ -103,6 +112,7 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 		registry.MustRegister(clientCounter)
 		registry.MustRegister(contentLength)
 		registry.MustRegister(clientContentLength)
+		registry.MustRegister(circuitBreakerOpen)
 	} else {
 		toRegister := map[string]prometheus.Collector{
 			"duration":            histogram,
@@ -111,6 +121,7 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 			"clientCounter":       clientCounter,
 			"contentLength":       contentLength,
 			"clientContentLength": clientContentLength,
+			"circuitBreakerOpen":  circuitBreakerOpen,
 		}
 		for name, collector := range toRegister {
 			if err := registry.Register(collector); err != nil {
@@ -136,6 +147,7 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 		clientDuration:      clientHistogram,
 		contentLength:       contentLength,
 		clientContentLength: clientContentLength,
+		circuitBreakerOpen:  circuitBreakerOpen,
 	}
 }
 
@@ -178,6 +190,7 @@ func (metricsRT MetricsRoundTripper) RoundTrip(r *http.Request) (*http.Response,
 
 	// Make the request
 	var resp *http.Response
+	var err error
 	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(durationSec float64) {
 		if resp == nil {
 			return
@@ -193,11 +206,17 @@ func (metricsRT MetricsRoundTripper) RoundTrip(r *http.Request) (*http.Response,
 			}
 		}
 		metricsRT.metrics.clientDuration.With(labels).Observe(durationSec)
+
+		if err != nil {
+			switch typedErr := err.(type) {
+			case hystrix.CircuitError:
+				if typedErr == hystrix.ErrCircuitOpen {
+					metricsRT.metrics.circuitBreakerOpen.With(prometheus.Labels{"host": r.URL.Host}).Inc()
+				}
+			}
+		}
 	}))
 	defer timer.ObserveDuration()
-	resp, err := metricsRT.RoundTripper.RoundTrip(r)
-	if err != nil {
-		return nil, fmt.Errorf("http client request failed: %w", err)
-	}
+	resp, err = metricsRT.RoundTripper.RoundTrip(r)
 	return resp, err
 }

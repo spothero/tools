@@ -136,6 +136,7 @@ func TestMiddleware(t *testing.T) {
 	assert.Equal(t, 1, int(pb.Counter.GetValue()))
 	prometheus.Unregister(metrics.counter)
 	prometheus.Unregister(metrics.clientCounter)
+	prometheus.Unregister(metrics.circuitBreakerOpen)
 }
 
 func TestMetricsRoundTrip(t *testing.T) {
@@ -223,6 +224,13 @@ func TestMetricsRoundTrip(t *testing.T) {
 				pb = &dto.Metric{}
 				assert.NoError(t, counter.Write(pb))
 				assert.Equal(t, 1, int(pb.Counter.GetValue()))
+
+				// Check circuit-breaker counter
+				counter, err = metricsRT.metrics.circuitBreakerOpen.GetMetricWith(prometheus.Labels{"host": ""})
+				assert.NoError(t, err)
+				pb = &dto.Metric{}
+				assert.NoError(t, counter.Write(pb))
+				assert.Equal(t, 0, int(pb.Counter.GetValue()))
 			}
 			prometheus.Unregister(metricsRT.metrics.duration)
 			prometheus.Unregister(metricsRT.metrics.clientDuration)
@@ -230,6 +238,7 @@ func TestMetricsRoundTrip(t *testing.T) {
 			prometheus.Unregister(metricsRT.metrics.clientContentLength)
 			prometheus.Unregister(metricsRT.metrics.counter)
 			prometheus.Unregister(metricsRT.metrics.clientCounter)
+			prometheus.Unregister(metricsRT.metrics.circuitBreakerOpen)
 		})
 	}
 }
