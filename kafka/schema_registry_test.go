@@ -233,16 +233,16 @@ func TestSchemaRegistryClient_DecodeKafkaAvroMessage(t *testing.T) {
 				cache:                &sync.Map{},
 				client:               http.Client{Transport: &mockTransport{t: t}},
 			}
-			networkCall := client.client.Transport.(*mockTransport).On("RoundTrip", mock.Anything)
+			getSchema := client.client.Transport.(*mockTransport).On("RoundTrip", mock.Anything)
 			if test.schema != "" {
-				networkCall.Return(&http.Response{
+				getSchema.Return(&http.Response{
 					StatusCode: http.StatusOK,
 					Body: ioutil.NopCloser(
 						strings.NewReader(
 							fmt.Sprintf("{\"schema\": \"%s\"}", strings.Replace(test.schema, "\"", "\\\"", -1)))),
 				}, nil)
 			} else {
-				networkCall.Return(&http.Response{StatusCode: http.StatusInternalServerError}, nil)
+				getSchema.Return(&http.Response{StatusCode: http.StatusInternalServerError}, nil)
 			}
 			outcome, err := client.DecodeKafkaAvroMessage(context.Background(), test.msg)
 			if test.expectErr {
