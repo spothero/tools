@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/afex/hystrix-go/hystrix"
 	"github.com/spothero/tools/http/writer"
 	sqlMiddleware "github.com/spothero/tools/sql/middleware"
 	"go.uber.org/zap"
@@ -92,6 +93,15 @@ func (rt RoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	logger.Debug("http request started")
 	resp, err := rt.RoundTripper.RoundTrip(r)
 	if err != nil {
+		switch typedErr := err.(type) {
+		case hystrix.CircuitError:
+			logger.Warn(
+				"circuit breaker open on http request",
+				zap.String("host", r.URL.Host),
+				zap.String("reason", typedErr.Message),
+				zap.Error(err),
+			)
+		}
 		return nil, fmt.Errorf("http client request failed: %w", err)
 	}
 

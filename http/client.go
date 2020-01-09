@@ -184,12 +184,11 @@ func (cbrt CircuitBreakerRoundTripper) RoundTrip(req *http.Request) (*http.Respo
 	}
 
 	if cbErr := hystrix.DoC(req.Context(), req.URL.Host, makeRequestFunc, nil); cbErr != nil {
-		switch cbErrTyped := cbErr.(type) {
+		switch cbErr.(type) {
 		// In cases where the returned error type is a circuit-breaker error, we want to return the
 		// specific error type instead of the HTTP error. This allows upstream calls to
 		// appropriately handle the failure
 		case hystrix.CircuitError:
-			log.Get(req.Context()).Debug("circuit-breaker call failed", zap.String("reason", cbErrTyped.Message))
 			err = cbErr
 		}
 	}

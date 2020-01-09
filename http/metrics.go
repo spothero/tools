@@ -192,21 +192,19 @@ func (metricsRT MetricsRoundTripper) RoundTrip(r *http.Request) (*http.Response,
 	var resp *http.Response
 	var err error
 	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(durationSec float64) {
-		if resp == nil {
-			return
-		}
-		labels := prometheus.Labels{
-			"path":        r.URL.Path,
-			"status_code": strconv.Itoa(resp.StatusCode),
-		}
-		metricsRT.metrics.clientCounter.With(labels).Inc()
-		if contentLengthStr := r.Header.Get("Content-Length"); len(contentLengthStr) > 0 {
-			if contentLength, err := strconv.Atoi(contentLengthStr); err == nil {
-				metricsRT.metrics.clientContentLength.With(labels).Observe(float64(contentLength))
+		if resp != nil {
+			labels := prometheus.Labels{
+				"path":        r.URL.Path,
+				"status_code": strconv.Itoa(resp.StatusCode),
 			}
+			metricsRT.metrics.clientCounter.With(labels).Inc()
+			if contentLengthStr := r.Header.Get("Content-Length"); len(contentLengthStr) > 0 {
+				if contentLength, err := strconv.Atoi(contentLengthStr); err == nil {
+					metricsRT.metrics.clientContentLength.With(labels).Observe(float64(contentLength))
+				}
+			}
+			metricsRT.metrics.clientDuration.With(labels).Observe(durationSec)
 		}
-		metricsRT.metrics.clientDuration.With(labels).Observe(durationSec)
-
 		if err != nil {
 			switch typedErr := err.(type) {
 			case hystrix.CircuitError:

@@ -21,6 +21,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/afex/hystrix-go/hystrix"
 	"github.com/spothero/tools/http/roundtrip"
 	"github.com/spothero/tools/http/writer"
 	"github.com/stretchr/testify/assert"
@@ -97,6 +98,16 @@ func TestRoundTripper(t *testing.T) {
 			"requests are logged appropriately in client calls",
 			&roundtrip.MockRoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
 			false,
+			false,
+		},
+		{
+			"circuit-breaking errors are logged",
+			&roundtrip.MockRoundTripper{
+				ResponseStatusCodes: []int{http.StatusOK},
+				CreateErr:           true,
+				DesiredErr:          hystrix.ErrCircuitOpen,
+			},
+			true,
 			false,
 		},
 	}

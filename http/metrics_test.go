@@ -19,6 +19,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/afex/hystrix-go/hystrix"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
@@ -141,14 +142,16 @@ func TestMiddleware(t *testing.T) {
 
 func TestMetricsRoundTrip(t *testing.T) {
 	tests := []struct {
-		name         string
-		roundTripper http.RoundTripper
-		expectErr    bool
-		expectPanic  bool
+		name                  string
+		roundTripper          http.RoundTripper
+		expectErr             bool
+		expectCircuitBreakErr bool
+		expectPanic           bool
 	}{
 		{
 			"no roundtripper results in a panic",
 			nil,
+			false,
 			false,
 			true,
 		},
@@ -157,11 +160,24 @@ func TestMetricsRoundTrip(t *testing.T) {
 			&roundtrip.MockRoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: true},
 			true,
 			false,
+			false,
 		},
 		{
 			"http requests are measured and status code is recorded on request",
 			&roundtrip.MockRoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
 			false,
+			false,
+			false,
+		},
+		{
+			"circuit-breaking errors are recorded correctly in the metrics",
+			&roundtrip.MockRoundTripper{
+				ResponseStatusCodes: []int{http.StatusOK},
+				CreateErr:           true,
+				DesiredErr:          hystrix.ErrCircuitOpen,
+			},
+			true,
+			true,
 			false,
 		},
 	}
@@ -180,6 +196,15 @@ func TestMetricsRoundTrip(t *testing.T) {
 				resp, err := metricsRT.RoundTrip(mockReq)
 				assert.Nil(t, resp)
 				assert.Error(t, err)
+
+				if test.expectCircuitBreakErr {
+					// Check circuit-breaker counter
+					counter, err := metricsRT.metrics.circuitBreakerOpen.GetMetricWith(prometheus.Labels{"host": ""})
+					assert.NoError(t, err)
+					pb := &dto.Metric{}
+					assert.NoError(t, counter.Write(pb))
+					assert.Equal(t, 1, int(pb.Counter.GetValue()))
+				}
 			} else {
 				mockReq.Header.Set("Content-Length", "1")
 				resp, err := metricsRT.RoundTrip(mockReq)
