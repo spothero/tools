@@ -20,7 +20,7 @@ require (
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/klauspost/compress v1.9.7 // indirect
 	github.com/lib/pq v1.1.0
-	github.com/linkedin/goavro v2.1.0+incompatible
+	github.com/linkedin/goavro/v2 v2.9.7
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/pierrec/lz4 v2.4.0+incompatible // indirect
 	github.com/prometheus/client_golang v1.3.0
@@ -42,6 +42,5 @@ require (
 	google.golang.org/genproto v0.0.0-20200108215221-bd8f9a0ef82f // indirect
 	google.golang.org/grpc v1.26.0
 	gopkg.in/jcmturner/gokrb5.v7 v7.3.0 // indirect
-	gopkg.in/linkedin/goavro.v1 v1.0.5 // indirect
 	gopkg.in/square/go-jose.v2 v2.3.1
 )

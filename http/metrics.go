@@ -179,7 +179,7 @@ func (m Metrics) Middleware(next http.Handler) http.Handler {
 // measured with metrics
 type MetricsRoundTripper struct {
 	RoundTripper http.RoundTripper
-	metrics      Metrics // An instantiated http.Metrics bundle for measuring timings and status codes
+	Metrics      Metrics // An instantiated http.Metrics bundle for measuring timings and status codes
 }
 
 // RoundTrip measures HTTP client call duration and status codes

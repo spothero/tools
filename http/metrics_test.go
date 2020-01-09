@@ -184,7 +184,7 @@ func TestMetricsRoundTrip(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			metricsRT := MetricsRoundTripper{
 				RoundTripper: test.roundTripper,
-				metrics:      NewMetrics(nil, true),
+				Metrics:      NewMetrics(nil, true),
 			}
 			mockReq := httptest.NewRequest("GET", "/path", nil)
 			if test.expectPanic {
@@ -217,7 +217,7 @@ func TestMetricsRoundTrip(t *testing.T) {
 				}
 
 				// Check duration histogram
-				histogram, err := metricsRT.metrics.clientDuration.GetMetricWith(labels)
+				histogram, err := metricsRT.Metrics.clientDuration.GetMetricWith(labels)
 				assert.NoError(t, err)
 				pb := &dto.Metric{}
 				assert.NoError(t, histogram.(prometheus.Histogram).Write(pb))
@@ -235,7 +235,7 @@ func TestMetricsRoundTrip(t *testing.T) {
 				}
 
 				// Check content-length histogram
-				contentLengthHistogram, err := metricsRT.metrics.clientContentLength.GetMetricWith(labels)
+				contentLengthHistogram, err := metricsRT.Metrics.clientContentLength.GetMetricWith(labels)
 				assert.NoError(t, err)
 				pb = &dto.Metric{}
 				assert.NoError(t, contentLengthHistogram.(prometheus.Histogram).Write(pb))
@@ -243,7 +243,7 @@ func TestMetricsRoundTrip(t *testing.T) {
 				assert.NotEmpty(t, buckets)
 
 				// Check request counter
-				counter, err := metricsRT.metrics.clientCounter.GetMetricWith(labels)
+				counter, err := metricsRT.Metrics.clientCounter.GetMetricWith(labels)
 				assert.NoError(t, err)
 				pb = &dto.Metric{}
 				assert.NoError(t, counter.Write(pb))
