@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/afex/hystrix-go/hystrix"
@@ -33,6 +34,7 @@ type CircuitBreakerRoundTripper struct {
 	HostConfiguration  map[string]hystrix.CommandConfig
 	registeredHostsSet map[string]bool
 	defaultConfig      hystrix.CommandConfig
+	mutex              sync.RWMutex
 }
 
 // NewDefaultCircuitBreakerRoundTripper constructs and returns the default
@@ -48,12 +50,12 @@ type CircuitBreakerRoundTripper struct {
 // * 50% of requests must fail for the circuit-breaker to trip
 // * If the circuit-breaker opens, no requests will be attempted until after 5 seconds have passed
 // * At least 20 requests must be recorded to a host before the circuit breaker can be tripped
-func NewDefaultCircuitBreakerRoundTripper(roundTripper http.RoundTripper) CircuitBreakerRoundTripper {
+func NewDefaultCircuitBreakerRoundTripper(roundTripper http.RoundTripper) *CircuitBreakerRoundTripper {
 	// Ensure the RoundTripper was set on the CircuitBreakerRoundTripper
 	if roundTripper == nil {
 		panic("no roundtripper provided to circuit-breaker round tripper")
 	}
-	return CircuitBreakerRoundTripper{
+	return &CircuitBreakerRoundTripper{
 		RoundTripper:       roundTripper,
 		HostConfiguration:  make(map[string]hystrix.CommandConfig),
 		registeredHostsSet: make(map[string]bool),
@@ -64,12 +66,13 @@ func NewDefaultCircuitBreakerRoundTripper(roundTripper http.RoundTripper) Circui
 			SleepWindow:            hystrix.DefaultSleepWindow,
 			ErrorPercentThreshold:  hystrix.DefaultErrorPercentThreshold,
 		},
+		mutex: sync.RWMutex{},
 	}
 }
 
 // RoundTrip completes the http request round trip but wraps the call in circuit-breaking logic
 // using the Netflix Hystrix approach.
-func (cbrt CircuitBreakerRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+func (cbrt *CircuitBreakerRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Ensure the RoundTripper was set on the CircuitBreakerRoundTripper
 	if cbrt.RoundTripper == nil {
 		panic("no roundtripper provided to circuit-breaker round tripper")
@@ -86,13 +89,18 @@ func (cbrt CircuitBreakerRoundTripper) RoundTrip(req *http.Request) (*http.Respo
 	}
 
 	// Register the host configuration if it is not yet registered
-	if _, ok := cbrt.registeredHostsSet[req.URL.Host]; !ok {
+	cbrt.mutex.RLock()
+	_, ok := cbrt.registeredHostsSet[req.URL.Host]
+	cbrt.mutex.RUnlock()
+	if !ok {
 		hystrixConfig, configExists := cbrt.HostConfiguration[req.URL.Host]
 		if !configExists {
 			hystrixConfig = cbrt.defaultConfig
 		}
 		hystrix.ConfigureCommand(req.URL.Host, hystrixConfig)
+		cbrt.mutex.Lock()
 		cbrt.registeredHostsSet[req.URL.Host] = true
+		cbrt.mutex.Unlock()
 	}
 
 	var err error

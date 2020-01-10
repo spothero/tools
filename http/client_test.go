@@ -43,7 +43,7 @@ func TestNewDefaultClient(t *testing.T) {
 	rrt, ok := trt.RoundTripper.(RetryRoundTripper)
 	assert.True(t, ok)
 
-	cbrt, ok := rrt.RoundTripper.(CircuitBreakerRoundTripper)
+	cbrt, ok := rrt.RoundTripper.(*CircuitBreakerRoundTripper)
 	assert.True(t, ok)
 
 	assert.Equal(t, http.DefaultTransport, cbrt.RoundTripper)
