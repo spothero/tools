@@ -83,11 +83,6 @@ func (c SchemaRegistryConfig) NewSchemaRegistryClient(httpMetrics shHTTP.Metrics
 func (c SchemaRegistryClient) GetSchema(ctx context.Context, id uint) (string, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "get-avro-schema")
 	defer span.Finish()
-	schema, ok := c.cache.Load(id)
-	if ok {
-		span.SetTag("outcome", "retrieved_from_cache")
-		return schema.(string), nil
-	}
 	endpoint := fmt.Sprintf("%s/schemas/ids/%d", c.URL, id)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
@@ -113,7 +108,6 @@ func (c SchemaRegistryClient) GetSchema(ctx context.Context, id uint) (string, e
 	if err := json.NewDecoder(response.Body).Decode(&schemaResponse); err != nil {
 		return "", err
 	}
-	c.cache.Store(id, schemaResponse.Schema)
 	return schemaResponse.Schema, nil
 }
 
@@ -126,15 +120,24 @@ func (c SchemaRegistryClient) DecodeKafkaAvroMessage(ctx context.Context, messag
 	}
 	schemaIDBytes := message.Value[1:5]
 	messageBytes := message.Value[5:]
-	schemaID := binary.BigEndian.Uint32(schemaIDBytes)
-	schema, err := c.GetSchema(ctx, uint(schemaID))
-	if err != nil {
-		return nil, err
+	schemaID := uint(binary.BigEndian.Uint32(schemaIDBytes))
+
+	var codec *goavro.Codec
+	codecIface, ok := c.cache.Load(schemaID)
+	if ok {
+		codec = codecIface.(*goavro.Codec)
+	} else {
+		schema, err := c.GetSchema(ctx, schemaID)
+		if err != nil {
+			return nil, err
+		}
+		codec, err = goavro.NewCodec(schema)
+		if err != nil {
+			return nil, err
+		}
+		c.cache.Store(schemaID, codec)
 	}
-	codec, err := goavro.NewCodec(schema)
-	if err != nil {
-		return nil, err
-	}
+
 	decoded, _, err := codec.NativeFromBinary(messageBytes)
 	if err != nil {
 		return nil, err

@@ -59,7 +59,6 @@ func TestSchemaRegistryClient_GetSchema(t *testing.T) {
 	tests := []struct {
 		name              string
 		url               string
-		prePopulateCache  bool
 		registryResponse  *http.Response
 		httpErr           bool
 		expectHTTPRequest bool
@@ -69,7 +68,6 @@ func TestSchemaRegistryClient_GetSchema(t *testing.T) {
 		{
 			"schema is retrieved from schema registry",
 			"schema.registry",
-			false,
 			&http.Response{
 				StatusCode: http.StatusOK,
 				Body:       ioutil.NopCloser(strings.NewReader("{\"schema\": \"it's a schema\"}")),
@@ -79,18 +77,8 @@ func TestSchemaRegistryClient_GetSchema(t *testing.T) {
 			"it's a schema",
 			false,
 		}, {
-			"cached schema is returned without making network call",
-			"schema.registry",
-			true,
-			nil,
-			false,
-			false,
-			"it's a schema",
-			false,
-		}, {
 			"http error returns error",
 			"schema.registry",
-			false,
 			&http.Response{},
 			true,
 			true,
@@ -99,7 +87,6 @@ func TestSchemaRegistryClient_GetSchema(t *testing.T) {
 		}, {
 			"404 returns error",
 			"schema.registry",
-			false,
 			&http.Response{StatusCode: http.StatusNotFound},
 			false,
 			true,
@@ -108,7 +95,6 @@ func TestSchemaRegistryClient_GetSchema(t *testing.T) {
 		}, {
 			"non-200 returns error",
 			"schema.registry",
-			false,
 			&http.Response{StatusCode: http.StatusTeapot},
 			false,
 			true,
@@ -117,7 +103,6 @@ func TestSchemaRegistryClient_GetSchema(t *testing.T) {
 		}, {
 			"bad json returns error",
 			"schema.registry",
-			false,
 			&http.Response{
 				StatusCode: http.StatusOK,
 				Body:       ioutil.NopCloser(strings.NewReader("not json")),
@@ -129,7 +114,6 @@ func TestSchemaRegistryClient_GetSchema(t *testing.T) {
 		}, {
 			"error building request returns error",
 			"💀://",
-			false,
 			nil,
 			false,
 			false,
@@ -143,9 +127,6 @@ func TestSchemaRegistryClient_GetSchema(t *testing.T) {
 				SchemaRegistryConfig: SchemaRegistryConfig{URL: test.url},
 				client:               http.Client{Transport: &mockTransport{t: t}},
 				cache:                &sync.Map{},
-			}
-			if test.prePopulateCache {
-				client.cache.Store(schemaID, test.expectedSchema)
 			}
 			if test.expectHTTPRequest {
 				mockCall := client.client.Transport.(*mockTransport).On("RoundTrip", mock.Anything)
@@ -163,9 +144,6 @@ func TestSchemaRegistryClient_GetSchema(t *testing.T) {
 			}
 			assert.NoError(t, err)
 			assert.Equal(t, test.expectedSchema, schema)
-			cached, ok := client.cache.Load(schemaID)
-			require.True(t, ok)
-			assert.Equal(t, test.expectedSchema, cached)
 		})
 	}
 }
@@ -188,42 +166,55 @@ func newAvroMessage(t *testing.T) *sarama.ConsumerMessage {
 
 func TestSchemaRegistryClient_DecodeKafkaAvroMessage(t *testing.T) {
 	tests := []struct {
-		name      string
-		msg       *sarama.ConsumerMessage
-		schema    string
-		expected  interface{}
-		expectErr bool
+		name             string
+		msg              *sarama.ConsumerMessage
+		prePopulateCache bool
+		schema           string
+		expected         interface{}
+		expectErr        bool
 	}{
 		{
 			"avro message is decoded",
 			newAvroMessage(t),
+			false,
 			avroSchema,
 			map[string]interface{}{"name": "Guy Fieri"},
 			false,
 		}, {
 			"too short of a message returns error",
 			&sarama.ConsumerMessage{Value: []byte{1, 2}},
+			false,
 			"",
 			nil,
 			true,
 		}, {
 			"error getting schema returns error",
 			newAvroMessage(t),
+			false,
 			"",
 			nil,
 			true,
 		}, {
 			"error creating avro codec returns error",
 			newAvroMessage(t),
+			false,
 			"bad schema",
 			nil,
 			true,
 		}, {
 			"error decoding message returns error",
 			&sarama.ConsumerMessage{Value: []byte{0, 0, 0, 0, 77, 78, 79}}, // junk message data with correct schema id
+			false,
 			avroSchema,
 			nil,
 			true,
+		}, {
+			"codec already in cache uses it",
+			newAvroMessage(t),
+			true,
+			avroSchema,
+			map[string]interface{}{"name": "Guy Fieri"},
+			false,
 		},
 	}
 	for _, test := range tests {
@@ -233,16 +224,22 @@ func TestSchemaRegistryClient_DecodeKafkaAvroMessage(t *testing.T) {
 				cache:                &sync.Map{},
 				client:               http.Client{Transport: &mockTransport{t: t}},
 			}
-			getSchema := client.client.Transport.(*mockTransport).On("RoundTrip", mock.Anything)
-			if test.schema != "" {
-				getSchema.Return(&http.Response{
-					StatusCode: http.StatusOK,
-					Body: ioutil.NopCloser(
-						strings.NewReader(
-							fmt.Sprintf("{\"schema\": \"%s\"}", strings.Replace(test.schema, "\"", "\\\"", -1)))),
-				}, nil)
+			if test.prePopulateCache {
+				codec, err := goavro.NewCodec(test.schema)
+				require.NoError(t, err)
+				client.cache.Store(schemaID, codec)
 			} else {
-				getSchema.Return(&http.Response{StatusCode: http.StatusInternalServerError}, nil)
+				getSchema := client.client.Transport.(*mockTransport).On("RoundTrip", mock.Anything)
+				if test.schema != "" {
+					getSchema.Return(&http.Response{
+						StatusCode: http.StatusOK,
+						Body: ioutil.NopCloser(
+							strings.NewReader(
+								fmt.Sprintf("{\"schema\": \"%s\"}", strings.Replace(test.schema, "\"", "\\\"", -1)))),
+					}, nil)
+				} else {
+					getSchema.Return(&http.Response{StatusCode: http.StatusInternalServerError}, nil)
+				}
 			}
 			outcome, err := client.DecodeKafkaAvroMessage(context.Background(), test.msg)
 			if test.expectErr {
