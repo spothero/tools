@@ -35,7 +35,7 @@ func TestConsumer_ConsumePartition(t *testing.T) {
 	assert.NotNil(t, pc.(PartitionConsumer).PartitionConsumer)
 	assert.NotNil(t, pc.(PartitionConsumer).messages)
 	assert.NotNil(t, pc.(PartitionConsumer).errors)
-	assert.NotNil(t, pc.(PartitionConsumer).wg)
+	assert.NotNil(t, pc.(PartitionConsumer).closeWg)
 	assert.NotNil(t, pc.(PartitionConsumer).metrics)
 	assert.NoError(t, pc.Close())
 }
@@ -54,7 +54,7 @@ func newPartitionConsumer(t *testing.T) PartitionConsumer {
 		metrics:           metrics,
 		messages:          make(chan *sarama.ConsumerMessage, 1),
 		errors:            make(chan *sarama.ConsumerError, 1),
-		wg:                &sync.WaitGroup{},
+		closeWg:           &sync.WaitGroup{},
 	}
 	return pc
 }

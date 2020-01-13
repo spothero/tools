@@ -174,6 +174,8 @@ type ConnectAvroUnmarshaller struct {
 	SchemaRegistryClient
 }
 
+// Unmarshal takes the contents of the ConsumerMessage and unmarshals it into the target using avro decoding, returning
+// any and all errors that occur during unmarshalling
 func (u ConnectAvroUnmarshaller) Unmarshal(ctx context.Context, msg *sarama.ConsumerMessage, target interface{}) []error {
 	messageData, err := u.DecodeKafkaAvroMessage(ctx, msg)
 	if err != nil {
@@ -190,6 +192,8 @@ func (u ConnectAvroUnmarshaller) Unmarshal(ctx context.Context, msg *sarama.Cons
 // of the Kafka Connect producer's format
 type ConnectJSONUnmarshaller struct{}
 
+// Unmarshal takes the contents of the ConsumerMessage and unmarshals it into the target using JSON decoding, returning
+// any and all errors that occur during unmarshalling
 func (u ConnectJSONUnmarshaller) Unmarshal(ctx context.Context, msg *sarama.ConsumerMessage, target interface{}) []error {
 	message := make(map[string]interface{})
 	if err := json.Unmarshal(msg.Value, &message); err != nil {

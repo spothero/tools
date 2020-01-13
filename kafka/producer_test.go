@@ -27,7 +27,7 @@ func newAsyncProducer(t *testing.T) AsyncProducer {
 		successes:     make(chan *sarama.ProducerMessage),
 		errors:        make(chan *sarama.ProducerError),
 		asyncShutdown: make(chan bool),
-		wg:            &sync.WaitGroup{},
+		closeWg:       &sync.WaitGroup{},
 		metrics:       metrics,
 	}
 }

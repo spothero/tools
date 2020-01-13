@@ -37,11 +37,11 @@ type PartitionConsumer struct {
 	messages chan *sarama.ConsumerMessage
 	errors   chan *sarama.ConsumerError
 	metrics  ConsumerMetrics
-	wg       *sync.WaitGroup
+	closeWg  *sync.WaitGroup
 }
 
 // NewConsumerFromClient creates a new Consumer from a sarama Client with the
-// a given set of metrics. Note that error metrics can only be collected if the
+// given set of metrics. Note that error metrics can only be collected if the
 // consumer is configured to return errors.
 func NewConsumerFromClient(client sarama.Client, metrics ConsumerMetrics) (Consumer, error) {
 	c, err := sarama.NewConsumerFromClient(client)
@@ -66,7 +66,7 @@ func (c Consumer) ConsumePartition(topic string, partition int32, offset int64) 
 		messages:          make(chan *sarama.ConsumerMessage, cap(partitionConsumer.Messages())),
 		errors:            make(chan *sarama.ConsumerError, cap(partitionConsumer.Errors())),
 		metrics:           c.metrics,
-		wg:                &sync.WaitGroup{},
+		closeWg:           &sync.WaitGroup{},
 	}
 	pc.run(topic, partition)
 	return pc, nil
@@ -80,20 +80,20 @@ func (pc PartitionConsumer) run(topic string, partition int32) {
 		"topic":     topic,
 		"partition": fmt.Sprintf("%d", partition),
 	}
-	pc.wg.Add(2)
+	pc.closeWg.Add(2)
 	go func() {
 		for msg := range pc.PartitionConsumer.Messages() {
 			pc.metrics.messagesConsumed.With(labels).Inc()
 			pc.messages <- msg
 		}
-		pc.wg.Done()
+		pc.closeWg.Done()
 	}()
 	go func() {
 		for err := range pc.PartitionConsumer.Errors() {
 			pc.metrics.errorsConsumed.With(labels).Inc()
 			pc.errors <- err
 		}
-		pc.wg.Done()
+		pc.closeWg.Done()
 	}()
 }
 
@@ -113,7 +113,7 @@ func (pc PartitionConsumer) Errors() <-chan *sarama.ConsumerError {
 // error channels are closed.
 func (pc PartitionConsumer) AsyncClose() {
 	go func() {
-		pc.wg.Wait()
+		pc.closeWg.Wait()
 		close(pc.messages)
 		close(pc.errors)
 	}()

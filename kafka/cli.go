@@ -68,7 +68,7 @@ func (c *Config) RegisterMetadataFlags(flags *pflag.FlagSet) {
 // RegisterProducerFlags registers configuration options for Kafka producers.
 func (c *Config) RegisterProducerFlags(flags *pflag.FlagSet) {
 	flags.IntVar(&c.Producer.MaxMessageBytes, "kafka-producer-max-message-bytes", 1000000, "maximum permitted size of produced Kafka messages")
-	flags.Int16Var(&c.ProducerRequiredAcks, "kafka-producer-required-acks", 1, "Kafka producer required akcs setting. -1=all, 0=none, 1=local.")
+	flags.Int16Var(&c.ProducerRequiredAcks, "kafka-producer-required-acks", 1, "Kafka producer required acks setting. -1=all, 0=none, 1=local.")
 	flags.DurationVar(&c.Producer.Timeout, "kafka-producer-timeout", 10*time.Second, "maximum duration the Kafka broker will wait for the number of required acks. only relevant when the required acks setting is set to all.")
 	flags.StringVar(&c.ProducerCompressionCodec, "kafka-producer-compression-codec", "none", "compression coded to use in the Kafka producer, one of \"none\", \"zstd\", \"snappy\", \"lz4\", \"gzip\"")
 	flags.IntVar(&c.Producer.CompressionLevel, "kafka-producer-compression-level", -1000, "Kafka producer compression level, -1000 signifies the default level")

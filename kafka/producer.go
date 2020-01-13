@@ -30,7 +30,7 @@ type AsyncProducer struct {
 	successes     chan *sarama.ProducerMessage
 	errors        chan *sarama.ProducerError
 	asyncShutdown chan bool
-	wg            *sync.WaitGroup
+	closeWg       *sync.WaitGroup
 }
 
 // NewAsyncProducerFromClient creates a new AsyncProducer from a sarama Client
@@ -47,7 +47,7 @@ func NewAsyncProducerFromClient(client sarama.Client, metrics ProducerMetrics) (
 		successes:     make(chan *sarama.ProducerMessage, cap(p.Successes())),
 		errors:        make(chan *sarama.ProducerError, cap(p.Errors())),
 		asyncShutdown: make(chan bool),
-		wg:            &sync.WaitGroup{},
+		closeWg:       &sync.WaitGroup{},
 	}
 	ap.run()
 	return ap, nil
@@ -55,7 +55,7 @@ func NewAsyncProducerFromClient(client sarama.Client, metrics ProducerMetrics) (
 
 // run runs the interceptors that collect prometheus metrics on message production.
 func (ap AsyncProducer) run() {
-	ap.wg.Add(2) // 1 for success, error channels
+	ap.closeWg.Add(2) // 1 for success, error channels
 
 	// Handle errors returned by the producer
 	go func() {
@@ -65,7 +65,7 @@ func (ap AsyncProducer) run() {
 			).Inc()
 			ap.errors <- err
 		}
-		ap.wg.Done()
+		ap.closeWg.Done()
 	}()
 
 	// Handle successes returned by the producer
@@ -76,7 +76,7 @@ func (ap AsyncProducer) run() {
 			).Inc()
 			ap.successes <- msg
 		}
-		ap.wg.Done()
+		ap.closeWg.Done()
 	}()
 }
 
@@ -98,7 +98,7 @@ func (ap AsyncProducer) Errors() <-chan *sarama.ProducerError {
 func (ap AsyncProducer) AsyncClose() {
 	ap.AsyncProducer.AsyncClose()
 	go func() {
-		ap.wg.Wait()
+		ap.closeWg.Wait()
 		close(ap.errors)
 		close(ap.successes)
 	}()
@@ -108,7 +108,7 @@ func (ap AsyncProducer) AsyncClose() {
 // messages to be flushed before returning.
 func (ap AsyncProducer) Close() error {
 	err := ap.AsyncProducer.Close()
-	ap.wg.Wait()
+	ap.closeWg.Wait()
 	close(ap.errors)
 	close(ap.successes)
 	return err

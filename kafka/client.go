@@ -23,6 +23,7 @@ import (
 
 	"github.com/Shopify/sarama"
 	prometheusmetrics "github.com/deathowl/go-metrics-prometheus"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rcrowley/go-metrics"
 	"github.com/spothero/tools/log"
 	"go.uber.org/zap"
@@ -39,6 +40,9 @@ func (c *Config) NewClient(ctx context.Context) (sarama.Client, error) {
 	client, err := sarama.NewClient(c.BrokerAddrs, &c.Config)
 	if err != nil {
 		return nil, err
+	}
+	if c.Registerer == nil {
+		c.Registerer = prometheus.DefaultRegisterer
 	}
 	go prometheusmetrics.NewPrometheusProvider(
 		c.MetricRegistry, "sarama", "", c.Registerer, c.MetricsFrequency,

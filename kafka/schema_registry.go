@@ -45,7 +45,7 @@ func (c *SchemaRegistryConfig) RegisterFlags(flags *pflag.FlagSet) {
 // SchemaRegistryClient provides functionality for interacting with Kafka schema registry. This type
 // has methods for getting schemas from the registry and decoding sarama ConsumerMessages from Avro into
 // Go types. In addition, since the schema registry is immutable, the client contains a cache of schemas
-// so that a network request to the regsitry does not have to be made for every Kafka message that needs
+// so that a network request to the registry does not have to be made for every Kafka message that needs
 // to be decoded.
 type SchemaRegistryClient struct {
 	SchemaRegistryConfig
@@ -79,6 +79,9 @@ func (c SchemaRegistryConfig) NewSchemaRegistryClient(httpMetrics shHTTP.Metrics
 	}
 }
 
+// Accept header value for the content type expected from the schema registry api
+const schemaRegistryAcceptFormat = "application/vnd.schemaregistry.v1+json"
+
 // GetSchema retrieves a textual JSON Avro schema from the Kafka schema registry
 func (c SchemaRegistryClient) GetSchema(ctx context.Context, id uint) (string, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "get-avro-schema")
@@ -88,7 +91,7 @@ func (c SchemaRegistryClient) GetSchema(ctx context.Context, id uint) (string, e
 	if err != nil {
 		return "", fmt.Errorf("failed to build schema registry http request: %w", err)
 	}
-	req.Header.Set("Accept", "application/vnd.schemaregistry.v1+json")
+	req.Header.Set("Accept", schemaRegistryAcceptFormat)
 	response, err := c.client.Do(req)
 	if err != nil {
 		return "", err
