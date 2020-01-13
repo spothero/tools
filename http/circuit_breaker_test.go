@@ -18,6 +18,7 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -53,7 +54,7 @@ func TestNewDefaultCircuitBreakerRoundTripper(t *testing.T) {
 			} else {
 				cbrt := NewDefaultCircuitBreakerRoundTripper(test.roundTripper)
 				assert.Equal(t, test.roundTripper, cbrt.RoundTripper)
-				assert.Equal(t, make(map[string]hystrix.CommandConfig), cbrt.HostConfiguration)
+				assert.Equal(t, make(map[string]hystrix.CommandConfig), cbrt.hostConfiguration)
 				assert.Equal(t, make(map[string]bool), cbrt.registeredHostsSet)
 				assert.Equal(
 					t,
@@ -69,6 +70,19 @@ func TestNewDefaultCircuitBreakerRoundTripper(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestWithHostConfiguration(t *testing.T) {
+	cbrt := &CircuitBreakerRoundTripper{configMutex: sync.RWMutex{}}
+	assert.Equal(
+		t,
+		cbrt.WithHostConfiguration(map[string]hystrix.CommandConfig{
+			"host": hystrix.CommandConfig{},
+		}).hostConfiguration,
+		map[string]hystrix.CommandConfig{
+			"host": hystrix.CommandConfig{},
+		})
+
 }
 
 func TestCircuitBreakerRoundTrip(t *testing.T) {
@@ -138,7 +152,7 @@ func TestCircuitBreakerRoundTrip(t *testing.T) {
 					SleepWindow:            1,
 					ErrorPercentThreshold:  1,
 				},
-				HostConfiguration: test.hystrixConfig,
+				hostConfiguration: test.hystrixConfig,
 			}
 			if !test.expectPanic {
 				for i := 0; i < test.numRequests; i++ {

@@ -97,7 +97,7 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 	circuitBreakerOpen := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "http_client_circuit_breaker_open_total",
-			Help: "Total number of times the HTTP client circuit breaker has opened",
+			Help: "Total number of times the HTTP client circuit breaker has been open when a request was attempted",
 		},
 		[]string{"host"},
 	)

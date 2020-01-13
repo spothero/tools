@@ -27,14 +27,12 @@ import (
 
 // CircuitBreakerRoundTripper wraps a RoundTrapper with circuit-breaker logic
 type CircuitBreakerRoundTripper struct {
-	RoundTripper http.RoundTripper
-	// A map of hostname to Hystrix configuration settings. Default settings will be used if not
-	// specified. Using the default is recommended unless you have a good reason to alter the
-	// settings.
-	HostConfiguration  map[string]hystrix.CommandConfig
+	RoundTripper       http.RoundTripper
+	hostConfiguration  map[string]hystrix.CommandConfig
 	registeredHostsSet map[string]bool
 	defaultConfig      hystrix.CommandConfig
-	mutex              sync.RWMutex
+	registrationMutex  sync.RWMutex
+	configMutex        sync.RWMutex
 }
 
 // NewDefaultCircuitBreakerRoundTripper constructs and returns the default
@@ -57,7 +55,7 @@ func NewDefaultCircuitBreakerRoundTripper(roundTripper http.RoundTripper) *Circu
 	}
 	return &CircuitBreakerRoundTripper{
 		RoundTripper:       roundTripper,
-		HostConfiguration:  make(map[string]hystrix.CommandConfig),
+		hostConfiguration:  make(map[string]hystrix.CommandConfig),
 		registeredHostsSet: make(map[string]bool),
 		defaultConfig: hystrix.CommandConfig{
 			Timeout:                int((30 * time.Second).Milliseconds()), // 30 second timeout
@@ -66,8 +64,22 @@ func NewDefaultCircuitBreakerRoundTripper(roundTripper http.RoundTripper) *Circu
 			SleepWindow:            hystrix.DefaultSleepWindow,
 			ErrorPercentThreshold:  hystrix.DefaultErrorPercentThreshold,
 		},
-		mutex: sync.RWMutex{},
+		registrationMutex: sync.RWMutex{},
+		configMutex:       sync.RWMutex{},
 	}
+}
+
+// WithHostConfiguration sets the host configuration on the CircuitBreakerRoundTripper and returns
+// the modified configuration.
+//
+// The host configuration is a map of hostname to Hystrix configuration settings. Use of this
+// function is discouraged unless the caller has established reasons to modify the configuration
+// for a particular host.
+func (cbrt *CircuitBreakerRoundTripper) WithHostConfiguration(hostConfiguration map[string]hystrix.CommandConfig) *CircuitBreakerRoundTripper {
+	cbrt.configMutex.Lock()
+	cbrt.hostConfiguration = hostConfiguration
+	cbrt.configMutex.Unlock()
+	return cbrt
 }
 
 // RoundTrip completes the http request round trip but wraps the call in circuit-breaking logic
@@ -89,18 +101,20 @@ func (cbrt *CircuitBreakerRoundTripper) RoundTrip(req *http.Request) (*http.Resp
 	}
 
 	// Register the host configuration if it is not yet registered
-	cbrt.mutex.RLock()
+	cbrt.registrationMutex.RLock()
 	_, ok := cbrt.registeredHostsSet[req.URL.Host]
-	cbrt.mutex.RUnlock()
+	cbrt.registrationMutex.RUnlock()
 	if !ok {
-		hystrixConfig, configExists := cbrt.HostConfiguration[req.URL.Host]
+		cbrt.configMutex.RLock()
+		hystrixConfig, configExists := cbrt.hostConfiguration[req.URL.Host]
+		cbrt.configMutex.RUnlock()
 		if !configExists {
 			hystrixConfig = cbrt.defaultConfig
 		}
 		hystrix.ConfigureCommand(req.URL.Host, hystrixConfig)
-		cbrt.mutex.Lock()
+		cbrt.registrationMutex.Lock()
 		cbrt.registeredHostsSet[req.URL.Host] = true
-		cbrt.mutex.Unlock()
+		cbrt.registrationMutex.Unlock()
 	}
 
 	var err error
