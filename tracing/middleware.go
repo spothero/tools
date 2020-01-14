@@ -16,10 +16,12 @@ package tracing
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 
+	"github.com/cep21/circuit/v3"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/spothero/tools/http/writer"
@@ -98,7 +100,11 @@ func (rt RoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 
 	resp, err := rt.RoundTripper.RoundTrip(r.WithContext(EmbedCorrelationID(spanCtx)))
 	if err != nil {
-		span.Finish()
+		var circuitError circuit.Error
+		if errors.As(err, &circuitError) {
+			span = span.SetTag("circuit-breaker", circuitError.Error())
+		}
+		span.SetTag("error", true).Finish()
 		return nil, fmt.Errorf("http client request failed: %w", err)
 	}
 

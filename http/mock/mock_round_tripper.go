@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package roundtrip
+package mock
 
 import (
 	"fmt"
@@ -20,17 +20,22 @@ import (
 )
 
 // This roundtripper is a noop and is intended for use only within tests.
-type MockRoundTripper struct {
+type RoundTripper struct {
 	ResponseStatusCodes []int
 	CreateErr           bool
 	CallNumber          int
+	// Optional, if specified raise this error type, otherwise a standard error is returned
+	DesiredErr error
 }
 
 // RoundTrip Performs a "noop" round trip. It is intended for use only within tests.
-func (mockRT *MockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+func (mockRT *RoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	currCallNumber := mockRT.CallNumber
 	mockRT.CallNumber++
 	if mockRT.CreateErr {
+		if mockRT.DesiredErr != nil {
+			return nil, mockRT.DesiredErr
+		}
 		return nil, fmt.Errorf("error in roundtripper")
 	}
 	return &http.Response{StatusCode: mockRT.ResponseStatusCodes[currCallNumber]}, nil

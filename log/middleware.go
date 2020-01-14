@@ -16,11 +16,13 @@ package log
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/cep21/circuit/v3"
 	"github.com/spothero/tools/http/writer"
 	sqlMiddleware "github.com/spothero/tools/sql/middleware"
 	"go.uber.org/zap"
@@ -92,6 +94,17 @@ func (rt RoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	logger.Debug("http request started")
 	resp, err := rt.RoundTripper.RoundTrip(r)
 	if err != nil {
+		var circuitError circuit.Error
+		if errors.As(err, &circuitError) {
+			logger.Warn(
+				"circuit breaker error on http request",
+				zap.String("host", r.URL.Host),
+				zap.Bool("circuit_opened", circuitError.CircuitOpen()),
+				zap.Bool("concurrency_limit_reached", circuitError.ConcurrencyLimitReached()),
+				zap.String("reason", circuitError.Error()),
+				zap.Error(err),
+			)
+		}
 		return nil, fmt.Errorf("http client request failed: %w", err)
 	}
 

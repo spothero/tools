@@ -16,10 +16,12 @@ package http
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 
+	"github.com/cep21/circuit/v3"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spothero/tools/http/writer"
 	"github.com/spothero/tools/log"
@@ -34,6 +36,7 @@ type Metrics struct {
 	clientCounter       *prometheus.CounterVec
 	clientDuration      *prometheus.HistogramVec
 	clientContentLength *prometheus.HistogramVec
+	circuitBreakerOpen  *prometheus.CounterVec
 }
 
 // NewMetrics creates and returns a metrics bundle. The user may optionally
@@ -92,6 +95,13 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 		},
 		labels,
 	)
+	circuitBreakerOpen := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "http_client_circuit_breaker_open_total",
+			Help: "Total number of times the HTTP client circuit breaker has been open when a request was attempted",
+		},
+		[]string{"host"},
+	)
 	// If the user hasnt provided a Prometheus Registry, use the global Registry
 	if registry == nil {
 		registry = prometheus.DefaultRegisterer
@@ -103,6 +113,7 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 		registry.MustRegister(clientCounter)
 		registry.MustRegister(contentLength)
 		registry.MustRegister(clientContentLength)
+		registry.MustRegister(circuitBreakerOpen)
 	} else {
 		toRegister := map[string]prometheus.Collector{
 			"duration":            histogram,
@@ -111,6 +122,7 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 			"clientCounter":       clientCounter,
 			"contentLength":       contentLength,
 			"clientContentLength": clientContentLength,
+			"circuitBreakerOpen":  circuitBreakerOpen,
 		}
 		for name, collector := range toRegister {
 			if err := registry.Register(collector); err != nil {
@@ -136,6 +148,7 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 		clientDuration:      clientHistogram,
 		contentLength:       contentLength,
 		clientContentLength: clientContentLength,
+		circuitBreakerOpen:  circuitBreakerOpen,
 	}
 }
 
@@ -178,26 +191,27 @@ func (metricsRT MetricsRoundTripper) RoundTrip(r *http.Request) (*http.Response,
 
 	// Make the request
 	var resp *http.Response
+	var err error
 	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(durationSec float64) {
-		if resp == nil {
-			return
-		}
-		labels := prometheus.Labels{
-			"path":        r.URL.Path,
-			"status_code": strconv.Itoa(resp.StatusCode),
-		}
-		metricsRT.metrics.clientCounter.With(labels).Inc()
-		if contentLengthStr := r.Header.Get("Content-Length"); len(contentLengthStr) > 0 {
-			if contentLength, err := strconv.Atoi(contentLengthStr); err == nil {
-				metricsRT.metrics.clientContentLength.With(labels).Observe(float64(contentLength))
+		if resp != nil {
+			labels := prometheus.Labels{
+				"path":        r.URL.Path,
+				"status_code": strconv.Itoa(resp.StatusCode),
 			}
+			metricsRT.metrics.clientCounter.With(labels).Inc()
+			if contentLengthStr := r.Header.Get("Content-Length"); len(contentLengthStr) > 0 {
+				if contentLength, err := strconv.Atoi(contentLengthStr); err == nil {
+					metricsRT.metrics.clientContentLength.With(labels).Observe(float64(contentLength))
+				}
+			}
+			metricsRT.metrics.clientDuration.With(labels).Observe(durationSec)
 		}
-		metricsRT.metrics.clientDuration.With(labels).Observe(durationSec)
+		var circuitError circuit.Error
+		if err != nil && errors.As(err, &circuitError) && circuitError.CircuitOpen() {
+			metricsRT.metrics.circuitBreakerOpen.With(prometheus.Labels{"host": r.URL.Host}).Inc()
+		}
 	}))
 	defer timer.ObserveDuration()
-	resp, err := metricsRT.RoundTripper.RoundTrip(r)
-	if err != nil {
-		return nil, fmt.Errorf("http client request failed: %w", err)
-	}
+	resp, err = metricsRT.RoundTripper.RoundTrip(r)
 	return resp, err
 }

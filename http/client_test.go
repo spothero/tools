@@ -16,12 +16,9 @@ package http
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/spothero/tools/http/roundtrip"
 	"github.com/spothero/tools/jose"
 	"github.com/spothero/tools/log"
 	"github.com/spothero/tools/tracing"
@@ -47,114 +44,9 @@ func TestNewDefaultClient(t *testing.T) {
 
 	rrt, ok := trt.RoundTripper.(RetryRoundTripper)
 	assert.True(t, ok)
-	assert.Equal(t, http.DefaultTransport, rrt.RoundTripper)
-}
 
-func TestRetryRoundTrip(t *testing.T) {
-	tests := []struct {
-		name               string
-		roundTripper       http.RoundTripper
-		expectedStatusCode int
-		numRetries         uint8
-		expectErr          bool
-		expectPanic        bool
-	}{
-		{
-			"no round tripper results in a panic",
-			nil,
-			http.StatusOK, // doesn't matter
-			0,
-			false,
-			true,
-		},
-		{
-			"round tripper with no error invokes middleware correctly",
-			&roundtrip.MockRoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
-			http.StatusOK,
-			0,
-			false,
-			false,
-		},
-		{
-			"round tripper with an unresolved error returns an error",
-			&roundtrip.MockRoundTripper{
-				ResponseStatusCodes: []int{
-					http.StatusInternalServerError,
-					http.StatusInternalServerError,
-				},
-				CreateErr: false,
-			},
-			http.StatusInternalServerError,
-			1,
-			false,
-			false,
-		},
-		{
-			"round tripper with an unretriable error returns an error",
-			&roundtrip.MockRoundTripper{
-				ResponseStatusCodes: []int{
-					http.StatusNotImplemented,
-				},
-				CreateErr: false,
-			},
-			http.StatusNotImplemented,
-			1,
-			false,
-			false,
-		},
-		{
-			"round tripper that encounters an http err is retried",
-			&roundtrip.MockRoundTripper{
-				ResponseStatusCodes: []int{
-					http.StatusBadRequest,
-					http.StatusBadRequest,
-				},
-				CreateErr: true,
-			},
-			http.StatusBadRequest,
-			1,
-			true,
-			false,
-		},
-		{
-			"retries are stopped when a successful or non-retriable status code is given",
-			&roundtrip.MockRoundTripper{
-				ResponseStatusCodes: []int{
-					http.StatusInternalServerError,
-					http.StatusOK,
-					http.StatusInternalServerError,
-				},
-				CreateErr: true,
-			},
-			http.StatusOK,
-			2,
-			true,
-			false,
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			rrt := RetryRoundTripper{
-				RetriableStatusCodes: map[int]bool{http.StatusInternalServerError: true},
-				MaxRetries:           test.numRetries,
-				InitialInterval:      1 * time.Nanosecond,
-				RoundTripper:         test.roundTripper,
-			}
-			mockReq := httptest.NewRequest("GET", "/path", nil)
-			if !test.expectPanic {
-				resp, err := rrt.RoundTrip(mockReq)
-				if test.expectErr {
-					assert.Error(t, err)
-				} else {
-					assert.NoError(t, err)
-					assert.NotNil(t, resp)
-					assert.Equal(t, test.expectedStatusCode, resp.StatusCode)
-				}
-			} else {
-				assert.Panics(t, func() {
-					_, _ = rrt.RoundTrip(mockReq)
-				})
-			}
-		})
-	}
+	cbrt, ok := rrt.RoundTripper.(*CircuitBreakerRoundTripper)
+	assert.True(t, ok)
+
+	assert.Equal(t, http.DefaultTransport, cbrt.RoundTripper)
 }

@@ -21,7 +21,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/spothero/tools/http/roundtrip"
+	"github.com/spothero/tools/http/mock"
 	"github.com/spothero/tools/http/writer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -89,14 +89,24 @@ func TestRoundTripper(t *testing.T) {
 		},
 		{
 			"roundtripper errors are returned to the caller",
-			&roundtrip.MockRoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: true},
+			&mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: true},
 			true,
 			false,
 		},
 		{
 			"requests are logged appropriately in client calls",
-			&roundtrip.MockRoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
+			&mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
 			false,
+			false,
+		},
+		{
+			"circuit-breaking errors are logged",
+			&mock.RoundTripper{
+				ResponseStatusCodes: []int{http.StatusOK},
+				CreateErr:           true,
+				DesiredErr:          mock.CircuitError{CircuitOpened: true},
+			},
+			true,
 			false,
 		},
 	}
