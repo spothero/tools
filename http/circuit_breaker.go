@@ -35,7 +35,7 @@ type CircuitBreakerRoundTripper struct {
 // given host will be accumulated on that host for determining whether or not to open the circuit
 // breaker.
 //
-// The host configuration is a map of hostname to Hystrix configuration settings. Use of this
+// The host configuration is a map of hostname to Circuit configuration settings. Use of this
 // function is discouraged unless the caller has established reasons to modify the configuration
 // for a particular host.
 //
