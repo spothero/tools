@@ -16,6 +16,7 @@ package log
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -93,14 +94,14 @@ func (rt RoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	logger.Debug("http request started")
 	resp, err := rt.RoundTripper.RoundTrip(r)
 	if err != nil {
-		switch typedErr := err.(type) {
-		case circuit.Error:
+		var circuitError circuit.Error
+		if errors.As(err, &circuitError) {
 			logger.Warn(
 				"circuit breaker error on http request",
 				zap.String("host", r.URL.Host),
-				zap.Bool("circuit_opened", typedErr.CircuitOpen()),
-				zap.Bool("concurrency_limit_reached", typedErr.ConcurrencyLimitReached()),
-				zap.String("reason", typedErr.Error()),
+				zap.Bool("circuit_opened", circuitError.CircuitOpen()),
+				zap.Bool("concurrency_limit_reached", circuitError.ConcurrencyLimitReached()),
+				zap.String("reason", circuitError.Error()),
 				zap.Error(err),
 			)
 		}

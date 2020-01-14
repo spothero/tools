@@ -16,6 +16,7 @@ package http
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -205,13 +206,9 @@ func (metricsRT MetricsRoundTripper) RoundTrip(r *http.Request) (*http.Response,
 			}
 			metricsRT.metrics.clientDuration.With(labels).Observe(durationSec)
 		}
-		if err != nil {
-			switch typedErr := err.(type) {
-			case circuit.Error:
-				if typedErr.CircuitOpen() {
-					metricsRT.metrics.circuitBreakerOpen.With(prometheus.Labels{"host": r.URL.Host}).Inc()
-				}
-			}
+		var circuitError circuit.Error
+		if err != nil && errors.As(err, &circuitError) && circuitError.CircuitOpen() {
+			metricsRT.metrics.circuitBreakerOpen.With(prometheus.Labels{"host": r.URL.Host}).Inc()
 		}
 	}))
 	defer timer.ObserveDuration()

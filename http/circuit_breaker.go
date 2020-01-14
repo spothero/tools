@@ -16,6 +16,7 @@ package http
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -96,7 +97,8 @@ func (cbrt *CircuitBreakerRoundTripper) RoundTrip(req *http.Request) (*http.Resp
 		// In cases where the returned error type is a circuit-breaker error, we want to return the
 		// specific error type instead of the HTTP error. This allows upstream calls to
 		// appropriately handle the failure
-		if _, ok := cbErr.(circuit.Error); ok {
+		var circuitError circuit.Error
+		if errors.As(cbErr, &circuitError) {
 			err = cbErr
 		}
 	}
