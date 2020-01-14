@@ -53,9 +53,6 @@ func (c *Config) NewClient(ctx context.Context) (sarama.Client, error) {
 // populateSaramaConfig adds values to the sarama config that either need to be parsed from flags
 // or need to be specified by the caller
 func (c *Config) populateSaramaConfig(ctx context.Context) error {
-	// create new default config and only override the portions which have their flags registered
-
-	//if c.registeredFlags.net {
 	if c.TLSCrtPath != "" && c.TLSKeyPath != "" {
 		cert, err := tls.LoadX509KeyPair(c.TLSCrtPath, c.TLSKeyPath)
 		if err != nil {
@@ -107,8 +104,10 @@ func (c *Config) populateSaramaConfig(ctx context.Context) error {
 	}
 	// creating a standard logger can only fail if an invalid error level is supplied which
 	// will never be the case here
-	saramaLogger, _ := zap.NewStdLogAt(log.Get(ctx).Named("sarama"), zapcore.InfoLevel)
-	sarama.Logger = saramaLogger
+	if c.Verbose {
+		saramaLogger, _ := zap.NewStdLogAt(log.Get(ctx).Named("sarama"), zapcore.InfoLevel)
+		sarama.Logger = saramaLogger
+	}
 
 	// set options that cannot be set by flags
 	c.Producer.Partitioner = sarama.NewReferenceHashPartitioner
