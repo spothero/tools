@@ -20,6 +20,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
+	"time"
 
 	"github.com/Shopify/sarama"
 	prometheusmetrics "github.com/deathowl/go-metrics-prometheus"
@@ -65,6 +66,11 @@ func (c *Config) populateSaramaConfig(ctx context.Context) error {
 	c.Producer.Return.Successes = c.ProducerReturnSuccesses
 	c.Producer.Return.Errors = c.ProducerReturnErrors
 	c.Consumer.Return.Errors = c.ConsumerReturnErrors
+
+	// If the admin flags weren't registered, the admin timeout is 0 and that is not allowed
+	if c.Admin.Timeout == 0 {
+		c.Admin.Timeout = 3 * time.Second
+	}
 
 	// parse options that need to be parsed
 	kafkaVersion, err := sarama.ParseKafkaVersion(c.KafkaVersion)

@@ -113,6 +113,7 @@ func TestConfig_populateSaramaConfig(t *testing.T) {
 					Return: struct{ Errors bool }{Errors: true},
 				},
 				Version: sarama.V2_3_0_0,
+				Admin:   struct{ Timeout time.Duration }{Timeout: 3 * time.Second},
 			},
 			false,
 		}, {
@@ -151,6 +152,7 @@ func TestConfig_populateSaramaConfig(t *testing.T) {
 					Compression: sarama.CompressionZSTD,
 				},
 				Version: sarama.V2_3_0_0,
+				Admin:   struct{ Timeout time.Duration }{Timeout: 3 * time.Second},
 			},
 			false,
 		}, {
@@ -184,6 +186,7 @@ func TestConfig_populateSaramaConfig(t *testing.T) {
 					Compression: sarama.CompressionSnappy,
 				},
 				Version: sarama.V2_3_0_0,
+				Admin:   struct{ Timeout time.Duration }{Timeout: 3 * time.Second},
 			},
 			false,
 		}, {
@@ -217,6 +220,7 @@ func TestConfig_populateSaramaConfig(t *testing.T) {
 					Compression: sarama.CompressionLZ4,
 				},
 				Version: sarama.V2_3_0_0,
+				Admin:   struct{ Timeout time.Duration }{Timeout: 3 * time.Second},
 			},
 			false,
 		}, {
@@ -250,6 +254,7 @@ func TestConfig_populateSaramaConfig(t *testing.T) {
 					Compression: sarama.CompressionGZIP,
 				},
 				Version: sarama.V2_3_0_0,
+				Admin:   struct{ Timeout time.Duration }{Timeout: 3 * time.Second},
 			},
 			false,
 		}, {
@@ -265,7 +270,7 @@ func TestConfig_populateSaramaConfig(t *testing.T) {
 				TLSCrtPath:               "../testdata/fake-crt.pem",
 				TLSKeyPath:               "../testdata/fake-key.pem",
 			},
-			sarama.Config{Version: sarama.V2_3_0_0},
+			sarama.Config{Version: sarama.V2_3_0_0, Admin: struct{ Timeout time.Duration }{Timeout: 3 * time.Second}},
 			false,
 		}, {
 			"TLS CA cert is loaded",
@@ -276,7 +281,7 @@ func TestConfig_populateSaramaConfig(t *testing.T) {
 				TLSKeyPath:               "../testdata/fake-key.pem",
 				TLSCaCrtPath:             "../testdata/fake-ca.pem",
 			},
-			sarama.Config{Version: sarama.V2_3_0_0},
+			sarama.Config{Version: sarama.V2_3_0_0, Admin: struct{ Timeout time.Duration }{Timeout: 3 * time.Second}},
 			false,
 		}, {
 			"error loading TLS certs returns an error",
@@ -327,6 +332,8 @@ func TestConfig_populateSaramaConfig(t *testing.T) {
 			}
 			test.input.Net.TLS.Config = nil
 			test.input.Net.TLS.Enable = false
+
+			assert.GreaterOrEqual(t, test.input.Admin.Timeout.Microseconds(), int64(0))
 
 			assert.Equal(t, test.expected, test.input.Config)
 		})
