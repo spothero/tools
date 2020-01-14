@@ -26,13 +26,15 @@ import (
 )
 
 func TestNewDefaultClient(t *testing.T) {
-	client := NewDefaultClient(NewMetrics(prometheus.NewRegistry(), true), nil)
+	metrics := NewMetrics(prometheus.NewRegistry(), true)
+	client := NewDefaultClient(metrics, nil)
 	assert.NotNil(t, client)
 	jrt, ok := client.Transport.(jose.RoundTripper)
 	assert.True(t, ok)
 
 	mrt, ok := jrt.RoundTripper.(MetricsRoundTripper)
 	assert.True(t, ok)
+	assert.Equal(t, metrics, mrt.metrics)
 
 	lrt, ok := mrt.RoundTripper.(log.RoundTripper)
 	assert.True(t, ok)
