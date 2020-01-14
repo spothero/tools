@@ -21,9 +21,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/afex/hystrix-go/hystrix"
 	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/spothero/tools/http/roundtrip"
+	"github.com/spothero/tools/http/mock"
 	"github.com/spothero/tools/http/writer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -127,28 +126,28 @@ func TestRoundTrip(t *testing.T) {
 		},
 		{
 			"roundtripper errors are returned to the caller",
-			&roundtrip.MockRoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: true},
+			&mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: true},
 			true,
 			false,
 		},
 		{
 			"successful requests are traced appropriately in client calls",
-			&roundtrip.MockRoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
+			&mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
 			false,
 			false,
 		},
 		{
 			"failed requests are traced appropriately in client calls",
-			&roundtrip.MockRoundTripper{ResponseStatusCodes: []int{http.StatusInternalServerError}, CreateErr: false},
+			&mock.RoundTripper{ResponseStatusCodes: []int{http.StatusInternalServerError}, CreateErr: false},
 			false,
 			false,
 		},
 		{
 			"circuit-breaking errors are logged",
-			&roundtrip.MockRoundTripper{
+			&mock.RoundTripper{
 				ResponseStatusCodes: []int{http.StatusOK},
 				CreateErr:           true,
-				DesiredErr:          hystrix.ErrCircuitOpen,
+				DesiredErr:          mock.CircuitError{CircuitOpened: true},
 			},
 			true,
 			false,

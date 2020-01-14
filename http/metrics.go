@@ -20,7 +20,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/afex/hystrix-go/hystrix"
+	"github.com/cep21/circuit/v3"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spothero/tools/http/writer"
 	"github.com/spothero/tools/log"
@@ -207,8 +207,8 @@ func (metricsRT MetricsRoundTripper) RoundTrip(r *http.Request) (*http.Response,
 		}
 		if err != nil {
 			switch typedErr := err.(type) {
-			case hystrix.CircuitError:
-				if typedErr == hystrix.ErrCircuitOpen {
+			case circuit.Error:
+				if typedErr.CircuitOpen() {
 					metricsRT.metrics.circuitBreakerOpen.With(prometheus.Labels{"host": r.URL.Host}).Inc()
 				}
 			}

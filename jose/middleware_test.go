@@ -21,7 +21,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/spothero/tools/http/roundtrip"
+	"github.com/spothero/tools/http/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -198,7 +198,7 @@ func TestRoundTrip(t *testing.T) {
 		},
 		{
 			"if auth data is present in the context it is set on outbound requests",
-			&roundtrip.MockRoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
+			&mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
 			false,
 		},
 	}

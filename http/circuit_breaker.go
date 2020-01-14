@@ -17,22 +17,15 @@ package http
 import (
 	"context"
 	"fmt"
-	"math"
 	"net/http"
-	"sync"
-	"time"
 
-	"github.com/afex/hystrix-go/hystrix"
+	"github.com/cep21/circuit/v3"
 )
 
 // CircuitBreakerRoundTripper wraps a RoundTrapper with circuit-breaker logic
 type CircuitBreakerRoundTripper struct {
-	RoundTripper       http.RoundTripper
-	hostConfiguration  map[string]hystrix.CommandConfig
-	registeredHostsSet map[string]bool
-	defaultConfig      hystrix.CommandConfig
-	registrationMutex  sync.RWMutex
-	configMutex        sync.RWMutex
+	RoundTripper http.RoundTripper
+	manager      circuit.Manager
 }
 
 // NewDefaultCircuitBreakerRoundTripper constructs and returns the default
@@ -42,43 +35,34 @@ type CircuitBreakerRoundTripper struct {
 // given host will be accumulated on that host for determining whether or not to open the circuit
 // breaker.
 //
+// The host configuration is a map of hostname to Hystrix configuration settings. Use of this
+// function is discouraged unless the caller has established reasons to modify the configuration
+// for a particular host.
+//
+// **IMPORTANT**: If you decide to set the hostConfiguration, the key in the map **must be the host
+//                name of the server you intend to call (eg req.URL.Host)**
+//
 // Additional Default:
 // * Requests will timeout after 30 seconds
 // * No ceiling is placed on the number of concurrent requests per host (set to MaxInt32)
 // * 50% of requests must fail for the circuit-breaker to trip
 // * If the circuit-breaker opens, no requests will be attempted until after 5 seconds have passed
 // * At least 20 requests must be recorded to a host before the circuit breaker can be tripped
-func NewDefaultCircuitBreakerRoundTripper(roundTripper http.RoundTripper) *CircuitBreakerRoundTripper {
+func NewDefaultCircuitBreakerRoundTripper(
+	roundTripper http.RoundTripper,
+	hostConfiguration map[string]circuit.Config,
+) *CircuitBreakerRoundTripper {
 	// Ensure the RoundTripper was set on the CircuitBreakerRoundTripper
 	if roundTripper == nil {
 		panic("no roundtripper provided to circuit-breaker round tripper")
 	}
-	return &CircuitBreakerRoundTripper{
-		RoundTripper:       roundTripper,
-		hostConfiguration:  make(map[string]hystrix.CommandConfig),
-		registeredHostsSet: make(map[string]bool),
-		defaultConfig: hystrix.CommandConfig{
-			Timeout:                int((30 * time.Second).Milliseconds()), // 30 second timeout
-			MaxConcurrentRequests:  int(math.MaxInt32),                     // Do not limit concurrent requests by default
-			RequestVolumeThreshold: hystrix.DefaultVolumeThreshold,
-			SleepWindow:            hystrix.DefaultSleepWindow,
-			ErrorPercentThreshold:  hystrix.DefaultErrorPercentThreshold,
-		},
-		registrationMutex: sync.RWMutex{},
-		configMutex:       sync.RWMutex{},
+	cbrt := &CircuitBreakerRoundTripper{
+		RoundTripper: roundTripper,
+		manager:      circuit.Manager{},
 	}
-}
-
-// WithHostConfiguration sets the host configuration on the CircuitBreakerRoundTripper and returns
-// the modified configuration.
-//
-// The host configuration is a map of hostname to Hystrix configuration settings. Use of this
-// function is discouraged unless the caller has established reasons to modify the configuration
-// for a particular host.
-func (cbrt *CircuitBreakerRoundTripper) WithHostConfiguration(hostConfiguration map[string]hystrix.CommandConfig) *CircuitBreakerRoundTripper {
-	cbrt.configMutex.Lock()
-	cbrt.hostConfiguration = hostConfiguration
-	cbrt.configMutex.Unlock()
+	for circuitName, circuitConfig := range hostConfiguration {
+		_ = cbrt.manager.MustCreateCircuit(circuitName, circuitConfig)
+	}
 	return cbrt
 }
 
@@ -100,31 +84,19 @@ func (cbrt *CircuitBreakerRoundTripper) RoundTrip(req *http.Request) (*http.Resp
 		return nil
 	}
 
-	// Register the host configuration if it is not yet registered
-	cbrt.registrationMutex.RLock()
-	_, ok := cbrt.registeredHostsSet[req.URL.Host]
-	cbrt.registrationMutex.RUnlock()
-	if !ok {
-		cbrt.configMutex.RLock()
-		hystrixConfig, configExists := cbrt.hostConfiguration[req.URL.Host]
-		cbrt.configMutex.RUnlock()
-		if !configExists {
-			hystrixConfig = cbrt.defaultConfig
-		}
-		hystrix.ConfigureCommand(req.URL.Host, hystrixConfig)
-		cbrt.registrationMutex.Lock()
-		cbrt.registeredHostsSet[req.URL.Host] = true
-		cbrt.registrationMutex.Unlock()
+	// Fetch or register the circuit breaker for this host
+	circuitBreaker := cbrt.manager.GetCircuit(req.URL.Host)
+	if circuitBreaker == nil {
+		circuitBreaker = cbrt.manager.MustCreateCircuit(req.URL.Host)
 	}
 
 	var err error
-	if cbErr := hystrix.DoC(req.Context(), req.URL.Host, makeRequestFunc, nil); cbErr != nil {
+	if cbErr := circuitBreaker.Execute(req.Context(), makeRequestFunc, nil); cbErr != nil {
 		err = requestErr
-		switch cbErr.(type) {
 		// In cases where the returned error type is a circuit-breaker error, we want to return the
 		// specific error type instead of the HTTP error. This allows upstream calls to
 		// appropriately handle the failure
-		case hystrix.CircuitError:
+		if _, ok := cbErr.(circuit.Error); ok {
 			err = cbErr
 		}
 	}

@@ -5,8 +5,8 @@ go 1.13
 require (
 	github.com/DATA-DOG/go-sqlmock v1.3.3
 	github.com/Shopify/sarama v1.22.0
-	github.com/afex/hystrix-go v0.0.0-20180502004556-fa1af6a1f4f5
 	github.com/cenkalti/backoff/v4 v4.0.0
+	github.com/cep21/circuit/v3 v3.1.0
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/gchaincl/sqlhooks v1.1.0
 	github.com/getsentry/sentry-go v0.3.1

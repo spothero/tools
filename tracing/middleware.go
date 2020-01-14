@@ -20,7 +20,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/afex/hystrix-go/hystrix"
+	"github.com/cep21/circuit/v3"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/spothero/tools/http/writer"
@@ -100,8 +100,8 @@ func (rt RoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	resp, err := rt.RoundTripper.RoundTrip(r.WithContext(EmbedCorrelationID(spanCtx)))
 	if err != nil {
 		switch typedErr := err.(type) {
-		case hystrix.CircuitError:
-			span = span.SetTag("circuit-breaker", typedErr.Message)
+		case circuit.Error:
+			span = span.SetTag("circuit-breaker", typedErr.Error())
 		}
 		span.SetTag("error", true).Finish()
 		return nil, fmt.Errorf("http client request failed: %w", err)

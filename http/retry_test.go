@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/spothero/tools/http/roundtrip"
+	"github.com/spothero/tools/http/mock"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -37,7 +37,7 @@ func TestNewDefaultRetryRoundTripper(t *testing.T) {
 		},
 		{
 			"the retry default round tripper is correctly created",
-			&roundtrip.MockRoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
+			&mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
 			false,
 		},
 	}
@@ -90,7 +90,7 @@ func TestRetryRoundTrip(t *testing.T) {
 		},
 		{
 			"round tripper with no error invokes middleware correctly",
-			&roundtrip.MockRoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
+			&mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
 			http.StatusOK,
 			0,
 			false,
@@ -98,7 +98,7 @@ func TestRetryRoundTrip(t *testing.T) {
 		},
 		{
 			"round tripper with an unresolved error returns an error",
-			&roundtrip.MockRoundTripper{
+			&mock.RoundTripper{
 				ResponseStatusCodes: []int{
 					http.StatusInternalServerError,
 					http.StatusInternalServerError,
@@ -112,7 +112,7 @@ func TestRetryRoundTrip(t *testing.T) {
 		},
 		{
 			"round tripper with an unretriable error returns an error",
-			&roundtrip.MockRoundTripper{
+			&mock.RoundTripper{
 				ResponseStatusCodes: []int{
 					http.StatusNotImplemented,
 				},
@@ -125,7 +125,7 @@ func TestRetryRoundTrip(t *testing.T) {
 		},
 		{
 			"round tripper that encounters an http err is retried",
-			&roundtrip.MockRoundTripper{
+			&mock.RoundTripper{
 				ResponseStatusCodes: []int{
 					http.StatusBadRequest,
 					http.StatusBadRequest,
@@ -139,7 +139,7 @@ func TestRetryRoundTrip(t *testing.T) {
 		},
 		{
 			"retries are stopped when a successful or non-retriable status code is given",
-			&roundtrip.MockRoundTripper{
+			&mock.RoundTripper{
 				ResponseStatusCodes: []int{
 					http.StatusInternalServerError,
 					http.StatusOK,

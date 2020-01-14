@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package roundtrip
+package mock
 
 import (
 	"net/http"
@@ -40,7 +40,7 @@ func TestRoundTrip(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			mrt := MockRoundTripper{
+			mrt := RoundTripper{
 				ResponseStatusCodes: test.statusCodes,
 				CreateErr:           test.expectErr,
 			}

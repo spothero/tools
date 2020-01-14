@@ -19,11 +19,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/afex/hystrix-go/hystrix"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
-	"github.com/spothero/tools/http/roundtrip"
+	"github.com/spothero/tools/http/mock"
 	"github.com/spothero/tools/http/writer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -157,24 +156,24 @@ func TestMetricsRoundTrip(t *testing.T) {
 		},
 		{
 			"an error on roundtrip is reported to the caller",
-			&roundtrip.MockRoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: true},
+			&mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: true},
 			true,
 			false,
 			false,
 		},
 		{
 			"http requests are measured and status code is recorded on request",
-			&roundtrip.MockRoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
+			&mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
 			false,
 			false,
 			false,
 		},
 		{
 			"circuit-breaking errors are recorded correctly in the metrics",
-			&roundtrip.MockRoundTripper{
+			&mock.RoundTripper{
 				ResponseStatusCodes: []int{http.StatusOK},
 				CreateErr:           true,
-				DesiredErr:          hystrix.ErrCircuitOpen,
+				DesiredErr:          mock.CircuitError{CircuitOpened: true},
 			},
 			true,
 			true,

@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/afex/hystrix-go/hystrix"
+	"github.com/cep21/circuit/v3"
 	"github.com/spothero/tools/http/writer"
 	sqlMiddleware "github.com/spothero/tools/sql/middleware"
 	"go.uber.org/zap"
@@ -94,11 +94,13 @@ func (rt RoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	resp, err := rt.RoundTripper.RoundTrip(r)
 	if err != nil {
 		switch typedErr := err.(type) {
-		case hystrix.CircuitError:
+		case circuit.Error:
 			logger.Warn(
-				"circuit breaker open on http request",
+				"circuit breaker error on http request",
 				zap.String("host", r.URL.Host),
-				zap.String("reason", typedErr.Message),
+				zap.Bool("circuit_opened", typedErr.CircuitOpen()),
+				zap.Bool("concurrency_limit_reached", typedErr.ConcurrencyLimitReached()),
+				zap.String("reason", typedErr.Error()),
 				zap.Error(err),
 			)
 		}

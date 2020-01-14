@@ -36,7 +36,7 @@ func NewDefaultClient(metrics Metrics, roundTripper http.RoundTripper) http.Clie
 	if roundTripper == nil {
 		roundTripper = http.DefaultTransport
 	}
-	circuitBreakerRoundTripper := NewDefaultCircuitBreakerRoundTripper(roundTripper)
+	circuitBreakerRoundTripper := NewDefaultCircuitBreakerRoundTripper(roundTripper, nil)
 	retryRoundTripper := NewDefaultRetryRoundTripper(circuitBreakerRoundTripper)
 	tracingRoundTripper := tracing.RoundTripper{RoundTripper: retryRoundTripper}
 	loggingRoundTripper := log.RoundTripper{RoundTripper: tracingRoundTripper}
