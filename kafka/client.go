@@ -20,7 +20,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
-	"time"
 
 	"github.com/Shopify/sarama"
 	prometheusmetrics "github.com/deathowl/go-metrics-prometheus"
@@ -54,47 +53,9 @@ func (c *Config) NewClient(ctx context.Context) (sarama.Client, error) {
 // populateSaramaConfig adds values to the sarama config that either need to be parsed from flags
 // or need to be specified by the caller
 func (c *Config) populateSaramaConfig(ctx context.Context) error {
-	if c.Verbose {
-		// creating a standard logger can only fail if an invalid error level is supplied which
-		// will never be the case here
-		saramaLogger, _ := zap.NewStdLogAt(log.Get(ctx).Named("sarama"), zapcore.InfoLevel)
-		sarama.Logger = saramaLogger
-	}
-	// set options that cannot be set by flags in a way that matches sarama.NewConfig
-	c.Producer.Partitioner = sarama.NewReferenceHashPartitioner
-	c.MetricRegistry = metrics.NewRegistry()
-	c.Producer.Return.Successes = c.ProducerReturnSuccesses
-	c.Producer.Return.Errors = c.ProducerReturnErrors
-	c.Consumer.Return.Errors = c.ConsumerReturnErrors
+	// create new default config and only override the portions which have their flags registered
 
-	// If the admin flags weren't registered, the admin timeout is 0 and that is not allowed
-	if c.Admin.Timeout == 0 {
-		c.Admin.Timeout = 3 * time.Second
-	}
-
-	// parse options that need to be parsed
-	kafkaVersion, err := sarama.ParseKafkaVersion(c.KafkaVersion)
-	if err != nil {
-		return err
-	}
-	c.Version = kafkaVersion
-	c.Producer.RequiredAcks = sarama.RequiredAcks(c.ProducerRequiredAcks)
-	switch c.ProducerCompressionCodec {
-	case "zstd":
-		c.Producer.Compression = sarama.CompressionZSTD
-	case "snappy":
-		c.Producer.Compression = sarama.CompressionSnappy
-	case "lz4":
-		c.Producer.Compression = sarama.CompressionLZ4
-	case "gzip":
-		c.Producer.Compression = sarama.CompressionGZIP
-	case "none":
-		c.Producer.Compression = sarama.CompressionNone
-	default:
-		return fmt.Errorf("unknown compression codec %v provided", c.ProducerCompressionCodec)
-	}
-
-	// load TLS configs if cert paths provided
+	//if c.registeredFlags.net {
 	if c.TLSCrtPath != "" && c.TLSKeyPath != "" {
 		cert, err := tls.LoadX509KeyPair(c.TLSCrtPath, c.TLSKeyPath)
 		if err != nil {
@@ -118,6 +79,43 @@ func (c *Config) populateSaramaConfig(ctx context.Context) error {
 				c.Net.TLS.Config.InsecureSkipVerify = false
 			}
 		}
+
 	}
+	c.Producer.RequiredAcks = sarama.RequiredAcks(c.ProducerRequiredAcks)
+	if c.ProducerCompressionCodec != "" {
+		switch c.ProducerCompressionCodec {
+		case "zstd":
+			c.Producer.Compression = sarama.CompressionZSTD
+		case "snappy":
+			c.Producer.Compression = sarama.CompressionSnappy
+		case "lz4":
+			c.Producer.Compression = sarama.CompressionLZ4
+		case "gzip":
+			c.Producer.Compression = sarama.CompressionGZIP
+		case "none":
+			c.Producer.Compression = sarama.CompressionNone
+		default:
+			return fmt.Errorf("unknown compression codec %v provided", c.ProducerCompressionCodec)
+		}
+	}
+	if c.KafkaVersion != "" {
+		kafkaVersion, err := sarama.ParseKafkaVersion(c.KafkaVersion)
+		if err != nil {
+			return err
+		}
+		c.Version = kafkaVersion
+	}
+	// creating a standard logger can only fail if an invalid error level is supplied which
+	// will never be the case here
+	saramaLogger, _ := zap.NewStdLogAt(log.Get(ctx).Named("sarama"), zapcore.InfoLevel)
+	sarama.Logger = saramaLogger
+
+	// set options that cannot be set by flags
+	c.Producer.Partitioner = sarama.NewReferenceHashPartitioner
+	c.MetricRegistry = metrics.NewRegistry()
+	c.Producer.Return.Successes = c.ProducerReturnSuccesses
+	c.Producer.Return.Errors = c.ProducerReturnErrors
+	c.Consumer.Return.Errors = c.ConsumerReturnErrors
+
 	return nil
 }

@@ -17,7 +17,6 @@ package kafka
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/Shopify/sarama"
 	"github.com/stretchr/testify/assert"
@@ -27,282 +26,126 @@ func TestConfig_populateSaramaConfig(t *testing.T) {
 	tests := []struct {
 		name      string
 		input     Config
-		expected  sarama.Config
+		check     func(t *testing.T, cfg *sarama.Config)
 		expectErr bool
 	}{
 		{
-			"basic configuration is populated",
+			"base configuration is populated",
 			Config{
-				Config:                   sarama.Config{},
-				ConsumerReturnErrors:     true,
-				ProducerReturnErrors:     true,
-				ProducerReturnSuccesses:  true,
-				Verbose:                  true,
-				KafkaVersion:             "2.3.0",
-				ProducerRequiredAcks:     1,
-				ProducerCompressionCodec: "none",
+				Config:                  *sarama.NewConfig(),
+				Verbose:                 true,
+				KafkaVersion:            "2.3.0",
+				ProducerReturnErrors:    true,
+				ProducerReturnSuccesses: true,
+				ConsumerReturnErrors:    true,
 			},
-			sarama.Config{
-				Producer: struct {
-					MaxMessageBytes  int
-					RequiredAcks     sarama.RequiredAcks
-					Timeout          time.Duration
-					Compression      sarama.CompressionCodec
-					CompressionLevel int
-					Partitioner      sarama.PartitionerConstructor
-					Idempotent       bool
-					Return           struct {
-						Successes bool
-						Errors    bool
-					}
-					Flush struct {
-						Bytes       int
-						Messages    int
-						Frequency   time.Duration
-						MaxMessages int
-					}
-					Retry struct {
-						Max         int
-						Backoff     time.Duration
-						BackoffFunc func(retries int, maxRetries int) time.Duration
-					}
-				}{
-					RequiredAcks: sarama.WaitForLocal,
-					Compression:  sarama.CompressionNone,
-					Return: struct {
-						Successes bool
-						Errors    bool
-					}{
-						Successes: true, Errors: true,
-					},
-				},
-				Consumer: struct {
-					Group struct {
-						Session   struct{ Timeout time.Duration }
-						Heartbeat struct{ Interval time.Duration }
-						Rebalance struct {
-							Strategy sarama.BalanceStrategy
-							Timeout  time.Duration
-							Retry    struct {
-								Max     int
-								Backoff time.Duration
-							}
-						}
-						Member struct{ UserData []byte }
-					}
-					Retry struct {
-						Backoff     time.Duration
-						BackoffFunc func(retries int) time.Duration
-					}
-					Fetch struct {
-						Min     int32
-						Default int32
-						Max     int32
-					}
-					MaxWaitTime       time.Duration
-					MaxProcessingTime time.Duration
-					Return            struct{ Errors bool }
-					Offsets           struct {
-						CommitInterval time.Duration
-						Initial        int64
-						Retention      time.Duration
-						Retry          struct{ Max int }
-					}
-					IsolationLevel sarama.IsolationLevel
-				}{
-					Return: struct{ Errors bool }{Errors: true},
-				},
-				Version: sarama.V2_3_0_0,
-				Admin:   struct{ Timeout time.Duration }{Timeout: 3 * time.Second},
+			func(t *testing.T, cfg *sarama.Config) {
+				assert.Equal(t, sarama.V2_3_0_0, cfg.Version)
+				assert.True(t, cfg.Producer.Return.Successes)
+				assert.True(t, cfg.Producer.Return.Errors)
+				assert.True(t, cfg.Consumer.Return.Errors)
+			},
+			false,
+		}, {
+			"no registered flags returns the default configuration",
+			Config{Config: *sarama.NewConfig()},
+			func(t *testing.T, cfg *sarama.Config) {
+				expected := sarama.NewConfig()
+				expected.Producer.Partitioner = nil
+
+				// partitioner is a function pointer so this will never pass an equality check; just make sure it isn't nil
+				assert.NotNil(t, cfg.Producer.Partitioner)
+				cfg.Producer.Partitioner = nil
+
+				// unset in the variables that are set by default but get overridden by not setting our config
+				expected.Consumer.Return.Errors = false
+				expected.Producer.Return.Errors = false
+				expected.Producer.RequiredAcks = 0
+
+				assert.Equal(t, expected, cfg)
 			},
 			false,
 		}, {
 			"bad version returns an error",
 			Config{KafkaVersion: "not.a.real.version"},
-			sarama.Config{},
+			func(t *testing.T, cfg *sarama.Config) {},
 			true,
 		}, {
 			"zstd compression is properly set",
-			Config{ProducerCompressionCodec: "zstd", KafkaVersion: "2.3.0"},
-			sarama.Config{
-				Producer: struct {
-					MaxMessageBytes  int
-					RequiredAcks     sarama.RequiredAcks
-					Timeout          time.Duration
-					Compression      sarama.CompressionCodec
-					CompressionLevel int
-					Partitioner      sarama.PartitionerConstructor
-					Idempotent       bool
-					Return           struct {
-						Successes bool
-						Errors    bool
-					}
-					Flush struct {
-						Bytes       int
-						Messages    int
-						Frequency   time.Duration
-						MaxMessages int
-					}
-					Retry struct {
-						Max         int
-						Backoff     time.Duration
-						BackoffFunc func(retries int, maxRetries int) time.Duration
-					}
-				}{
-					Compression: sarama.CompressionZSTD,
-				},
-				Version: sarama.V2_3_0_0,
-				Admin:   struct{ Timeout time.Duration }{Timeout: 3 * time.Second},
+			Config{ProducerCompressionCodec: "zstd"},
+			func(t *testing.T, cfg *sarama.Config) {
+				assert.Equal(t, sarama.CompressionZSTD, cfg.Producer.Compression)
 			},
 			false,
 		}, {
 			"snappy compression is properly set",
-			Config{ProducerCompressionCodec: "snappy", KafkaVersion: "2.3.0"},
-			sarama.Config{
-				Producer: struct {
-					MaxMessageBytes  int
-					RequiredAcks     sarama.RequiredAcks
-					Timeout          time.Duration
-					Compression      sarama.CompressionCodec
-					CompressionLevel int
-					Partitioner      sarama.PartitionerConstructor
-					Idempotent       bool
-					Return           struct {
-						Successes bool
-						Errors    bool
-					}
-					Flush struct {
-						Bytes       int
-						Messages    int
-						Frequency   time.Duration
-						MaxMessages int
-					}
-					Retry struct {
-						Max         int
-						Backoff     time.Duration
-						BackoffFunc func(retries int, maxRetries int) time.Duration
-					}
-				}{
-					Compression: sarama.CompressionSnappy,
-				},
-				Version: sarama.V2_3_0_0,
-				Admin:   struct{ Timeout time.Duration }{Timeout: 3 * time.Second},
+			Config{ProducerCompressionCodec: "snappy"},
+			func(t *testing.T, cfg *sarama.Config) {
+				assert.Equal(t, sarama.CompressionSnappy, cfg.Producer.Compression)
 			},
 			false,
 		}, {
 			"lz4 compression is properly set",
-			Config{ProducerCompressionCodec: "lz4", KafkaVersion: "2.3.0"},
-			sarama.Config{
-				Producer: struct {
-					MaxMessageBytes  int
-					RequiredAcks     sarama.RequiredAcks
-					Timeout          time.Duration
-					Compression      sarama.CompressionCodec
-					CompressionLevel int
-					Partitioner      sarama.PartitionerConstructor
-					Idempotent       bool
-					Return           struct {
-						Successes bool
-						Errors    bool
-					}
-					Flush struct {
-						Bytes       int
-						Messages    int
-						Frequency   time.Duration
-						MaxMessages int
-					}
-					Retry struct {
-						Max         int
-						Backoff     time.Duration
-						BackoffFunc func(retries int, maxRetries int) time.Duration
-					}
-				}{
-					Compression: sarama.CompressionLZ4,
-				},
-				Version: sarama.V2_3_0_0,
-				Admin:   struct{ Timeout time.Duration }{Timeout: 3 * time.Second},
+			Config{ProducerCompressionCodec: "lz4"},
+			func(t *testing.T, cfg *sarama.Config) {
+				assert.Equal(t, sarama.CompressionLZ4, cfg.Producer.Compression)
 			},
 			false,
 		}, {
 			"gzip compression is properly set",
-			Config{ProducerCompressionCodec: "gzip", KafkaVersion: "2.3.0"},
-			sarama.Config{
-				Producer: struct {
-					MaxMessageBytes  int
-					RequiredAcks     sarama.RequiredAcks
-					Timeout          time.Duration
-					Compression      sarama.CompressionCodec
-					CompressionLevel int
-					Partitioner      sarama.PartitionerConstructor
-					Idempotent       bool
-					Return           struct {
-						Successes bool
-						Errors    bool
-					}
-					Flush struct {
-						Bytes       int
-						Messages    int
-						Frequency   time.Duration
-						MaxMessages int
-					}
-					Retry struct {
-						Max         int
-						Backoff     time.Duration
-						BackoffFunc func(retries int, maxRetries int) time.Duration
-					}
-				}{
-					Compression: sarama.CompressionGZIP,
-				},
-				Version: sarama.V2_3_0_0,
-				Admin:   struct{ Timeout time.Duration }{Timeout: 3 * time.Second},
+			Config{ProducerCompressionCodec: "gzip"},
+			func(t *testing.T, cfg *sarama.Config) {
+				assert.Equal(t, sarama.CompressionGZIP, cfg.Producer.Compression)
 			},
 			false,
 		}, {
 			"unknown compression returns an error",
-			Config{ProducerCompressionCodec: "beepboop", KafkaVersion: "2.3.0"},
-			sarama.Config{},
+			Config{ProducerCompressionCodec: "beepboop"},
+			func(*testing.T, *sarama.Config) {},
 			true,
 		}, {
 			"TLS configuration is loaded",
 			Config{
 				ProducerCompressionCodec: "none",
-				KafkaVersion:             "2.3.0",
 				TLSCrtPath:               "../testdata/fake-crt.pem",
 				TLSKeyPath:               "../testdata/fake-key.pem",
 			},
-			sarama.Config{Version: sarama.V2_3_0_0, Admin: struct{ Timeout time.Duration }{Timeout: 3 * time.Second}},
+			func(t *testing.T, cfg *sarama.Config) {
+				assert.True(t, cfg.Net.TLS.Enable)
+				assert.NotNil(t, cfg.Net.TLS.Config)
+			},
 			false,
 		}, {
 			"TLS CA cert is loaded",
 			Config{
 				ProducerCompressionCodec: "none",
-				KafkaVersion:             "2.3.0",
 				TLSCrtPath:               "../testdata/fake-crt.pem",
 				TLSKeyPath:               "../testdata/fake-key.pem",
 				TLSCaCrtPath:             "../testdata/fake-ca.pem",
 			},
-			sarama.Config{Version: sarama.V2_3_0_0, Admin: struct{ Timeout time.Duration }{Timeout: 3 * time.Second}},
+			func(t *testing.T, cfg *sarama.Config) {
+				assert.NotNil(t, cfg.Net.TLS.Config.RootCAs)
+				assert.False(t, cfg.Net.TLS.Config.InsecureSkipVerify)
+			},
 			false,
 		}, {
 			"error loading TLS certs returns an error",
 			Config{
 				ProducerCompressionCodec: "none",
-				KafkaVersion:             "2.3.0",
 				TLSCrtPath:               "../testdata/bad-path.pem",
 				TLSKeyPath:               "../testdata/bad-path.pem",
 			},
-			sarama.Config{},
+			func(*testing.T, *sarama.Config) {},
 			true,
 		}, {
 			"error loading TLS CA cert returns an error",
 			Config{
 				ProducerCompressionCodec: "none",
-				KafkaVersion:             "2.3.0",
 				TLSCrtPath:               "../testdata/fake-crt.pem",
 				TLSKeyPath:               "../testdata/fake-key.pem",
 				TLSCaCrtPath:             "../testdata/bad-path",
 			},
-			sarama.Config{},
+			func(*testing.T, *sarama.Config) {},
 			true,
 		},
 	}
@@ -314,28 +157,10 @@ func TestConfig_populateSaramaConfig(t *testing.T) {
 				return
 			}
 			assert.NoError(t, err)
-			// make sure the partitioner and metrics registry were created but then remove them for the
-			// configuration equality comparison
+			// make sure the partitioner and metrics registry were created for every test
 			assert.NotNil(t, test.input.MetricRegistry)
-			test.input.MetricRegistry = nil
 			assert.NotNil(t, test.input.Producer.Partitioner)
-			test.input.Producer.Partitioner = nil
-
-			// if TLS was set, just make sure the certificates go loaded then reset for the equality comparison
-			if test.input.TLSKeyPath != "" {
-				assert.True(t, test.input.Net.TLS.Enable)
-				assert.NotNil(t, test.input.Net.TLS.Config)
-			}
-			if test.input.TLSCaCrtPath != "" {
-				assert.False(t, test.input.Net.TLS.Config.InsecureSkipVerify)
-				assert.NotNil(t, test.input.Net.TLS.Config.RootCAs)
-			}
-			test.input.Net.TLS.Config = nil
-			test.input.Net.TLS.Enable = false
-
-			assert.GreaterOrEqual(t, test.input.Admin.Timeout.Microseconds(), int64(0))
-
-			assert.Equal(t, test.expected, test.input.Config)
+			test.check(t, &test.input.Config)
 		})
 	}
 }

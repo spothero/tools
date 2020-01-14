@@ -33,10 +33,23 @@ type Config struct {
 	ProducerRequiredAcks int16
 	// value to be parsed to sarama.CompressionCodec and loaded into sarama.Config.Producer.CompressionCoded
 	ProducerCompressionCodec string
+
+	// keep track of whether or not each flag set was registered to keep defaults while populating the config
+	//registeredFlags registeredFlagGroups
 }
+
+// NewDefaultConfig creates a new default Kafka configuration
+func NewDefaultConfig() Config {
+	return Config{Config: *sarama.NewConfig()}
+}
+
+//type registeredFlagGroups struct {
+//	base, net, metadata, producer, consumer, consumerGroup, admin bool
+//}
 
 // RegisterBaseFlags registers basic Kafka configuration. If using Kafka, these flags should always be registered.
 func (c *Config) RegisterBaseFlags(flags *pflag.FlagSet) {
+	//c.registeredFlags.base = true
 	flags.StringArrayVar(&c.BrokerAddrs, "kafka-broker-addrs", []string{}, "comma-separated list of Kafka broker addresses")
 	flags.BoolVar(&c.Verbose, "kafka-verbose", false, "log verbose Kafka client information")
 	flags.StringVar(&c.ClientID, "kafka-client-id", "sarama", "client ID to provide to the Kafka broker")
@@ -46,6 +59,7 @@ func (c *Config) RegisterBaseFlags(flags *pflag.FlagSet) {
 
 // RegisterNetFlags registers configuration for connection to the Kafka broker including TLS configuration.
 func (c *Config) RegisterNetFlags(flags *pflag.FlagSet) {
+	//c.registeredFlags.net = true
 	flags.IntVar(&c.Net.MaxOpenRequests, "kafka-net-max-open-requests", 5, "number of outstanding requests a Kafka connection is allowed to have before it blocks")
 	flags.DurationVar(&c.Net.DialTimeout, "kafka-net-dial-timeout", 30*time.Second, "duration to wait for the initial connection to Kafka")
 	flags.DurationVar(&c.Net.ReadTimeout, "kafka-net-read-timeout", 30*time.Second, "duration to wait for a response from Kafka")
@@ -58,6 +72,7 @@ func (c *Config) RegisterNetFlags(flags *pflag.FlagSet) {
 
 // RegisterMetadataFlags registers configuration for fetching metadata from the Kafka broker.
 func (c *Config) RegisterMetadataFlags(flags *pflag.FlagSet) {
+	//c.registeredFlags.metadata = true
 	flags.IntVar(&c.Metadata.Retry.Max, "kafka-metadata-retry-max", 3, "the number of times to retry a Kafka metadata request")
 	flags.DurationVar(&c.Metadata.Retry.Backoff, "kafka-metadata-retry-backoff", 250*time.Millisecond, "duration to wait when retrying Kafka metadata requests")
 	flags.DurationVar(&c.Metadata.RefreshFrequency, "kafka-metadata-refresh-frequency", 10*time.Minute, "frequency with which to refresh Kafka cluster metadata in the background")
@@ -67,6 +82,7 @@ func (c *Config) RegisterMetadataFlags(flags *pflag.FlagSet) {
 
 // RegisterProducerFlags registers configuration options for Kafka producers.
 func (c *Config) RegisterProducerFlags(flags *pflag.FlagSet) {
+	//c.registeredFlags.producer = true
 	flags.IntVar(&c.Producer.MaxMessageBytes, "kafka-producer-max-message-bytes", 1000000, "maximum permitted size of produced Kafka messages")
 	flags.Int16Var(&c.ProducerRequiredAcks, "kafka-producer-required-acks", 1, "Kafka producer required acks setting. -1=all, 0=none, 1=local.")
 	flags.DurationVar(&c.Producer.Timeout, "kafka-producer-timeout", 10*time.Second, "maximum duration the Kafka broker will wait for the number of required acks. only relevant when the required acks setting is set to all.")
@@ -83,6 +99,7 @@ func (c *Config) RegisterProducerFlags(flags *pflag.FlagSet) {
 
 // RegisterConsumerFlags registers configuration options for Kafka consumers.
 func (c *Config) RegisterConsumerFlags(flags *pflag.FlagSet) {
+	//c.registeredFlags.consumer = true
 	flags.DurationVar(&c.Consumer.Retry.Backoff, "kafka-consumer-retry-backoff", 2*time.Second, "backoff duration between failed Kafka partition reads")
 	flags.Int32Var(&c.Consumer.Fetch.Min, "kafka-consumer-fetch-min", 1, "the minimum number of message bytes to fetch from the Kafka broker")
 	flags.Int32Var(&c.Consumer.Fetch.Default, "kafka-consumer-fetch-default", 1000000, "the default number of messages bytes to fetch from the Kafka broker per request")
@@ -93,6 +110,7 @@ func (c *Config) RegisterConsumerFlags(flags *pflag.FlagSet) {
 
 // RegisterConsumerGroupFlags registers options for Kafka consumer group configuration.
 func (c *Config) RegisterConsumerGroupFlags(flags *pflag.FlagSet) {
+	//c.registeredFlags.consumerGroup = true
 	flags.DurationVar(&c.Consumer.Group.Session.Timeout, "kafka-consumer-group-session-timeout", 10*time.Second, "duration after which if no heartbeats are received by the Kafka broker this consumer will be removed from the group")
 	flags.DurationVar(&c.Consumer.Group.Heartbeat.Interval, "kafka-consumer-group-heartbeat-interval", 3*time.Second, "frequency with which to send heartbeats to the Kafka consumer coordinator")
 	flags.DurationVar(&c.Consumer.Group.Rebalance.Timeout, "kafka-consumer-group-rebalance-timeout", time.Minute, "maximum allowed time to rejoin the Kafka consumer group after a rebalance was started")
@@ -102,5 +120,6 @@ func (c *Config) RegisterConsumerGroupFlags(flags *pflag.FlagSet) {
 
 // RegisterAdminFlags registers options for the Kafka admin API.
 func (c *Config) RegisterAdminFlags(flags *pflag.FlagSet) {
+	//c.registeredFlags.admin = true
 	flags.DurationVar(&c.Admin.Timeout, "kafka-admin-timeout", 3*time.Second, "timeout for the Kafka admin API")
 }
