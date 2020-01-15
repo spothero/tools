@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.3.3
-	github.com/Shopify/sarama v1.24.1
+	github.com/Shopify/sarama v1.25.0
 	github.com/cenkalti/backoff/v4 v4.0.0
 	github.com/cep21/circuit/v3 v3.1.0
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
@@ -16,9 +16,9 @@ require (
 	github.com/gorilla/mux v1.7.1
 	github.com/grpc-ecosystem/go-grpc-middleware v1.1.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.1-0.20191002090509-6af20e3a5340
+	github.com/hashicorp/go-uuid v1.0.2 // indirect
 	github.com/jcmturner/gofork v1.0.0 // indirect
 	github.com/jmoiron/sqlx v1.2.0
-	github.com/klauspost/compress v1.9.7 // indirect
 	github.com/lib/pq v1.1.0
 	github.com/linkedin/goavro/v2 v2.9.7
 	github.com/opentracing/opentracing-go v1.1.0
@@ -35,12 +35,12 @@ require (
 	github.com/uber/jaeger-client-go v2.16.0+incompatible
 	github.com/uber/jaeger-lib v2.0.0+incompatible // indirect
 	go.uber.org/zap v1.10.0
-	golang.org/x/crypto v0.0.0-20191227163750-53104e6ec876 // indirect
-	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553 // indirect
+	golang.org/x/crypto v0.0.0-20200115085410-6d4e4cb37c7d // indirect
+	golang.org/x/net v0.0.0-20200114155413-6afb5195e5aa // indirect
 	golang.org/x/sys v0.0.0-20200107162124-548cf772de50 // indirect
 	google.golang.org/appengine v1.6.3 // indirect
 	google.golang.org/genproto v0.0.0-20200108215221-bd8f9a0ef82f // indirect
 	google.golang.org/grpc v1.26.0
-	gopkg.in/jcmturner/gokrb5.v7 v7.3.0 // indirect
+	gopkg.in/jcmturner/gokrb5.v7 v7.4.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.3.1
 )
