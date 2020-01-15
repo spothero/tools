@@ -40,7 +40,7 @@ func NewDefaultClient(metrics Metrics, roundTripper http.RoundTripper) http.Clie
 	retryRoundTripper := NewDefaultRetryRoundTripper(circuitBreakerRoundTripper)
 	tracingRoundTripper := tracing.RoundTripper{RoundTripper: retryRoundTripper}
 	loggingRoundTripper := log.RoundTripper{RoundTripper: tracingRoundTripper}
-	metricsRoundTripper := MetricsRoundTripper{RoundTripper: loggingRoundTripper, metrics: metrics}
+	metricsRoundTripper := MetricsRoundTripper{RoundTripper: loggingRoundTripper, Metrics: metrics}
 	joseRoundTripper := jose.RoundTripper{RoundTripper: metricsRoundTripper}
 	return http.Client{Transport: joseRoundTripper}
 }

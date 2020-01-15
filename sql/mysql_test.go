@@ -14,15 +14,15 @@ func TestMySQLConfig_loadCACert(t *testing.T) {
 	}{
 		{
 			"ca certs are loaded",
-			"testdata/fake_ca.pem",
+			"../testdata/fake-ca.pem",
 			false,
 		}, {
 			"bad ca returns an error",
-			"testdata/bad_ca.pem",
+			"../testdata/bad-ca.pem",
 			true,
 		}, {
 			"bad filepath returns an error",
-			"testdata/doesnt_exist.pem",
+			"../testdata/doesnt-exist.pem",
 			true,
 		},
 	}

@@ -20,117 +20,130 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"reflect"
 	"sync"
+	"time"
 
 	"github.com/Shopify/sarama"
-	"github.com/linkedin/goavro"
+	"github.com/linkedin/goavro/v2"
 	"github.com/opentracing/opentracing-go"
 	"github.com/spf13/pflag"
+	shHTTP "github.com/spothero/tools/http"
 	"github.com/spothero/tools/log"
-	"go.uber.org/zap"
+	"github.com/spothero/tools/tracing"
 )
 
-type schemaRegistry interface {
-	getSchema(ctx context.Context, schemaID int, schemaRegistryURL string) (string, error)
-}
-
-type schemaRegistryClient struct{}
-
-// SchemaRegistryConfig defines the necessary configuration for interacting with Schema Registry
+// SchemaRegistryConfig defines the necessary configuration for interacting with Kafka Schema Registry
 type SchemaRegistryConfig struct {
-	SchemaRegistryURL  string
-	schemas            sync.Map
-	client             schemaRegistry
-	messageUnmarshaler messageUnmarshaler
+	URL string
 }
 
-// RegisterFlags registers Kafka flags with pflags
-func (src *SchemaRegistryConfig) RegisterFlags(flags *pflag.FlagSet) {
-	flags.StringVarP(&src.SchemaRegistryURL, "kafka-schema-registry", "r", "http://localhost:8081", "Kafka Schema Registry Address")
+// RegisterFlags registers schema registry flags with pflags
+func (c *SchemaRegistryConfig) RegisterFlags(flags *pflag.FlagSet) {
+	flags.StringVar(&c.URL, "kafka-schema-registry-url", "http://localhost:8081", "Kafka schema registry url")
 }
 
-func (src *schemaRegistryClient) getSchema(ctx context.Context, schemaID int, schemaRegistryURL string) (string, error) {
-	span, _ := opentracing.StartSpanFromContext(ctx, "get-avro-schema")
+// SchemaRegistryClient provides functionality for interacting with Kafka schema registry. This type
+// has methods for getting schemas from the registry and decoding sarama ConsumerMessages from Avro into
+// Go types. In addition, since the schema registry is immutable, the client contains a cache of schemas
+// so that a network request to the registry does not have to be made for every Kafka message that needs
+// to be decoded.
+type SchemaRegistryClient struct {
+	SchemaRegistryConfig
+	client http.Client
+	cache  *sync.Map
+}
+
+// NewSchemaRegistryClient creates a schema registry client with the given HTTP metrics bundle.
+func (c SchemaRegistryConfig) NewSchemaRegistryClient(httpMetrics shHTTP.Metrics) SchemaRegistryClient {
+	retryRoundTripper := shHTTP.RetryRoundTripper{
+		RoundTripper: http.DefaultTransport,
+		RetriableStatusCodes: map[int]bool{
+			http.StatusInternalServerError: true,
+			http.StatusBadGateway:          true,
+			http.StatusServiceUnavailable:  true,
+			http.StatusGatewayTimeout:      true,
+		},
+		InitialInterval:     10 * time.Millisecond,
+		Multiplier:          2,
+		MaxInterval:         time.Second,
+		RandomizationFactor: 0.5,
+		MaxRetries:          5,
+	}
+	tracingRoundTripper := tracing.RoundTripper{RoundTripper: retryRoundTripper}
+	loggingRoundTripper := log.RoundTripper{RoundTripper: tracingRoundTripper}
+	metricsRoundTripper := shHTTP.MetricsRoundTripper{RoundTripper: loggingRoundTripper, Metrics: httpMetrics}
+	return SchemaRegistryClient{
+		SchemaRegistryConfig: c,
+		client:               http.Client{Transport: metricsRoundTripper},
+		cache:                &sync.Map{},
+	}
+}
+
+// Accept header value for the content type expected from the schema registry api
+const schemaRegistryAcceptFormat = "application/vnd.schemaregistry.v1+json"
+
+// GetSchema retrieves a textual JSON Avro schema from the Kafka schema registry
+func (c SchemaRegistryClient) GetSchema(ctx context.Context, id uint) (string, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "get-avro-schema")
 	defer span.Finish()
-	endpoint := fmt.Sprintf("%s/schemas/ids/%d", schemaRegistryURL, schemaID)
-	response, err := http.Get(endpoint)
+	endpoint := fmt.Sprintf("%s/schemas/ids/%d", c.URL, id)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
-		log.Get(ctx).Error(
-			"Error getting schema from schema registry",
-			zap.Int("schema_id", schemaID), zap.Error(err))
+		return "", fmt.Errorf("failed to build schema registry http request: %w", err)
+	}
+	req.Header.Set("Accept", schemaRegistryAcceptFormat)
+	response, err := c.client.Do(req)
+	if err != nil {
 		return "", err
 	}
+	switch response.StatusCode {
+	case http.StatusOK:
+		break
+	case http.StatusNotFound:
+		return "", fmt.Errorf("schema %d not found", id)
+	default:
+		return "", fmt.Errorf(
+			"error while retrieving schema; schema registry returned bad status code %d", response.StatusCode)
+	}
 	var schemaResponse struct {
-		Schema *string `json:"schema"`
+		Schema string `json:"schema"`
 	}
 	if err := json.NewDecoder(response.Body).Decode(&schemaResponse); err != nil {
 		return "", err
 	}
-	return *schemaResponse.Schema, nil
+	return schemaResponse.Schema, nil
 }
 
-func (src *SchemaRegistryConfig) unmarshalMessage(ctx context.Context, message []byte, target interface{}) []error {
+// DecodeKafkaAvroMessage decodes the given Kafka message encoded with Avro into a Go type.
+func (c SchemaRegistryClient) DecodeKafkaAvroMessage(ctx context.Context, message *sarama.ConsumerMessage) (interface{}, error) {
 	// bytes 1-4 are the schema id (big endian), bytes 5... is the message
 	// see: https://docs.confluent.io/current/schema-registry/docs/serializer-formatter.html#wire-format
-	span, ctx := opentracing.StartSpanFromContext(ctx, "get-avro-schema")
-	defer span.Finish()
-	schemaIDBytes := message[1:5]
-	messageBytes := message[5:]
-	schemaID := binary.BigEndian.Uint32(schemaIDBytes)
+	if len(message.Value) < 5 {
+		return nil, fmt.Errorf("no schema id not found in Kafka message")
+	}
+	schemaIDBytes := message.Value[1:5]
+	messageBytes := message.Value[5:]
+	schemaID := uint(binary.BigEndian.Uint32(schemaIDBytes))
 
-	// Check if the schema is in cache, if not, get it from schema registry and
-	// cache it
-	schemaInterface, schemaInCache := src.schemas.Load(schemaID)
-	var schema string
-	if !schemaInCache {
-		log.Get(ctx).Info(
-			"Schema not in cache, requesting from schema schema registry and caching",
-			zap.Uint32("schema_id", schemaID))
-		var getSchemaErr error
-		schema, getSchemaErr = src.client.getSchema(ctx, int(schemaID), src.SchemaRegistryURL)
-		if getSchemaErr != nil {
-			log.Get(ctx).Error(
-				"Error getting schema from schema schemaRegistry",
-				zap.Error(getSchemaErr), zap.Uint32("schema_id", schemaID))
-			return []error{getSchemaErr}
-		}
-		src.schemas.Store(schemaID, schema)
+	var codec *goavro.Codec
+	codecIface, ok := c.cache.Load(schemaID)
+	if ok {
+		codec = codecIface.(*goavro.Codec)
 	} else {
-		schema = schemaInterface.(string)
+		schema, err := c.GetSchema(ctx, schemaID)
+		if err != nil {
+			return nil, err
+		}
+		codec, err = goavro.NewCodec(schema)
+		if err != nil {
+			return nil, err
+		}
+		c.cache.Store(schemaID, codec)
 	}
 
-	// Decode Avro from binary
-	codec, codecErr := goavro.NewCodec(schema)
-	if codecErr != nil {
-		return []error{codecErr}
+	decoded, _, err := codec.NativeFromBinary(messageBytes)
+	if err != nil {
+		return nil, err
 	}
-	decoded, _, decodeErr := codec.NativeFromBinary(messageBytes)
-	if decodeErr != nil {
-		return []error{decodeErr}
-	}
-
-	// Unmarshal avro to Go type
-	return src.messageUnmarshaler.unmarshalMessageMap(decoded.(map[string]interface{}), target)
-}
-
-// UnmarshalMessage Implements the KafkaMessageUnmarshaler interface.
-// Decodes an Avro message into a Go struct type, specifically an Avro message
-// from Kafka. Avro schemas are fetched from Kafka schema registry.
-// To use this function, tag each field of the target struct with a `kafka`
-// tag whose value indicates which key on the Avro message to set as the
-// value.
-func (src *SchemaRegistryConfig) UnmarshalMessage(
-	ctx context.Context,
-	msg *sarama.ConsumerMessage,
-	target interface{},
-) error {
-	unmarshalErrs := src.unmarshalMessage(ctx, msg.Value, target)
-	if len(unmarshalErrs) > 0 {
-		log.Get(ctx).Error(
-			"Unable to unmarshal from Avro", zap.Errors("errors", unmarshalErrs),
-			zap.String("type", reflect.TypeOf(target).String()))
-		return fmt.Errorf("unable to unmarshal from Avro")
-	}
-	return nil
+	return decoded, nil
 }

@@ -20,188 +20,101 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
-	"reflect"
-	"strings"
-	"time"
 
 	"github.com/Shopify/sarama"
+	prometheusmetrics "github.com/deathowl/go-metrics-prometheus"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rcrowley/go-metrics"
-	"github.com/spf13/pflag"
 	"github.com/spothero/tools/log"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
-// ClientConfig contains connection settings and configuration for communicating with a Kafka cluster
-type ClientConfig struct {
-	Broker       string
-	ClientID     string
-	TLSCaCrtPath string
-	TLSCrtPath   string
-	TLSKeyPath   string
-	Verbose      bool
-	KafkaVersion string
-}
-
-// Registers Kafka client flags with pflags
-func (c *ClientConfig) RegisterFlags(flags *pflag.FlagSet) {
-	flags.StringVarP(&c.Broker, "kafka-broker", "b", "kafka:29092", "Kafka broker Address")
-	flags.StringVar(&c.ClientID, "kafka-client-id", "client", "Kafka consumer Client ID")
-	flags.StringVar(&c.TLSCaCrtPath, "kafka-server-ca-crt-path", "", "Kafka Server TLS CA Certificate Path")
-	flags.StringVar(&c.TLSCrtPath, "kafka-client-crt-path", "", "Kafka Client TLS Certificate Path")
-	flags.StringVar(&c.TLSKeyPath, "kafka-client-key-path", "", "Kafka Client TLS Key Path")
-	flags.BoolVar(&c.Verbose, "kafka-verbose", false, "When this flag is set Kafka will log verbosely")
-	flags.StringVar(&c.KafkaVersion, "kafka-version", "2.1.0", "Kafka broker version")
-}
-
-// ClientIface is an interface for creating consumers and producers
-type ClientIface interface {
-	NewConsumer(config ConsumerConfig, logger *zap.Logger) (ConsumerIface, error)
-	NewProducer(config ProducerConfig, logger *zap.Logger, returnMessages bool) (ProducerIface, error)
-}
-
-// Client wraps a sarama client and Kafka configuration and can be used to create producers and consumers
-type Client struct {
-	ClientConfig
-	SaramaClient  sarama.Client
-	metricsCancel context.CancelFunc
-}
-
-// NewClient creates a Sarama client from configuration and starts a periodic task for capturing
-// Kafka broker metrics. The client is instantiated with configuration from the ClientConfiguration
-// and the following options are turned on:
-// * The Consumer returns errors
-// * The Producer returns successes
-// * The Producer returns errors
-func (c ClientConfig) NewClient(ctx context.Context) (Client, error) {
-	if c.Verbose {
-		saramaLogger, err := zap.NewStdLogAt(log.Get(ctx).Named("sarama"), zapcore.InfoLevel)
-		if err != nil {
-			return Client{}, fmt.Errorf("verbose was requested but failed to create zap standard logger: %w", err)
-		}
-		sarama.Logger = saramaLogger
+// NewClient creates a new Sarama Client from the tools configuration. Using this version of NewClient
+// enables setting of Sarama configuration from the CLI and environment variables. In addition, this method has
+// the side effect of running a periodic task to collect prometheus from the Sarama internal metrics registry.
+func (c *Config) NewClient(ctx context.Context) (sarama.Client, error) {
+	if err := c.populateSaramaConfig(ctx); err != nil {
+		return nil, err
 	}
-	kafkaConfig := sarama.NewConfig()
-	kafkaVersion, err := sarama.ParseKafkaVersion(c.KafkaVersion)
+	client, err := sarama.NewClient(c.BrokerAddrs, &c.Config)
 	if err != nil {
-		return Client{}, err
+		return nil, err
 	}
-	kafkaConfig.Version = kafkaVersion
-	kafkaConfig.Consumer.Return.Errors = true
-	kafkaConfig.ClientID = c.ClientID
-	kafkaConfig.Producer.Return.Successes = true
-	kafkaConfig.Producer.Return.Errors = true
+	if c.Registerer == nil {
+		c.Registerer = prometheus.DefaultRegisterer
+	}
+	go prometheusmetrics.NewPrometheusProvider(
+		c.MetricRegistry, "sarama", "", c.Registerer, c.MetricsFrequency,
+	).UpdatePrometheusMetrics()
+	return client, nil
+}
 
+// populateSaramaConfig adds values to the sarama config that either need to be parsed from flags
+// or need to be specified by the caller
+func (c *Config) populateSaramaConfig(ctx context.Context) error {
 	if c.TLSCrtPath != "" && c.TLSKeyPath != "" {
-		cer, err := tls.LoadX509KeyPair(c.TLSCrtPath, c.TLSKeyPath)
+		cert, err := tls.LoadX509KeyPair(c.TLSCrtPath, c.TLSKeyPath)
 		if err != nil {
-			return Client{}, fmt.Errorf("failed to load Kafka server TLS key pair: %w", err)
+			return fmt.Errorf("failed to load Kafka TLS key pair: %w", err)
 		}
-		kafkaConfig.Net.TLS.Config = &tls.Config{
-			Certificates:       []tls.Certificate{cer},
+		c.Net.TLS.Config = &tls.Config{
+			Certificates:       []tls.Certificate{cert},
 			InsecureSkipVerify: true,
 		}
-		kafkaConfig.Net.TLS.Config.BuildNameToCertificate()
-		kafkaConfig.Net.TLS.Enable = true
-
+		c.Net.TLS.Config.BuildNameToCertificate()
+		c.Net.TLS.Enable = true
 		if c.TLSCaCrtPath != "" {
 			caCert, err := ioutil.ReadFile(c.TLSCaCrtPath)
 			if err != nil {
-				return Client{}, fmt.Errorf("failed to load Kafka server CA certificate: %w", err)
+				return fmt.Errorf("failed to load Kafka CA certificate: %w", err)
 			}
 			if len(caCert) > 0 {
 				caCertPool := x509.NewCertPool()
 				caCertPool.AppendCertsFromPEM(caCert)
-				kafkaConfig.Net.TLS.Config.RootCAs = caCertPool
-				kafkaConfig.Net.TLS.Config.InsecureSkipVerify = false
+				c.Net.TLS.Config.RootCAs = caCertPool
+				c.Net.TLS.Config.InsecureSkipVerify = false
 			}
 		}
+
 	}
-
-	saramaClient, err := sarama.NewClient([]string{c.Broker}, kafkaConfig)
-	if err != nil {
-		return Client{}, fmt.Errorf("failed to create Kafka client: %w", err)
-	}
-
-	// Export metrics from Sarama's metrics registry to Prometheus
-	ctx, cancel := context.WithCancel(ctx)
-	kafkaConfig.MetricRegistry = metrics.NewRegistry()
-	c.recordBrokerMetrics(ctx, 500*time.Millisecond, kafkaConfig.MetricRegistry)
-
-	return Client{
-		ClientConfig:  c,
-		SaramaClient:  saramaClient,
-		metricsCancel: cancel,
-	}, nil
-}
-
-// Close the underlying Kafka client and stop the Kafka broker metrics gathering task. If an error occurs closing
-// the client, the error is logged.
-func (c Client) Close(ctx context.Context) {
-	c.metricsCancel()
-	if err := c.SaramaClient.Close(); err != nil {
-		log.Get(ctx).Error("Error closing Kafka client", zap.Error(err))
-	}
-}
-
-// map the metrics from Sarama's metrics registry to Prometheus metrics
-func (c ClientConfig) updateBrokerMetrics(registry metrics.Registry, gauges map[string]*prometheus.GaugeVec) {
-	registry.Each(func(name string, i interface{}) {
-		var metricVal float64
-		switch metric := i.(type) {
-		// Sarama only collects meters and histograms
-		case metrics.Meter:
-			metricVal = metric.Snapshot().Rate1()
-		case metrics.Histogram:
-			// Prometheus histograms are incompatible with go-metrics histograms
-			// so just get the last value for use in gauge
-			histValues := metric.Snapshot().Sample().Values()
-			if len(histValues) > 0 {
-				metricVal = float64(histValues[len(histValues)-1])
-			}
+	c.Producer.RequiredAcks = sarama.RequiredAcks(c.ProducerRequiredAcks)
+	if c.ProducerCompressionCodec != "" {
+		switch c.ProducerCompressionCodec {
+		case "zstd":
+			c.Producer.Compression = sarama.CompressionZSTD
+		case "snappy":
+			c.Producer.Compression = sarama.CompressionSnappy
+		case "lz4":
+			c.Producer.Compression = sarama.CompressionLZ4
+		case "gzip":
+			c.Producer.Compression = sarama.CompressionGZIP
+		case "none":
+			c.Producer.Compression = sarama.CompressionNone
 		default:
-			log.Get(context.Background()).Warn(
-				"Unknown metric type found while exporting Sarama metrics",
-				zap.String("type", reflect.TypeOf(metric).String()))
-			return
+			return fmt.Errorf("unknown compression codec %v provided", c.ProducerCompressionCodec)
 		}
-		promMetricName := strings.Replace(name, "-", "_", -1)
-		gauge, ok := gauges[promMetricName]
-		if !ok {
-			// We haven't seen this gauge before; create it
-			gauge = prometheus.NewGaugeVec(
-				prometheus.GaugeOpts{
-					Namespace: "sarama",
-					Name:      promMetricName,
-					Help:      name,
-				},
-				[]string{"broker", "client"},
-			)
-			prometheus.MustRegister(gauge)
-			gauges[promMetricName] = gauge
+	}
+	if c.KafkaVersion != "" {
+		kafkaVersion, err := sarama.ParseKafkaVersion(c.KafkaVersion)
+		if err != nil {
+			return err
 		}
-		gauge.With(prometheus.Labels{"broker": c.Broker, "client": c.ClientID}).Set(metricVal)
-	})
-}
+		c.Version = kafkaVersion
+	}
+	// creating a standard logger can only fail if an invalid error level is supplied which
+	// will never be the case here
+	if c.Verbose {
+		saramaLogger, _ := zap.NewStdLogAt(log.Get(ctx).Named("sarama"), zapcore.InfoLevel)
+		sarama.Logger = saramaLogger
+	}
 
-// run a periodic task until the context is canceled that updates broker metrics
-func (c ClientConfig) recordBrokerMetrics(
-	ctx context.Context,
-	updateInterval time.Duration,
-	registry metrics.Registry,
-) {
-	ticker := time.NewTicker(updateInterval)
-	gauges := make(map[string]*prometheus.GaugeVec)
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				c.updateBrokerMetrics(registry, gauges)
-			case <-ctx.Done():
-				ticker.Stop()
-				return
-			}
-		}
-	}()
+	// set options that cannot be set by flags
+	c.Producer.Partitioner = sarama.NewReferenceHashPartitioner
+	c.MetricRegistry = metrics.NewRegistry()
+	c.Producer.Return.Successes = c.ProducerReturnSuccesses
+	c.Producer.Return.Errors = c.ProducerReturnErrors
+	c.Consumer.Return.Errors = c.ConsumerReturnErrors
+
+	return nil
 }

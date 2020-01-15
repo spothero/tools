@@ -16,18 +16,20 @@ package kafka
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"time"
 
-	"github.com/spothero/tools/log"
-	"go.uber.org/zap"
+	"github.com/Shopify/sarama"
 )
 
-type messageUnmarshaler interface {
-	unmarshalMessageMap(messageMap map[string]interface{}, target interface{}) []error
+// MessageUnmarshaller are helpers for unmarshalling Kafka messages into Go types
+type MessageUnmarshaller interface {
+	// Unmarshal takes the contents of the ConsumerMessage and unmarshals it into the target, returning
+	// any and all errors that occur during unmarshalling
+	Unmarshal(ctx context.Context, msg *sarama.ConsumerMessage, target interface{}) []error
 }
-type messageDecoder struct{}
 
 // Given a reflected interface value, recursively identify all fields and their related kafka tag
 func extractFieldsTags(value reflect.Value) ([]reflect.Value, []string) {
@@ -35,6 +37,7 @@ func extractFieldsTags(value reflect.Value) ([]reflect.Value, []string) {
 	tags := make([]string, 0)
 	for i := 0; i < value.NumField(); i++ {
 		if value.Field(i).Type().Kind() == reflect.Struct && value.Field(i).Type().String() != "time.Time" {
+			// hoist embedded struct tags
 			newFields, newTags := extractFieldsTags(value.Field(i))
 			fields = append(fields, newFields...)
 			tags = append(tags, newTags...)
@@ -46,14 +49,14 @@ func extractFieldsTags(value reflect.Value) ([]reflect.Value, []string) {
 	return fields, tags
 }
 
-// Unmarshal Avro or JSON into a struct type taking into account Kafka Connect's
+// Unmarshals Avro or JSON into a struct type taking into account Kafka Connect (specifically Kafka Connect JDBC's)
 // quirks. If a field from the source DBMS is nullable, Kafka connect seems
 // to place the value of that field in a nested map, so we have to look for
 // these maps when unmarshaling. If Kafka Connect is producing JSON, it seems to
 // make every number a float64.
 // Note: This function can currently handle all types of ints, bools, strings,
 // and time.Time types.
-func (kmd *messageDecoder) unmarshalMessageMap(messageMap map[string]interface{}, target interface{}) []error {
+func unmarshalConnectMessageMap(messageMap map[string]interface{}, target interface{}) []error {
 	fields, tags := extractFieldsTags(reflect.ValueOf(target).Elem())
 	errs := make([]error, 0)
 	for i := 0; i < len(fields); i++ {
@@ -91,7 +94,7 @@ func (kmd *messageDecoder) unmarshalMessageMap(messageMap map[string]interface{}
 				} else if b, ok := kafkaValue.(bool); ok {
 					field.SetBool(b)
 				} else {
-					err = fmt.Errorf("error unmarshaling Kafka message, couldn't set bool field with tag %s", tag)
+					err = fmt.Errorf("couldn't set bool field with tag %s", tag)
 				}
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 				// Avro only has int32 and int64 values so we just need to check those
@@ -102,7 +105,7 @@ func (kmd *messageDecoder) unmarshalMessageMap(messageMap map[string]interface{}
 				} else if i, ok := kafkaValue.(float64); ok {
 					field.SetInt(int64(i))
 				} else {
-					err = fmt.Errorf("error unmarshaling Kafka message, couldn't set int field with tag %s", tag)
+					err = fmt.Errorf("couldn't set int field with tag %s", tag)
 				}
 			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 				if i, ok := kafkaValue.(int32); ok {
@@ -112,21 +115,21 @@ func (kmd *messageDecoder) unmarshalMessageMap(messageMap map[string]interface{}
 				} else if i, ok := kafkaValue.(float64); ok {
 					field.SetUint(uint64(i))
 				} else {
-					err = fmt.Errorf("error unmarshaling Kafka message, couldn't set uint field with tag %s", tag)
+					err = fmt.Errorf("couldn't set uint field with tag %s", tag)
 				}
 			case reflect.Float32, reflect.Float64:
 				if i, ok := kafkaValue.(float32); ok {
 					field.SetFloat(float64(i))
 				} else if i, ok := kafkaValue.(float64); ok {
-					field.SetFloat(float64(i))
+					field.SetFloat(i)
 				} else {
-					err = fmt.Errorf("error unmarshaling Kafka message, couldn't set float field with tag %s", tag)
+					err = fmt.Errorf("couldn't set float field with tag %s", tag)
 				}
 			case reflect.String:
 				if s, ok := kafkaValue.(string); ok {
 					field.SetString(s)
 				} else {
-					err = fmt.Errorf("error unmarshaling Kafka message, couldn't set string field with tag %s", tag)
+					err = fmt.Errorf("couldn't set string field with tag %s", tag)
 				}
 			case reflect.Struct:
 				if field.Type().String() == "time.Time" {
@@ -143,29 +146,58 @@ func (kmd *messageDecoder) unmarshalMessageMap(messageMap map[string]interface{}
 						if parseErr == nil {
 							field.Set(reflect.ValueOf(timeVal))
 						} else {
-							err = fmt.Errorf("error unmarshaling Kafka message, failed to parse time field with tag %s, reason: %s", tag, parseErr.Error())
+							err = fmt.Errorf("failed to parse time field with tag %s, reason: %w", tag, parseErr)
 						}
 					} else {
-						err = fmt.Errorf("error unmarshaling Kafka message, couldn't set time field with tag %s", tag)
+						err = fmt.Errorf("couldn't set time field with tag %s", tag)
 					}
+					break
 				}
+				fallthrough
 			default:
 				err = fmt.Errorf(
-					"unhandled Avro type %s, field with tag %s will not be set", field.Type().String(), tag)
-				log.Get(context.Background()).Error(
-					"Unhandled Avro type! This field will not be set!",
-					zap.String("field_type", field.Type().String()), zap.String("field_tag", tag))
+					"unhandled type %s, field with tag %s will not be set", field.Type().String(), tag)
 			}
 		} else {
 			err = fmt.Errorf("cannot set invalid field with tag %s", tag)
-			log.Get(context.Background()).Error(
-				"Cannot set invalid field", zap.String("field_tag", tag),
-				zap.Bool("field_can_set", field.CanSet()),
-				zap.Bool("field_is_valid", field.IsValid()))
 		}
 		if err != nil {
 			errs = append(errs, err)
 		}
 	}
 	return errs
+}
+
+// ConnectAvroUnmarshaller is a helper for unmarshalling Kafka Avro messages, taking into account the quirks
+// of the Kafka Connect producer's format
+type ConnectAvroUnmarshaller struct {
+	SchemaRegistryClient
+}
+
+// Unmarshal takes the contents of the ConsumerMessage and unmarshals it into the target using avro decoding, returning
+// any and all errors that occur during unmarshalling
+func (u ConnectAvroUnmarshaller) Unmarshal(ctx context.Context, msg *sarama.ConsumerMessage, target interface{}) []error {
+	messageData, err := u.DecodeKafkaAvroMessage(ctx, msg)
+	if err != nil {
+		return []error{err}
+	}
+	messageMap, ok := messageData.(map[string]interface{})
+	if !ok {
+		return []error{fmt.Errorf("failed to unmarshal Kafka message becasue the data is not a map")}
+	}
+	return unmarshalConnectMessageMap(messageMap, target)
+}
+
+// ConnectJSONUnmarshaller is a helper for unmarshalling Kafka JSON messages, taking into account the quirks
+// of the Kafka Connect producer's format
+type ConnectJSONUnmarshaller struct{}
+
+// Unmarshal takes the contents of the ConsumerMessage and unmarshals it into the target using JSON decoding, returning
+// any and all errors that occur during unmarshalling
+func (u ConnectJSONUnmarshaller) Unmarshal(ctx context.Context, msg *sarama.ConsumerMessage, target interface{}) []error {
+	message := make(map[string]interface{})
+	if err := json.Unmarshal(msg.Value, &message); err != nil {
+		return []error{fmt.Errorf("failed to unmarshal Kafka message because the JSON was invalid: %w", err)}
+	}
+	return unmarshalConnectMessageMap(message, target)
 }

@@ -184,7 +184,7 @@ func TestMetricsRoundTrip(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			metricsRT := MetricsRoundTripper{
 				RoundTripper: test.roundTripper,
-				metrics:      NewMetrics(nil, true),
+				Metrics:      NewMetrics(nil, true),
 			}
 			mockReq := httptest.NewRequest("GET", "/path", nil)
 			if test.expectPanic {
@@ -198,7 +198,7 @@ func TestMetricsRoundTrip(t *testing.T) {
 
 				if test.expectCircuitBreakErr {
 					// Check circuit-breaker counter
-					counter, err := metricsRT.metrics.circuitBreakerOpen.GetMetricWith(prometheus.Labels{"host": ""})
+					counter, err := metricsRT.Metrics.circuitBreakerOpen.GetMetricWith(prometheus.Labels{"host": ""})
 					assert.NoError(t, err)
 					pb := &dto.Metric{}
 					assert.NoError(t, counter.Write(pb))
@@ -217,7 +217,7 @@ func TestMetricsRoundTrip(t *testing.T) {
 				}
 
 				// Check duration histogram
-				histogram, err := metricsRT.metrics.clientDuration.GetMetricWith(labels)
+				histogram, err := metricsRT.Metrics.clientDuration.GetMetricWith(labels)
 				assert.NoError(t, err)
 				pb := &dto.Metric{}
 				assert.NoError(t, histogram.(prometheus.Histogram).Write(pb))
@@ -235,7 +235,7 @@ func TestMetricsRoundTrip(t *testing.T) {
 				}
 
 				// Check content-length histogram
-				contentLengthHistogram, err := metricsRT.metrics.clientContentLength.GetMetricWith(labels)
+				contentLengthHistogram, err := metricsRT.Metrics.clientContentLength.GetMetricWith(labels)
 				assert.NoError(t, err)
 				pb = &dto.Metric{}
 				assert.NoError(t, contentLengthHistogram.(prometheus.Histogram).Write(pb))
@@ -243,26 +243,26 @@ func TestMetricsRoundTrip(t *testing.T) {
 				assert.NotEmpty(t, buckets)
 
 				// Check request counter
-				counter, err := metricsRT.metrics.clientCounter.GetMetricWith(labels)
+				counter, err := metricsRT.Metrics.clientCounter.GetMetricWith(labels)
 				assert.NoError(t, err)
 				pb = &dto.Metric{}
 				assert.NoError(t, counter.Write(pb))
 				assert.Equal(t, 1, int(pb.Counter.GetValue()))
 
 				// Check circuit-breaker counter
-				counter, err = metricsRT.metrics.circuitBreakerOpen.GetMetricWith(prometheus.Labels{"host": ""})
+				counter, err = metricsRT.Metrics.circuitBreakerOpen.GetMetricWith(prometheus.Labels{"host": ""})
 				assert.NoError(t, err)
 				pb = &dto.Metric{}
 				assert.NoError(t, counter.Write(pb))
 				assert.Equal(t, 0, int(pb.Counter.GetValue()))
 			}
-			prometheus.Unregister(metricsRT.metrics.duration)
-			prometheus.Unregister(metricsRT.metrics.clientDuration)
-			prometheus.Unregister(metricsRT.metrics.contentLength)
-			prometheus.Unregister(metricsRT.metrics.clientContentLength)
-			prometheus.Unregister(metricsRT.metrics.counter)
-			prometheus.Unregister(metricsRT.metrics.clientCounter)
-			prometheus.Unregister(metricsRT.metrics.circuitBreakerOpen)
+			prometheus.Unregister(metricsRT.Metrics.duration)
+			prometheus.Unregister(metricsRT.Metrics.clientDuration)
+			prometheus.Unregister(metricsRT.Metrics.contentLength)
+			prometheus.Unregister(metricsRT.Metrics.clientContentLength)
+			prometheus.Unregister(metricsRT.Metrics.counter)
+			prometheus.Unregister(metricsRT.Metrics.clientCounter)
+			prometheus.Unregister(metricsRT.Metrics.circuitBreakerOpen)
 		})
 	}
 }

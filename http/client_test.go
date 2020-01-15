@@ -34,7 +34,7 @@ func TestNewDefaultClient(t *testing.T) {
 
 	mrt, ok := jrt.RoundTripper.(MetricsRoundTripper)
 	assert.True(t, ok)
-	assert.Equal(t, metrics, mrt.metrics)
+	assert.Equal(t, metrics, mrt.Metrics)
 
 	lrt, ok := mrt.RoundTripper.(log.RoundTripper)
 	assert.True(t, ok)

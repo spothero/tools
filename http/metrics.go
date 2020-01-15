@@ -179,7 +179,7 @@ func (m Metrics) Middleware(next http.Handler) http.Handler {
 // measured with metrics
 type MetricsRoundTripper struct {
 	RoundTripper http.RoundTripper
-	metrics      Metrics // An instantiated http.Metrics bundle for measuring timings and status codes
+	Metrics      Metrics // An instantiated http.Metrics bundle for measuring timings and status codes
 }
 
 // RoundTrip measures HTTP client call duration and status codes
@@ -198,17 +198,17 @@ func (metricsRT MetricsRoundTripper) RoundTrip(r *http.Request) (*http.Response,
 				"path":        r.URL.Path,
 				"status_code": strconv.Itoa(resp.StatusCode),
 			}
-			metricsRT.metrics.clientCounter.With(labels).Inc()
+			metricsRT.Metrics.clientCounter.With(labels).Inc()
 			if contentLengthStr := r.Header.Get("Content-Length"); len(contentLengthStr) > 0 {
 				if contentLength, err := strconv.Atoi(contentLengthStr); err == nil {
-					metricsRT.metrics.clientContentLength.With(labels).Observe(float64(contentLength))
+					metricsRT.Metrics.clientContentLength.With(labels).Observe(float64(contentLength))
 				}
 			}
-			metricsRT.metrics.clientDuration.With(labels).Observe(durationSec)
+			metricsRT.Metrics.clientDuration.With(labels).Observe(durationSec)
 		}
 		var circuitError circuit.Error
 		if err != nil && errors.As(err, &circuitError) && circuitError.CircuitOpen() {
-			metricsRT.metrics.circuitBreakerOpen.With(prometheus.Labels{"host": r.URL.Host}).Inc()
+			metricsRT.Metrics.circuitBreakerOpen.With(prometheus.Labels{"host": r.URL.Host}).Inc()
 		}
 	}))
 	defer timer.ObserveDuration()
