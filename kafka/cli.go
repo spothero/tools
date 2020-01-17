@@ -37,7 +37,10 @@ type Config struct {
 
 // NewDefaultConfig creates a new default Kafka configuration
 func NewDefaultConfig() Config {
-	return Config{Config: *sarama.NewConfig()}
+	return Config{
+		Config:           *sarama.NewConfig(),
+		MetricsFrequency: 5 * time.Second,
+	}
 }
 
 // RegisterBaseFlags registers basic Kafka configuration. If using Kafka, these flags should always be registered.

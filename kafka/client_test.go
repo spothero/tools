@@ -17,9 +17,13 @@ package kafka
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/rcrowley/go-metrics"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConfig_populateSaramaConfig(t *testing.T) {
@@ -163,4 +167,91 @@ func TestConfig_populateSaramaConfig(t *testing.T) {
 			test.check(t, &test.input.Config)
 		})
 	}
+}
+
+func TestClientMetrics_updateOnce(t *testing.T) {
+	tests := []struct {
+		name   string
+		setup  func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer)
+		verify func(t *testing.T, registry *prometheus.Registry)
+	}{
+		{
+			"meter is converted to a prometheus gauge",
+			func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer) {
+				metrics.GetOrRegisterMeter("meter-name", registry)
+			},
+			func(t *testing.T, registry *prometheus.Registry) {
+				// just ensure the meter gets registered as a prometheus gauge, can't validate the actual
+				// value here because the meter only updates every 5 or so seconds (not configurable)
+				metricFamilies, err := registry.Gather()
+				require.NoError(t, err)
+				require.Len(t, metricFamilies, 1)
+				require.Len(t, metricFamilies[0].GetMetric(), 1)
+				gauge := metricFamilies[0].GetMetric()[0].GetGauge()
+				require.NotNil(t, gauge)
+			},
+		}, {
+			"histogram is converted to a prometheus gauge",
+			func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer) {
+				metrics.GetOrRegisterHistogram("histogram-name", registry, metrics.NewUniformSample(1))
+			},
+			func(t *testing.T, registry *prometheus.Registry) {
+				// just ensure the histogram gets registered as a prometheus gauge, can't validate the actual
+				// value here because the meter only updates every 5 or so seconds (not configurable)
+				metricFamilies, err := registry.Gather()
+				require.NoError(t, err)
+				require.Len(t, metricFamilies, 1)
+				require.Len(t, metricFamilies[0].GetMetric(), 1)
+				gauge := metricFamilies[0].GetMetric()[0].GetGauge()
+				require.NotNil(t, gauge)
+			},
+		}, {
+			"error registering metric doesn't cause crash",
+			func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer) {
+				// register the matching prometheus gauge to cause a failure to register later
+				registerer.MustRegister(
+					prometheus.NewGaugeVec(
+						prometheus.GaugeOpts{
+							Namespace: "sarama",
+							Name:      "histogram_name",
+							Help:      "histogram-name",
+						},
+						[]string{"broker", "client"},
+					),
+				)
+				metrics.GetOrRegisterHistogram("histogram-name", registry, metrics.NewUniformSample(1))
+			},
+			func(t *testing.T, registry *prometheus.Registry) {},
+		}, {
+			"type other than meter or histogram does nothing",
+			func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer) {
+				metrics.GetOrRegisterCounter("", registry)
+			},
+			func(t *testing.T, registry *prometheus.Registry) {},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			metricsRegistry := metrics.NewRegistry()
+			prometheusRegistry := prometheus.NewRegistry()
+			test.setup(t, metricsRegistry, prometheusRegistry)
+			m := Config{
+				Config:     sarama.Config{MetricRegistry: metricsRegistry},
+				Registerer: prometheusRegistry,
+			}.newClientMetrics()
+			m.updateOnce(context.Background())
+			test.verify(t, prometheusRegistry)
+		})
+	}
+}
+
+func TestClientMetrics_startUpdating(t *testing.T) {
+	m := Config{
+		Config:     sarama.Config{MetricRegistry: metrics.NewRegistry()},
+		Registerer: prometheus.NewRegistry(),
+	}.newClientMetrics()
+	ctx, cancel := context.WithCancel(context.Background())
+	m.startUpdating(ctx, time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
+	cancel()
 }
