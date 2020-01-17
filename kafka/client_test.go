@@ -36,12 +36,9 @@ func TestConfig_populateSaramaConfig(t *testing.T) {
 		{
 			"base configuration is populated",
 			Config{
-				Config:                  *sarama.NewConfig(),
-				Verbose:                 true,
-				KafkaVersion:            "2.3.0",
-				ProducerReturnErrors:    true,
-				ProducerReturnSuccesses: true,
-				ConsumerReturnErrors:    true,
+				Config:       *sarama.NewConfig(),
+				Verbose:      true,
+				KafkaVersion: "2.3.0",
 			},
 			func(t *testing.T, cfg *sarama.Config) {
 				assert.Equal(t, sarama.V2_3_0_0, cfg.Version)
