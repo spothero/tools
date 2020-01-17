@@ -62,8 +62,9 @@ func TestConfig_populateSaramaConfig(t *testing.T) {
 				cfg.Producer.Partitioner = nil
 
 				// unset in the variables that are set by default but get overridden by not setting our config
-				expected.Consumer.Return.Errors = false
-				expected.Producer.Return.Errors = false
+				expected.Consumer.Return.Errors = true
+				expected.Producer.Return.Errors = true
+				expected.Producer.Return.Successes = true
 				expected.Producer.RequiredAcks = 0
 
 				assert.Equal(t, expected, cfg)
