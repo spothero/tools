@@ -11,13 +11,6 @@ import (
 // Config contains all configuration for Kafka message consumption and production
 type Config struct {
 	sarama.Config
-	// Whether or not errors will be returned by the consumer. If true, the consumer errors channel must be read from.
-	ConsumerReturnErrors bool
-	// Whether or not the producer will return errors. If true, the producer errors channel must be read from.
-	ProducerReturnErrors bool
-	// Whether or not the producer will return successfully produced messages on the successes channel. If true,
-	// the successes channel must be read from.
-	ProducerReturnSuccesses bool
 	// Prometheus registerer for metrics
 	Registerer prometheus.Registerer
 	// Frequency with which to collect metrics
@@ -37,7 +30,10 @@ type Config struct {
 
 // NewDefaultConfig creates a new default Kafka configuration
 func NewDefaultConfig() Config {
-	return Config{Config: *sarama.NewConfig()}
+	return Config{
+		Config:           *sarama.NewConfig(),
+		MetricsFrequency: 5 * time.Second,
+	}
 }
 
 // RegisterBaseFlags registers basic Kafka configuration. If using Kafka, these flags should always be registered.

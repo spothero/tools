@@ -8,7 +8,6 @@ require (
 	github.com/cenkalti/backoff/v4 v4.0.0
 	github.com/cep21/circuit/v3 v3.1.0
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
-	github.com/deathowl/go-metrics-prometheus v0.0.0-20190530215645-35bace25558f
 	github.com/eapache/go-resiliency v1.2.0 // indirect
 	github.com/gchaincl/sqlhooks v1.1.0
 	github.com/getsentry/sentry-go v0.3.1
