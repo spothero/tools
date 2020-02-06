@@ -3,7 +3,7 @@ package currency
 import (
 	"testing"
 
-	"github.com/magiconair/properties/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDollarsToPennies(t *testing.T) {
