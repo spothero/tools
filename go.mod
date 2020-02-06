@@ -21,6 +21,7 @@ require (
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/lib/pq v1.1.0
 	github.com/linkedin/goavro/v2 v2.9.7
+	github.com/magiconair/properties v1.8.0
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/pierrec/lz4 v2.4.0+incompatible // indirect
 	github.com/prometheus/client_golang v1.3.0
