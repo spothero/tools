@@ -9,7 +9,7 @@ const penniesInDollar float64 = 100
 // fractional value that is less than 1 penny will be rounded up and added as an additional penny.
 // Otherwise, that value will be discarded.
 func DollarsToPennies(dollars float64, roundUp bool) uint {
-	// Multiply the dollars amount by penniesInDollars to convert to pennies.
+	// Multiply the dollars amount by penniesInDollar to convert to pennies.
 	// Split the floating point penny number around the decimal point. The left portion is the
 	// integer and the right part is the remaining fraction.
 	integerComponent, fractionComponent := math.Modf(dollars * penniesInDollar)
