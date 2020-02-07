@@ -2,7 +2,7 @@ package currency
 
 import "math"
 
-// penniesToDollars represents that there are 100 pennies in a dollar
+// penniesInDollar represents that there are 100 pennies in a dollar
 const penniesInDollar float64 = 100
 
 // DollarsToPennies converts a floating point value in dollars to pennies. If `roundUp` is true any
