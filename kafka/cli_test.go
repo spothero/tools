@@ -14,8 +14,8 @@ func TestConfig_RegisterBaseFlags(t *testing.T) {
 	c := Config{}
 	c.RegisterBaseFlags(flags)
 	err := flags.Parse([]string{
-		"--kafka-broker-addrs", "1.2.3.4",
-		"--kafka-broker-addrs", "5.6.7.8",
+		"--kafka-broker-addr", "1.2.3.4",
+		"--kafka-broker-addr", "5.6.7.8",
 		"--kafka-client-id", "test",
 		"--kafka-channel-buffer-size", "512",
 		"--kafka-version", "2.4.0",

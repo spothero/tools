@@ -74,10 +74,12 @@ func (c Config) ServerCmd(
 	}
 
 	// GRPC Config
-	grpcConfig := shGRPC.Config{}
-	if newGRPCService != nil {
-		grpcConfig = shGRPC.NewDefaultConfig(c.Name, newGRPCService(c).RegisterAPIs)
-	}
+	// XXX: passing `nil` as newGRPCService is a hack to delay the calling of
+	// that closure until control reaches the `RunE` function.
+	// see reference:f9d302c2-df3f-4110-9529-94b0515c4a17 in this file.
+	// Follow-up: https://spothero.atlassian.net/browse/PMP-402
+	grpcConfig := shGRPC.NewDefaultConfig(c.Name, nil)
+
 	if len(c.CancelSignals) > 0 {
 		grpcConfig.CancelSignals = c.CancelSignals
 		httpConfig.CancelSignals = c.CancelSignals
@@ -184,6 +186,13 @@ func (c Config) ServerCmd(
 
 			var wg sync.WaitGroup
 			if newGRPCService != nil {
+				// XXX: here we mutate grpc.Config, which is hitherto nil; this
+				// is done in order to defer calling newGRPCService until
+				// control reaches this point and to avoid calling this closure
+				// from within the scope of the ServerCmd func.
+				// reference:f9d302c2-df3f-4110-9529-94b0515c4a17
+				// Follow-up: https://spothero.atlassian.net/browse/PMP-402
+				grpcConfig.ServerRegistration = newGRPCService(c).RegisterAPIs
 				grpcDone, err := grpcConfig.NewServer().Run()
 				if err != nil {
 					return err
