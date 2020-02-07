@@ -11,7 +11,7 @@ func TestDollarsToPennies(t *testing.T) {
 		name     string
 		dollars  float64
 		roundUp  bool
-		expected uint
+		expected int
 	}{
 		{
 			name:     "even dollar amounts are correctly converted",
@@ -36,6 +36,30 @@ func TestDollarsToPennies(t *testing.T) {
 			dollars:  13.130000000001,
 			roundUp:  false,
 			expected: 1313,
+		},
+		{
+			name:     "negative even dollar amounts are correctly converted",
+			dollars:  -13.00,
+			roundUp:  true,
+			expected: -1300,
+		},
+		{
+			name:     "negative uneven dollar amounts are correctly converted",
+			dollars:  -13.13,
+			roundUp:  true,
+			expected: -1313,
+		},
+		{
+			name:     "pennies are added to fractional negative amounts when requested",
+			dollars:  -13.130000000001,
+			roundUp:  true,
+			expected: -1314,
+		},
+		{
+			name:     "pennies are not added to fractional negative amounts when not requested",
+			dollars:  -13.130000000001,
+			roundUp:  false,
+			expected: -1313,
 		},
 	}
 	for _, test := range tests {
