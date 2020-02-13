@@ -221,7 +221,7 @@ func TestClientMetrics_updateOnce(t *testing.T) {
 		}, {
 			"type other than meter or histogram does nothing",
 			func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer) {
-				metrics.GetOrRegisterCounter("", registry)
+				metrics.GetOrRegisterTimer("", registry)
 			},
 			func(t *testing.T, registry *prometheus.Registry) {},
 		},
