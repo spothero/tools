@@ -149,7 +149,7 @@ func (m clientMetrics) updateOnce(ctx context.Context) {
 	m.registry.Each(func(name string, i interface{}) {
 		var metricVal float64
 		switch metric := i.(type) {
-		// Sarama only collects meters and histograms
+		// Sarama only collects meters, histograms, and counters
 		case metrics.Meter:
 			metricVal = metric.Snapshot().Rate1()
 		case metrics.Histogram:
@@ -159,6 +159,8 @@ func (m clientMetrics) updateOnce(ctx context.Context) {
 			if len(histValues) > 0 {
 				metricVal = float64(histValues[len(histValues)-1])
 			}
+		case metrics.Counter:
+			metricVal = float64(metric.Snapshot().Count())
 		default:
 			log.Get(context.Background()).Warn(
 				"unknown metric type found while exporting sarama metrics",

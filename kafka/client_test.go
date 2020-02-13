@@ -168,6 +168,16 @@ func TestConfig_populateSaramaConfig(t *testing.T) {
 }
 
 func TestClientMetrics_updateOnce(t *testing.T) {
+	ensureRegistered := func(t *testing.T, registry *prometheus.Registry) {
+		// just ensure the metric gets registered as a prometheus gauge, can't validate the actual
+		// value here because the meter only updates every 5 or so seconds (not configurable)
+		metricFamilies, err := registry.Gather()
+		require.NoError(t, err)
+		require.Len(t, metricFamilies, 1)
+		require.Len(t, metricFamilies[0].GetMetric(), 1)
+		gauge := metricFamilies[0].GetMetric()[0].GetGauge()
+		require.NotNil(t, gauge)
+	}
 	tests := []struct {
 		name   string
 		setup  func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer)
@@ -178,31 +188,19 @@ func TestClientMetrics_updateOnce(t *testing.T) {
 			func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer) {
 				metrics.GetOrRegisterMeter("meter-name", registry)
 			},
-			func(t *testing.T, registry *prometheus.Registry) {
-				// just ensure the meter gets registered as a prometheus gauge, can't validate the actual
-				// value here because the meter only updates every 5 or so seconds (not configurable)
-				metricFamilies, err := registry.Gather()
-				require.NoError(t, err)
-				require.Len(t, metricFamilies, 1)
-				require.Len(t, metricFamilies[0].GetMetric(), 1)
-				gauge := metricFamilies[0].GetMetric()[0].GetGauge()
-				require.NotNil(t, gauge)
-			},
+			ensureRegistered,
 		}, {
 			"histogram is converted to a prometheus gauge",
 			func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer) {
 				metrics.GetOrRegisterHistogram("histogram-name", registry, metrics.NewUniformSample(1))
 			},
-			func(t *testing.T, registry *prometheus.Registry) {
-				// just ensure the histogram gets registered as a prometheus gauge, can't validate the actual
-				// value here because the meter only updates every 5 or so seconds (not configurable)
-				metricFamilies, err := registry.Gather()
-				require.NoError(t, err)
-				require.Len(t, metricFamilies, 1)
-				require.Len(t, metricFamilies[0].GetMetric(), 1)
-				gauge := metricFamilies[0].GetMetric()[0].GetGauge()
-				require.NotNil(t, gauge)
+			ensureRegistered,
+		}, {
+			"counter is converted to a prometheus gauge",
+			func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer) {
+				metrics.GetOrRegisterCounter("counter-name", registry)
 			},
+			ensureRegistered,
 		}, {
 			"error registering metric doesn't cause crash",
 			func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer) {
@@ -223,7 +221,7 @@ func TestClientMetrics_updateOnce(t *testing.T) {
 		}, {
 			"type other than meter or histogram does nothing",
 			func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer) {
-				metrics.GetOrRegisterCounter("", registry)
+				metrics.GetOrRegisterTimer("", registry)
 			},
 			func(t *testing.T, registry *prometheus.Registry) {},
 		},
