@@ -31,8 +31,6 @@ Currently, this library supports the following features:
 * CLI Utilities
 * Kafka
   * Support for consuming and producing metrics
-  * Support for goroutine-based callback functions where types are automatically deduced and
-    unpacked
   * Schema Registry
 * SQL Bindings for MySQL and Postgres
   * CLI Support for SQL database configuration
