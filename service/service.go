@@ -94,10 +94,7 @@ func (c Config) ServerCmd(
 		Cores: []zapcore.Core{&sentry.Core{}},
 	}
 	// Sentry Config
-	sc := sentry.Config{
-		Environment: c.Environment,
-		AppVersion:  c.Version,
-	}
+	sc := sentry.Config{AppVersion: c.Version}
 	// Tracing Config
 	tc := tracing.Config{ServiceName: c.Name}
 	// Jose Config
@@ -114,6 +111,8 @@ func (c Config) ServerCmd(
 		Version:          fmt.Sprintf("%s (%s)", c.Version, c.GitSHA),
 		PersistentPreRun: cli.CobraBindEnvironmentVariables(strings.Replace(c.Name, "-", "_", -1)),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			sc.Environment = c.Environment
+
 			if err := c.CheckFlags(); err != nil {
 				return err
 			}
