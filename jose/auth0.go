@@ -64,7 +64,7 @@ func (cc Auth0Claim) GetClientID() string {
 // GetUserID returns the UserID field of the claim if it is present, otherwise
 // the empty string
 func (cc Auth0Claim) GetUserID() string {
-	if cc.GrantType == "password" {
+	if cc.GrantType == "password" || cc.GrantType == "authorization_code" {
 		return cc.id
 	}
 

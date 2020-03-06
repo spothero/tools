@@ -114,7 +114,12 @@ func TestGetUserID(t *testing.T) {
 			expected: "",
 		},
 		{
-			name:     "user id present",
+			name:     "user id presented as password",
+			input:    Auth0Claim{"user-id", "email", "password"},
+			expected: "user-id",
+		},
+		{
+			name:     "user id presented as authorization_code",
 			input:    Auth0Claim{"user-id", "email", "password"},
 			expected: "user-id",
 		},
