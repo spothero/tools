@@ -34,7 +34,7 @@ type Auth0Generator struct{}
 // JWTs, ClientID will be populated. For normal User authentication UserID will be populated. Both
 // UserID and ClientID will not be populated together.
 type Auth0Claim struct {
-	id        string `json:"sub"`
+	ID        string `json:"sub"`
 	Email     string `json:"email"`
 	GrantType string `json:"gty"`
 }
@@ -55,7 +55,7 @@ func (cc Auth0Claim) NewContext(ctx context.Context) context.Context {
 func (cc Auth0Claim) GetClientID() string {
 	if cc.GrantType == "client-credentials" {
 		// because Auth0 adds the undesireable suffix of "@clients"
-		return strings.TrimSuffix(cc.id, "@clients")
+		return strings.TrimSuffix(cc.ID, "@clients")
 	}
 
 	return ""
@@ -65,7 +65,7 @@ func (cc Auth0Claim) GetClientID() string {
 // the empty string
 func (cc Auth0Claim) GetUserID() string {
 	if cc.GrantType == "password" || cc.GrantType == "authorization_code" {
-		return cc.id
+		return cc.ID
 	}
 
 	return ""

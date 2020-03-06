@@ -28,7 +28,7 @@ func TestAuth0GeneratorNew(t *testing.T) {
 func TestAuth0ClaimNewContext(t *testing.T) {
 	ctx := context.Background()
 	cc := Auth0Claim{
-		id:        "abc123",
+		ID:        "abc123",
 		Email:     "email",
 		GrantType: "client-credentials",
 	}
@@ -41,7 +41,7 @@ func TestFromContext(t *testing.T) {
 	// GIVEN an auth0 claim is present in a context
 	ctx := context.Background()
 	cc := Auth0Claim{
-		id:        "abc123",
+		ID:        "abc123",
 		Email:     "email",
 		GrantType: "client-credentials",
 	}
