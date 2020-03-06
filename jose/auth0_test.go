@@ -87,6 +87,11 @@ func TestGetClientID(t *testing.T) {
 			input:    Auth0Claim{"id", "email", "BoGuS"},
 			expected: "",
 		},
+		{
+			name:     "remove @clients suffix",
+			input:    Auth0Claim{"leeroy-jenkins@clients", "email", "client-credentials"},
+			expected: "leeroy-jenkins",
+		},
 	}
 
 	for _, test := range tests {
