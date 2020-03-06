@@ -16,6 +16,7 @@ package jose
 
 import (
 	"context"
+	"fmt"
 )
 
 // Auth0CtxKey is the type used to uniquely place the cognito claim in the context
@@ -32,9 +33,9 @@ type Auth0Generator struct{}
 // JWTs, ClientID will be populated. For normal User authentication UserID will be populated. Both
 // UserID and ClientID will not be populated together.
 type Auth0Claim struct {
-	UserID   string `json:"sub"`
-	ClientID string `json:"aud"`
-	Email    string `json:"email"`
+	ID        string `json:"sub"`
+	Email     string `json:"email"`
+	GrantType string `json:"gty"`
 }
 
 // New satisfies the ClaimGenerator interface, returning an empty claim for use with JOSE parsing
@@ -46,4 +47,33 @@ func (cg Auth0Generator) New() Claim {
 // NewContext registers a claim to a given context and returns that new context
 func (cc Auth0Claim) NewContext(ctx context.Context) context.Context {
 	return context.WithValue(ctx, Auth0ClaimKey, &cc)
+}
+
+// GetClientID returns the ClientID field of the claim if it is present,
+// otherwise the empty string
+func (cc Auth0Claim) GetClientID() string {
+	if cc.GrantType == "client-credentials" {
+		return cc.ID
+	}
+
+	return ""
+}
+
+// GetUserID returns the UserID field of the claim if it is present, otherwise
+// the empty string
+func (cc Auth0Claim) GetUserID() string {
+	if cc.GrantType == "password" {
+		return cc.ID
+	}
+
+	return ""
+}
+
+// FromContext extracts an Auth0 claim from a context
+func FromContext(ctx context.Context) (*Auth0Claim, error) {
+	if claim, ok := ctx.Value(Auth0ClaimKey).(*Auth0Claim); ok {
+		return claim, nil
+	}
+
+	return nil, fmt.Errorf("unable to extract claim from given context")
 }
