@@ -34,7 +34,6 @@ const bearerPrefix = "Bearer "
 const (
 	bearerPrefixNotFound = "authorization header did not include bearer prefix"
 	invalidBearerToken   = "bearer token is invalid"
-	noBearerToken        = "no authorization bearer token found"
 )
 
 // GetHTTPServerMiddleware returns an HTTP middleware function which extracts the Authorization
