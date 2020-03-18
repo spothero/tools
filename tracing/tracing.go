@@ -29,11 +29,14 @@ import (
 	"go.uber.org/zap"
 )
 
+// CorrelationIDCtxKeyType is the type used to uniquely place the trace header in contexts
+type CorrelationIDCtxKeyType int
+
 // CorrelationIDCtxKey is the key into any context.Context  which maps to the
 // correlation id of the given context. This correlation ID can be
 // conveyed to external clients in order to correlate external systems with
 // SpotHero tracing and logging.
-const CorrelationIDCtxKey = "CorrelationIDCtxKey"
+const CorrelationIDCtxKey CorrelationIDCtxKeyType = iota
 
 // Config defines the necessary configuration for instantiating a Tracer
 type Config struct {
