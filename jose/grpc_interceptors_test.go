@@ -169,9 +169,8 @@ func TestStreamClientInterceptor(t *testing.T) {
 
 func TestSetHeaderMD(t *testing.T) {
 	ctx := context.WithValue(context.Background(), JWTClaimKey, "jwt-data")
-	opts := []grpc.CallOption{}
-	newOpts := setHeaderMD(ctx, opts)
-	assert.NotEqual(t, opts, newOpts)
-	expectedMD := metadata.New(map[string]string{authHeader: "Bearer jwt-data"})
-	assert.Equal(t, grpc.Header(&expectedMD), newOpts[0])
+	newCtx := setHeaderMD(ctx)
+	assert.NotEqual(t, ctx, newCtx)
+	md, _ := metadata.FromOutgoingContext(newCtx)
+	assert.Equal(t, metadata.Pairs("authorization", "Bearer jwt-data"), md)
 }
