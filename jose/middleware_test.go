@@ -34,88 +34,40 @@ func TestGetHTTPServerMiddleware(t *testing.T) {
 		jwt                     string
 		parseJWTError           bool
 		expectClaim             bool
-		authRequired            bool
 		expectedStatusCode      int
 		expectedHeaders         map[string]string
 		expectNextHandlerCalled bool
 	}{
 		{
-			"no auth header results in no claim, auth not required, next handler called",
+			"no auth header results in no claim, next handler called",
 			false,
 			"",
 			"",
 			false,
 			false,
-			false,
-			-1,
+			http.StatusOK,
 			nil,
 			true,
 		}, {
-			"malformed auth headers are rejected, auth not required, next handler called",
+			"malformed auth headers are rejected",
 			true,
 			"bearer fake.jwt.header",
 			"",
 			false,
 			false,
+			401,
+			map[string]string{"WWW-Authenticate": "Bearer"},
 			false,
-			-1,
-			nil,
-			true,
 		}, {
-			"failed jwt parsings are rejected, auth not required, next handler called",
+			"failed jwt parsings are rejected",
 			true,
 			"Bearer fake.jwt.header",
 			"fake.jwt.header",
 			true,
 			false,
-			false,
-			-1,
-			nil,
-			true,
-		}, {
-			"with auth: no auth header results in no claim and a 401",
-			false,
-			"",
-			"",
-			false,
-			false,
-			true,
-			401,
-			map[string]string{"WWW-Authenticate": "Bearer"},
-			false,
-		}, {
-			"malformed auth headers are rejected, auth required",
-			true,
-			"bearer fake.jwt.header",
-			"",
-			false,
-			false,
-			true,
-			401,
-			map[string]string{"WWW-Authenticate": "Bearer"},
-			false,
-		}, {
-			"failed jwt parsings are rejected, auth required",
-			true,
-			"Bearer fake.jwt.header",
-			"fake.jwt.header",
-			true,
-			false,
-			true,
 			403,
 			nil,
 			false,
-		}, {
-			"failed jwt parsings, auth not required, next handler called",
-			true,
-			"Bearer fake.jwt.header",
-			"fake.jwt.header",
-			true,
-			false,
-			false,
-			-1,
-			nil,
-			true,
 		}, {
 			"jwt tokens are parsed and placed in context when present",
 			true,
@@ -123,8 +75,7 @@ func TestGetHTTPServerMiddleware(t *testing.T) {
 			"fake.jwt.header",
 			false,
 			true,
-			false,
-			-1,
+			http.StatusOK,
 			nil,
 			true,
 		},
@@ -158,7 +109,7 @@ func TestGetHTTPServerMiddleware(t *testing.T) {
 				}
 			})
 
-			joseMiddleware := GetHTTPServerMiddleware(handler, test.authRequired)
+			joseMiddleware := GetHTTPServerMiddleware(handler)
 			testServer := httptest.NewServer(joseMiddleware(testHandler))
 			defer testServer.Close()
 
@@ -172,12 +123,10 @@ func TestGetHTTPServerMiddleware(t *testing.T) {
 			require.NotNil(t, httpRespResult)
 			defer httpRespResult.Body.Close()
 
-			if test.authRequired {
-				assert.Equal(t, test.expectedStatusCode, httpRespResult.StatusCode)
-				for expectedHeader, expectedValue := range test.expectedHeaders {
-					fmt.Printf("%+v\n", httpRespResult)
-					assert.Equal(t, expectedValue, httpRespResult.Header.Get(expectedHeader))
-				}
+			assert.Equal(t, test.expectedStatusCode, httpRespResult.StatusCode)
+			for expectedHeader, expectedValue := range test.expectedHeaders {
+				fmt.Printf("%+v\n", httpRespResult)
+				assert.Equal(t, expectedValue, httpRespResult.Header.Get(expectedHeader))
 			}
 
 			assert.Equal(t, test.expectNextHandlerCalled, testHandlerCalled)

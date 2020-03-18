@@ -43,10 +43,10 @@ func TestNewJOSE(t *testing.T) {
 			true,
 			"",
 		}, {
-			"missing JWKS URL results in an error",
+			"missing JWKS URL results in an empty JOSE config",
 			[]byte("{\"keys\": []}"),
 			http.StatusOK,
-			true,
+			false,
 			false,
 			"",
 		}, {

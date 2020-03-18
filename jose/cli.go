@@ -20,5 +20,4 @@ import "github.com/spf13/pflag"
 func (c *Config) RegisterFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&c.JSONWebKeySetURL, "jose-jwks-url", c.JSONWebKeySetURL, "JSON Web Key Set (JWKS) URL for JSON Web Token (JWT) Verification")
 	flags.StringVar(&c.ValidIssuer, "jose-valid-issuer", c.ValidIssuer, "Valid issuer (iss) of JWT tokens in this environment")
-	flags.BoolVar(&c.AuthRequired, "jose-auth-required", false, "HTTP Middleware Only: If true (default), return a 4XX error if the `Authorization` header is missing or invalid. If false, ignores missing `Authorization`.")
 }
