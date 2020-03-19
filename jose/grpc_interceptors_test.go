@@ -34,67 +34,33 @@ func TestGetContextAuth(t *testing.T) {
 		jwt                 string
 		parseJWTError       bool
 		expectClaim         bool
-		authRequired        bool
 		expectErr           bool
 		errorCode           codes.Code
 	}{
 		{
-			"no auth metadata results in no claim, auth not required, no error returned",
+			"no auth metadata results in no claim, no error returned",
 			false,
 			"",
 			"",
-			false,
 			false,
 			false,
 			false,
 			codes.OK,
 		}, {
-			"failed jwt parsings are rejected, auth not required, no error returned",
+			"failed jwt parsings are rejected",
 			true,
 			"Bearer fake.jwt.header",
 			"fake.jwt.header",
 			true,
 			false,
-			false,
-			false,
-			codes.OK,
-		}, {
-			"with auth: no auth metadata results in no claim and a 401",
-			false,
-			"",
-			"",
-			false,
-			false,
-			true,
 			true,
 			codes.Unauthenticated,
-		}, {
-			"failed jwt parsings are rejected, auth required",
-			true,
-			"Bearer fake.jwt.header",
-			"fake.jwt.header",
-			true,
-			false,
-			true,
-			true,
-			codes.Unauthenticated,
-		}, {
-			"failed jwt parsings, auth not required, no error returned",
-			true,
-			"Bearer fake.jwt.header",
-			"fake.jwt.header",
-			true,
-			false,
-			false,
-			false,
-			codes.OK,
 		}, {
 			"jwt tokens are parsed and placed in context when present",
 			true,
 			"Bearer fake.jwt.header",
 			"fake.jwt.header",
 			false,
-			true,
 			true,
 			false,
 			codes.OK,
@@ -116,7 +82,7 @@ func TestGetContextAuth(t *testing.T) {
 				handler.GetClaims(),
 			).Return(parseErr)
 
-			joseInterceptor := GetContextAuth(handler, test.authRequired)
+			joseInterceptor := GetContextAuth(handler)
 
 			ctx := context.Background()
 			if test.authMetadataPresent {

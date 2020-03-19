@@ -20,6 +20,7 @@ import (
 
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/spothero/tools/log"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -34,38 +35,29 @@ const bearerTokenType = "bearer"
 // Authorization data (if present) from incoming GRPC requests. If  Authorization data is
 // found, this function attempts to parse and validate that value as a JWT  with the
 // configured Credential types for the given JOSE provider.
-func GetContextAuth(jh JOSEHandler, authRequired bool) func(context.Context) (context.Context, error) {
+func GetContextAuth(jh JOSEHandler) func(context.Context) (context.Context, error) {
 	return func(ctx context.Context) (context.Context, error) {
-		var parseErrMsg string
+		logger := log.Get(ctx)
 		bearerToken, err := grpc_auth.AuthFromMD(ctx, bearerTokenType)
 		if err != nil {
-			parseErrMsg = noBearerToken
+			logger.Debug("no bearer token", zap.Error(err))
+			return ctx, nil
 		}
 
-		var claims []Claim
-		if len(parseErrMsg) == 0 {
-			claims = jh.GetClaims()
-			err := jh.ParseValidateJWT(bearerToken, claims...)
-			if err != nil {
-				log.Get(ctx).Debug(err.Error())
-				parseErrMsg = invalidBearerToken
-			}
+		claims := jh.GetClaims()
+		err = jh.ParseValidateJWT(bearerToken, claims...)
+		if err != nil {
+			log.Get(ctx).Debug("failed to parse and validate claims", zap.Error(err))
+			return ctx, status.Errorf(codes.Unauthenticated, invalidBearerToken)
 		}
 
-		if len(parseErrMsg) == 0 {
-			// Populate each claim on the context, if any
-			for _, claim := range claims {
-				ctx = claim.NewContext(ctx)
-			}
-			// Set the header on the context so it can be passed to any downstream services
-			ctx = context.WithValue(ctx, JWTClaimKey, bearerToken)
+		// Populate each claim on the context, if any
+		for _, claim := range claims {
+			ctx = claim.NewContext(ctx)
 		}
 
-		var finalErr error
-		if authRequired && len(parseErrMsg) != 0 {
-			finalErr = status.Errorf(codes.Unauthenticated, parseErrMsg)
-		}
-		return ctx, finalErr
+		// Set the header on the context so it can be passed to any downstream services
+		return context.WithValue(ctx, JWTClaimKey, bearerToken), nil
 	}
 }
 

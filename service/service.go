@@ -140,26 +140,24 @@ func (c Config) ServerCmd(
 				grpcprom.StreamServerInterceptor,
 			}
 
-			// If the user has requested JOSE Auth, add JOSE Auth interceptors
-			if jc.AuthRequired {
-				jh, err := jc.NewJOSE()
-				if err != nil {
-					return err
-				}
-				joseInterceptorFunc := jose.GetContextAuth(jh, jc.AuthRequired)
-				grpcConfig.UnaryInterceptors = append(
-					grpcConfig.UnaryInterceptors,
-					grpcauth.UnaryServerInterceptor(joseInterceptorFunc),
-				)
-				grpcConfig.StreamInterceptors = append(
-					grpcConfig.StreamInterceptors,
-					grpcauth.StreamServerInterceptor(joseInterceptorFunc),
-				)
-				httpConfig.Middleware = append(
-					httpConfig.Middleware,
-					jose.GetHTTPServerMiddleware(jh, jc.AuthRequired),
-				)
+			// Add JOSE Auth interceptors
+			jh, err := jc.NewJOSE()
+			if err != nil {
+				return err
 			}
+			joseInterceptorFunc := jose.GetContextAuth(jh)
+			grpcConfig.UnaryInterceptors = append(
+				grpcConfig.UnaryInterceptors,
+				grpcauth.UnaryServerInterceptor(joseInterceptorFunc),
+			)
+			grpcConfig.StreamInterceptors = append(
+				grpcConfig.StreamInterceptors,
+				grpcauth.StreamServerInterceptor(joseInterceptorFunc),
+			)
+			httpConfig.Middleware = append(
+				httpConfig.Middleware,
+				jose.GetHTTPServerMiddleware(jh),
+			)
 
 			// Add panic handlers to the middleware. Panic handlers should always come last,
 			// because they can help recover error state such that it is correctly handled by

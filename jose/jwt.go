@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/spothero/tools/log"
 	"gopkg.in/square/go-jose.v2"
 	"gopkg.in/square/go-jose.v2/jwt"
 )
@@ -74,8 +75,10 @@ const JWTClaimKey JWTHeaderCtxKey = iota
 
 // NewJOSE creates and returns a JOSE client for use.
 func (c Config) NewJOSE() (JOSE, error) {
+	logger := log.Get(context.Background())
 	if len(c.JSONWebKeySetURL) == 0 {
-		return JOSE{}, fmt.Errorf("no jwks url specified")
+		logger.Warn("no jwks url specified - no authentication will be performed")
+		return JOSE{}, nil
 	}
 
 	// Fetch JSON Web Key Sets from the specified URL
