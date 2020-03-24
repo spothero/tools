@@ -33,6 +33,7 @@ import (
 	"github.com/spothero/tools/log"
 	"github.com/spothero/tools/sentry"
 	"github.com/spothero/tools/tracing"
+	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 )
@@ -91,7 +92,7 @@ func (c Config) ServerCmd(
 			"version": c.Version,
 			"git_sha": c.GitSHA[len(c.GitSHA)-6:], // Log only the last 6 digits of the Git SHA
 		},
-		Cores: []zapcore.Core{&sentry.Core{}},
+		Cores: []zapcore.Core{&sentry.Core{LevelEnabler: zap.InfoLevel}},
 	}
 	// Sentry Config
 	sc := sentry.Config{AppVersion: c.Version}
