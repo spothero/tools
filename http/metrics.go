@@ -15,17 +15,13 @@
 package http
 
 import (
-	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/cep21/circuit/v3"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spothero/tools/http/writer"
-	"github.com/spothero/tools/log"
-	"go.uber.org/zap"
 )
 
 // Metrics is a bundle of prometheus HTTP metrics recorders
@@ -106,41 +102,24 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 	if registry == nil {
 		registry = prometheus.DefaultRegisterer
 	}
-	if mustRegister {
-		registry.MustRegister(histogram)
-		registry.MustRegister(clientHistogram)
-		registry.MustRegister(counter)
-		registry.MustRegister(clientCounter)
-		registry.MustRegister(contentLength)
-		registry.MustRegister(clientContentLength)
-		registry.MustRegister(circuitBreakerOpen)
-	} else {
-		toRegister := map[string]prometheus.Collector{
-			"duration":            histogram,
-			"clientDuration":      clientHistogram,
-			"counter":             counter,
-			"clientCounter":       clientCounter,
-			"contentLength":       contentLength,
-			"clientContentLength": clientContentLength,
-			"circuitBreakerOpen":  circuitBreakerOpen,
-		}
-		for name, collector := range toRegister {
-			if err := registry.Register(collector); err != nil {
-				switch err.(type) {
-				case prometheus.AlreadyRegisteredError:
-					log.Get(context.Background()).Debug(
-						fmt.Sprintf("http metric `%v` already registered", name),
-						zap.Error(err),
-					)
-				default:
-					log.Get(context.Background()).Error(
-						fmt.Sprintf("failed to register http metric `%v`", name),
-						zap.Error(err),
-					)
-				}
-			}
+
+	toRegister := []prometheus.Collector{
+		histogram,
+		clientHistogram,
+		counter,
+		clientCounter,
+		contentLength,
+		clientContentLength,
+		circuitBreakerOpen,
+	}
+	for _, collector := range toRegister {
+		if mustRegister {
+			registry.MustRegister(collector)
+		} else {
+			_ = registry.Register(collector)
 		}
 	}
+
 	return Metrics{
 		counter:             counter,
 		clientCounter:       clientCounter,
