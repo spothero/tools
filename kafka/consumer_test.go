@@ -81,8 +81,8 @@ func TestPartitionConsumer_run(t *testing.T) {
 	require.NoError(t, errored.Write(erroredMetric))
 
 	// ensure that the metrics have been updated
-	assert.Equal(t, float64(1), processedMetric.Gauge.GetValue())
-	assert.Equal(t, float64(1), erroredMetric.Gauge.GetValue())
+	assert.Equal(t, float64(1), processedMetric.Counter.GetValue())
+	assert.Equal(t, float64(1), erroredMetric.Counter.GetValue())
 }
 
 func TestPartitionConsumer_Messages(t *testing.T) {
