@@ -131,8 +131,8 @@ func (pc PartitionConsumer) Close() error {
 
 // ConsumerMetrics is a collection of Prometheus metrics for tracking a Kafka consumer's performance
 type ConsumerMetrics struct {
-	messagesConsumed *prometheus.GaugeVec
-	errorsConsumed   *prometheus.GaugeVec
+	messagesConsumed *prometheus.CounterVec
+	errorsConsumed   *prometheus.CounterVec
 }
 
 // NewConsumerMetrics creates and registers metrics for the Kafka Consumer with
@@ -140,15 +140,15 @@ type ConsumerMetrics struct {
 func NewConsumerMetrics(registerer prometheus.Registerer) (ConsumerMetrics, error) {
 	labels := []string{"topic", "partition"}
 	metrics := ConsumerMetrics{
-		messagesConsumed: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
+		messagesConsumed: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
 				Name: "kafka_messages_consumed",
 				Help: "Number of Kafka messages processed by the consumer",
 			},
 			labels,
 		),
-		errorsConsumed: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
+		errorsConsumed: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
 				Name: "kafka_errors_consumed",
 				Help: "Number of consumer errors received from the Kafka broker",
 			},
