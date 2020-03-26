@@ -168,3 +168,51 @@ func TestRoundTrip(t *testing.T) {
 		})
 	}
 }
+
+func TestEnforceAuthentication(t *testing.T) {
+	tests := []struct {
+		name                   string
+		requestIsAuthenticated bool
+		expectedAuthSuccess    bool
+	}{
+		{
+			name:                   "authentication provided",
+			requestIsAuthenticated: true,
+			expectedAuthSuccess:    true,
+		},
+		{
+			name:                   "authentication omitted",
+			requestIsAuthenticated: false,
+			expectedAuthSuccess:    false,
+		},
+	}
+
+	for _, test := range tests {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}
+
+		authenticatedHandler := EnforceAuthentication(handler)
+
+		t.Run(test.name, func(t *testing.T) {
+			assert := assert.New(t)
+			reqCtx := context.Background()
+
+			if test.requestIsAuthenticated {
+				reqCtx = context.WithValue(reqCtx, JWTClaimKey, true)
+			}
+
+			request, err := http.NewRequestWithContext(reqCtx, "GET", "url", nil)
+			assert.NoError(err)
+			responseRecorder := httptest.NewRecorder()
+			authenticatedHandler(responseRecorder, request)
+			actualResponse := responseRecorder.Result()
+
+			if test.expectedAuthSuccess {
+				assert.Equal(http.StatusOK, actualResponse.StatusCode)
+			} else {
+				assert.Equal(http.StatusUnauthorized, actualResponse.StatusCode)
+			}
+		})
+	}
+}
