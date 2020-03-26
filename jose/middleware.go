@@ -131,9 +131,9 @@ func newAuthMetrics(registry prometheus.Registerer) authMetrics {
 		registry = prometheus.DefaultRegisterer
 	}
 
-	toRegister := map[string]prometheus.Collector{
-		"authSuccessCounter": authSuccessCounter,
-		"authFailureCounter": authFailureCounter,
+	toRegister := []prometheus.Collector{
+		authSuccessCounter,
+		authFailureCounter,
 	}
 	for _, collector := range toRegister {
 		// intentionally ignore error
