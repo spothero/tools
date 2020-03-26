@@ -135,21 +135,9 @@ func newAuthMetrics(registry prometheus.Registerer) authMetrics {
 		"authSuccessCounter": authSuccessCounter,
 		"authFailureCounter": authFailureCounter,
 	}
-	for name, collector := range toRegister {
-		if err := registry.Register(collector); err != nil {
-			switch err.(type) {
-			case prometheus.AlreadyRegisteredError:
-				log.Get(context.Background()).Debug(
-					fmt.Sprintf("http metric `%v` already registered", name),
-					zap.Error(err),
-				)
-			default:
-				log.Get(context.Background()).Error(
-					fmt.Sprintf("failed to register http metric `%v`", name),
-					zap.Error(err),
-				)
-			}
-		}
+	for _, collector := range toRegister {
+		// intentionally ignore error
+		_ = registry.Register(collector)
 	}
 	return authMetrics{
 		authSuccessCounter: authSuccessCounter,
@@ -168,10 +156,10 @@ func EnforceAuthentication(next http.HandlerFunc) http.HandlerFunc {
 	var defaultRegistry prometheus.Registerer = nil
 	metrics := newAuthMetrics(defaultRegistry)
 
-	wrapper := func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		logger := log.Get(ctx)
-		isAuthenticated := r.Context().Value(JWTClaimKey) != nil
+		isAuthenticated := ctx.Value(JWTClaimKey) != nil
 		labels := prometheus.Labels{
 			"path":   writer.FetchRoutePathTemplate(r),
 			"method": r.Method,
@@ -188,6 +176,4 @@ func EnforceAuthentication(next http.HandlerFunc) http.HandlerFunc {
 			http.Error(w, bearerPrefixNotFound, http.StatusUnauthorized)
 		}
 	}
-
-	return wrapper
 }
