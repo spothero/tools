@@ -20,6 +20,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/spothero/tools/http/writer"
 	"github.com/spothero/tools/log"
 	"go.uber.org/zap"
 )
@@ -96,4 +98,82 @@ func (rt RoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 		r.Header.Set(authHeader, fmt.Sprintf("%s%s", bearerPrefix, jwtData))
 	}
 	return rt.RoundTripper.RoundTrip(r)
+}
+
+// authMetrics is a bundle of prometheus HTTP metrics recorders
+type authMetrics struct {
+	authSuccessCounter *prometheus.CounterVec
+	authFailureCounter *prometheus.CounterVec
+}
+
+// newAuthMetrics creates and returns a metrics bundle. The user may optionally
+// specify an existing Prometheus Registry. If no Registry is provided, the global Prometheus
+// Registry is used. Finally, if mustRegister is true, and a registration error is encountered,
+// the application will panic.
+func newAuthMetrics(registry prometheus.Registerer) authMetrics {
+	labels := []string{"path", "method"}
+	authSuccessCounter := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "http_authentication_success_total",
+			Help: "Total number of HTTP requests in which authentication succeeded",
+		},
+		labels,
+	)
+	authFailureCounter := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "http_authentication_failure_total",
+			Help: "Total number of HTTP requests in which authentication failed",
+		},
+		labels,
+	)
+	// If the user hasnt provided a Prometheus Registry, use the global Registry
+	if registry == nil {
+		registry = prometheus.DefaultRegisterer
+	}
+
+	toRegister := []prometheus.Collector{
+		authSuccessCounter,
+		authFailureCounter,
+	}
+	for _, collector := range toRegister {
+		// intentionally ignore error
+		_ = registry.Register(collector)
+	}
+	return authMetrics{
+		authSuccessCounter: authSuccessCounter,
+		authFailureCounter: authFailureCounter,
+	}
+}
+
+// AuthenticationMiddleware enforces authentication for all routes associated
+// with a subrouter.
+func AuthenticationMiddleware(next http.Handler) http.Handler {
+	return EnforceAuthentication(next.ServeHTTP)
+}
+
+// EnforceAuthentication enforces authentication for a single HTTP handler.
+func EnforceAuthentication(next http.HandlerFunc) http.HandlerFunc {
+	var defaultRegistry prometheus.Registerer = nil
+	metrics := newAuthMetrics(defaultRegistry)
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		logger := log.Get(ctx)
+		isAuthenticated := ctx.Value(JWTClaimKey) != nil
+		labels := prometheus.Labels{
+			"path":   writer.FetchRoutePathTemplate(r),
+			"method": r.Method,
+		}
+
+		if isAuthenticated {
+			logger.Debug("authentication successfully enforced on request")
+			metrics.authSuccessCounter.With(labels).Inc()
+			next(w, r)
+		} else {
+			logger.Debug("authentication enforcement failed on request")
+			metrics.authFailureCounter.With(labels).Inc()
+			w.Header().Set("WWW-Authenticate", "Bearer")
+			http.Error(w, bearerPrefixNotFound, http.StatusUnauthorized)
+		}
+	}
 }
