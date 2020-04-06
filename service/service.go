@@ -90,7 +90,7 @@ func (c Config) ServerCmd(
 		UseDevelopmentLogger: true,
 		Fields: map[string]interface{}{
 			"version": c.Version,
-			"git_sha": c.GitSHA[len(c.GitSHA)-6:], // Log only the last 6 digits of the Git SHA
+			"git_sha": c.GitSHA[:6], // Log only the first 6 digits of the Git SHA
 		},
 		Cores: []zapcore.Core{&sentry.Core{LevelEnabler: zap.InfoLevel}},
 	}
