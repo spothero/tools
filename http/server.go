@@ -28,6 +28,8 @@ import (
 	"github.com/spothero/tools/http/writer"
 	"github.com/spothero/tools/log"
 	"go.uber.org/zap"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 // Config contains the configuration necessary for running an HTTP/HTTPS Server.
@@ -105,7 +107,7 @@ func (c Config) NewServer() Server {
 	return Server{
 		httpServer: &http.Server{
 			Addr:         fmt.Sprintf("%s:%d", c.Address, c.Port),
-			Handler:      router,
+			Handler:      h2c.NewHandler(router, &http2.Server{}),
 			ReadTimeout:  time.Duration(c.ReadTimeout) * time.Second,
 			WriteTimeout: time.Duration(c.WriteTimeout) * time.Second,
 		},
