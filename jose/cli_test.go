@@ -28,9 +28,9 @@ func TestRegisterFlags(t *testing.T) {
 	err := flags.Parse(nil)
 	assert.NoError(t, err)
 
-	ju, err := flags.GetString("jose-jwks-url")
+	ju, err := flags.GetStringSlice("jose-jwks-urls")
 	assert.NoError(t, err)
-	assert.Equal(t, c.JSONWebKeySetURL, ju)
+	assert.Equal(t, []string{}, ju)
 
 	vi, err := flags.GetString("jose-valid-issuer")
 	assert.NoError(t, err)

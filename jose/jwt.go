@@ -28,8 +28,8 @@ import (
 
 // Config contains configuration for the JOSE package
 type Config struct {
-	JSONWebKeySetURL string // JSON Web Key Set (JWKS) URL for JSON Web Token (JWT) Verification
-	ValidIssuer      string // URL of the JWT Issuer for this environment
+	JSONWebKeySetURLs []string // JSON Web Key Set (JWKS) URLs for JSON Web Token (JWT) Verification
+	ValidIssuer       string   // URL of the JWT Issuer for this environment
 	// List of one or more claims to be captured from JWTs. If using http middleware,
 	// these generators will determine which claims appear on the context.
 	ClaimGenerators []ClaimGenerator
@@ -63,7 +63,7 @@ type JOSEHandler interface {
 type JOSE struct {
 	claimGenerators []ClaimGenerator
 	validIssuer     string
-	jwks            *jose.JSONWebKeySet
+	jwks            []*jose.JSONWebKeySet
 	authRequired    bool
 }
 
@@ -76,28 +76,30 @@ const JWTClaimKey JWTHeaderCtxKey = iota
 // NewJOSE creates and returns a JOSE client for use.
 func (c Config) NewJOSE() (JOSE, error) {
 	logger := log.Get(context.Background())
-	if len(c.JSONWebKeySetURL) == 0 {
-		logger.Warn("no jwks url specified - no authentication will be performed")
+	if len(c.JSONWebKeySetURLs) == 0 {
+		logger.Warn("no jwks urls specified - no authentication will be performed")
 		return JOSE{}, nil
 	}
 
 	// Fetch JSON Web Key Sets from the specified URL
-	resp, err := http.Get(c.JSONWebKeySetURL)
-	if err != nil {
-		return JOSE{}, fmt.Errorf("failed to retrieve jwks from url: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return JOSE{}, fmt.Errorf("received non-200 response from jwks url `%v`", resp.Status)
-	}
+	jwks := make([]*jose.JSONWebKeySet, 0)
+	for _, jwks_url := range c.JSONWebKeySetURLs {
+		resp, err := http.Get(jwks_url)
+		if err != nil {
+			return JOSE{}, fmt.Errorf("failed to retrieve jwks from url: %w", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return JOSE{}, fmt.Errorf("received non-200 response from jwks url `%v`", resp.Status)
+		}
 
-	// Decode the response body into a JSONWebKeySet
-	jwks := &jose.JSONWebKeySet{}
-	err = json.NewDecoder(resp.Body).Decode(jwks)
-	if err != nil {
-		return JOSE{}, fmt.Errorf("failed to decoded jwks json: %w", err)
+		// Decode the response body into a JSONWebKeySet
+		jwks := &jose.JSONWebKeySet{}
+		err = json.NewDecoder(resp.Body).Decode(jwks)
+		if err != nil {
+			return JOSE{}, fmt.Errorf("failed to decoded jwks json: %w", err)
+		}
 	}
-
 	return JOSE{
 		jwks:            jwks,
 		validIssuer:     c.ValidIssuer,
@@ -133,7 +135,13 @@ func (j JOSE) ParseValidateJWT(input string, claims ...Claim) error {
 		allClaims = append(allClaims, claims[i])
 	}
 
-	if err = tok.Claims(j.jwks, allClaims...); err != nil {
+	for _, jwks := range j.jwks {
+		err = tok.Claims(jwks, allClaims...)
+		if err == nil {
+			break
+		}
+	}
+	if err != nil {
 		return fmt.Errorf("failed to extract claims from jwt: %w", err)
 	}
 

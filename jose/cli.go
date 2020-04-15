@@ -18,6 +18,6 @@ import "github.com/spf13/pflag"
 
 // RegisterFlags registers JOSE flags with pflags
 func (c *Config) RegisterFlags(flags *pflag.FlagSet) {
-	flags.StringVar(&c.JSONWebKeySetURL, "jose-jwks-url", c.JSONWebKeySetURL, "JSON Web Key Set (JWKS) URL for JSON Web Token (JWT) Verification")
+	flags.StringSliceVar(&c.JSONWebKeySetURLs, "jose-jwks-urls", c.JSONWebKeySetURLs, "Comma separated list (\"s1,s2\") of JSON Web Key Set (JWKS) URLs for JSON Web Token (JWT) Verification")
 	flags.StringVar(&c.ValidIssuer, "jose-valid-issuer", c.ValidIssuer, "Valid issuer (iss) of JWT tokens in this environment")
 }

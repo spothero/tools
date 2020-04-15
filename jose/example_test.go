@@ -24,7 +24,7 @@ func Example() {
 	// The JOSE Config allows users to configure the JOSE client for use with their OIDC provider
 	c := jose.Config{
 		// The "JWKS" endpoint for retrieving key sets for JWT verification
-		JSONWebKeySetURL: "https://your-oidc-provider/.well-known/jwks.json",
+		JSONWebKeySetURLs: []string{"https://your-oidc-provider/.well-known/jwks.json"},
 		// ValidIssuer is the URL of the JWT issuer for this environment. This must match the `iss`
 		// within the JWT claim
 		ValidIssuer: "https://your-oidc-provider/issuerID",
