@@ -27,7 +27,7 @@ func Example() {
 		JSONWebKeySetURLs: []string{"https://your-oidc-provider/.well-known/jwks.json"},
 		// ValidIssuer is the URL of the JWT issuer for this environment. This must match the `iss`
 		// within the JWT claim
-		ValidIssuer: "https://your-oidc-provider/issuerID",
+		ValidIssuers: []string{"https://your-oidc-provider/issuerID"},
 		// ClaimGenerators determine how JWT claims are to be parsed.
 		ClaimGenerators: []jose.ClaimGenerator{
 			jose.CognitoGenerator{},

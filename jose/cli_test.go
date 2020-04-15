@@ -32,7 +32,7 @@ func TestRegisterFlags(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []string{}, ju)
 
-	vi, err := flags.GetString("jose-valid-issuer")
+	vi, err := flags.GetStringSlice("jose-valid-issuers")
 	assert.NoError(t, err)
-	assert.Equal(t, "", vi)
+	assert.Equal(t, []string{}, vi)
 }

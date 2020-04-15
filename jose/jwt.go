@@ -29,7 +29,7 @@ import (
 // Config contains configuration for the JOSE package
 type Config struct {
 	JSONWebKeySetURLs []string // JSON Web Key Set (JWKS) URLs for JSON Web Token (JWT) Verification
-	ValidIssuer       string   // URL of the JWT Issuer for this environment
+	ValidIssuers      []string // URL of the JWT Issuer for this environment
 	// List of one or more claims to be captured from JWTs. If using http middleware,
 	// these generators will determine which claims appear on the context.
 	ClaimGenerators []ClaimGenerator
@@ -62,7 +62,7 @@ type JOSEHandler interface {
 // JOSE contains configuration for handling JWTs, JWKS, and other JOSE specifications
 type JOSE struct {
 	claimGenerators []ClaimGenerator
-	validIssuer     string
+	validIssuers    []string
 	jwks            []*jose.JSONWebKeySet
 	authRequired    bool
 }
@@ -102,7 +102,7 @@ func (c Config) NewJOSE() (JOSE, error) {
 	}
 	return JOSE{
 		jwks:            jwks,
-		validIssuer:     c.ValidIssuer,
+		validIssuers:    c.ValidIssuers,
 		claimGenerators: c.ClaimGenerators,
 		authRequired:    c.AuthRequired,
 	}, nil
@@ -146,8 +146,10 @@ func (j JOSE) ParseValidateJWT(input string, claims ...Claim) error {
 	}
 
 	// Validate that the claims were issued by a trusted source and are not expired
-	return publicClaims.Validate(jwt.Expected{
-		Issuer: j.validIssuer,
-		Time:   time.Now(),
-	})
+	for _, issuer := range j.validIssuers {
+		if err = publicClaims.Validate(jwt.Expected{Issuer: issuer, Time: time.Now()}); err == nil {
+			break
+		}
+	}
+	return err
 }
