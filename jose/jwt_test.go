@@ -160,7 +160,7 @@ b9Ym/nxaqyTu0PxajXkKm5Q=
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			jose := JOSE{jwks: test.jwks, validIssuer: test.issuer}
+			jose := JOSE{jwks: test.jwks, validIssuers: []string{test.issuer}}
 			err := jose.ParseValidateJWT(test.jwt)
 			if test.expectError {
 				assert.Error(t, err)
