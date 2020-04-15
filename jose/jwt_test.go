@@ -43,13 +43,6 @@ func TestNewJOSE(t *testing.T) {
 			true,
 			"",
 		}, {
-			"missing JWKS URL results in an empty JOSE config",
-			[]byte("{\"keys\": []}"),
-			http.StatusOK,
-			false,
-			false,
-			"",
-		}, {
 			"bad jwks url results in an error",
 			[]byte("{\"keys\": []}"),
 			http.StatusOK,
@@ -73,7 +66,7 @@ func TestNewJOSE(t *testing.T) {
 			if len(test.urlOverride) > 0 {
 				url = test.urlOverride
 			}
-			c := &Config{JSONWebKeySetURL: url}
+			c := &Config{JSONWebKeySetURLs: []string{url}}
 			jose, err := c.NewJOSE()
 			if test.expectErr {
 				assert.Error(t, err)
@@ -127,11 +120,13 @@ b9Ym/nxaqyTu0PxajXkKm5Q=
 	block, _ := pem.Decode([]byte(privateRSAKey))
 	key, _ := x509.ParsePKCS8PrivateKey(block.Bytes)
 	rsaKey, _ := key.(*rsa.PrivateKey)
-	jwks := &jose.JSONWebKeySet{
-		Keys: []jose.JSONWebKey{
-			{
-				KeyID: "foobar",
-				Key:   &rsaKey.PublicKey,
+	jwks := []*jose.JSONWebKeySet{
+		&jose.JSONWebKeySet{
+			Keys: []jose.JSONWebKey{
+				{
+					KeyID: "foobar",
+					Key:   &rsaKey.PublicKey,
+				},
 			},
 		},
 	}
@@ -140,7 +135,7 @@ b9Ym/nxaqyTu0PxajXkKm5Q=
 		name        string
 		jwt         string
 		issuer      string
-		jwks        *jose.JSONWebKeySet
+		jwks        []*jose.JSONWebKeySet
 		expectError bool
 	}{
 		{
