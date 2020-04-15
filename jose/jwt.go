@@ -82,7 +82,7 @@ func (c Config) NewJOSE() (JOSE, error) {
 	}
 
 	// Fetch JSON Web Key Sets from the specified URL
-	jwks := make([]*jose.JSONWebKeySet, 0)
+	allJWKS := make([]*jose.JSONWebKeySet, 0)
 	for _, jwks_url := range c.JSONWebKeySetURLs {
 		resp, err := http.Get(jwks_url)
 		if err != nil {
@@ -99,9 +99,10 @@ func (c Config) NewJOSE() (JOSE, error) {
 		if err != nil {
 			return JOSE{}, fmt.Errorf("failed to decoded jwks json: %w", err)
 		}
+		allJWKS = append(allJWKS, jwks)
 	}
 	return JOSE{
-		jwks:            jwks,
+		jwks:            allJWKS,
 		validIssuers:    c.ValidIssuers,
 		claimGenerators: c.ClaimGenerators,
 		authRequired:    c.AuthRequired,
