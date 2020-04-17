@@ -82,11 +82,12 @@ func ParseCoordinates(r *http.Request, latFieldName, lonFieldName string) (*Coor
 }
 
 // ParseTime reads and parses from the query parameters to the supplied request
-// a Time value corresponding to fieldName. An error is returned if a Time
-// could not be parsed from the given field. The zero-valued Time is returned
-// if the given field is not present in the query parameters to the supplied
-// request.
-func ParseTime(r *http.Request, fieldName string) (time.Time, error) {
+// a Time value corresponding to fieldName. Attempts are made to parse the Time
+// value using each specified layout format in the order they are provided. An
+// error is returned if a Time could not be parsed from the given field using
+// any of the specified layouts. The zero-valued Time is returned if the given
+// field is not present in the query parameters to the supplied request.
+func ParseTime(r *http.Request, fieldName string, layouts []string) (time.Time, error) {
 	if err := r.ParseForm(); err != nil {
 		return time.Time{}, err
 	}
@@ -96,12 +97,12 @@ func ParseTime(r *http.Request, fieldName string) (time.Time, error) {
 		return time.Time{}, nil
 	}
 
-	parsed, err := time.Parse(time.RFC3339, fieldStr)
-
-	if err != nil {
-		err = fmt.Errorf("unable to parse `%v`: %v", fieldName, parsed)
-		return time.Time{}, err
+	for _, layout := range layouts {
+		parsed, err := time.Parse(layout, fieldStr)
+		if err == nil {
+			return parsed, nil
+		}
 	}
 
-	return parsed, nil
+	return time.Time{}, fmt.Errorf("unable to parse `%v`", fieldName)
 }

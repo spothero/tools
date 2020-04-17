@@ -181,6 +181,7 @@ func TestParseTime(t *testing.T) {
 		name      string
 		url       string
 		fieldName string
+		layouts   []string
 		result    time.Time
 		err       bool
 	}{
@@ -188,6 +189,15 @@ func TestParseTime(t *testing.T) {
 			"Basic success",
 			"https://example.com/?time=2019-10-07T15:07:39-05:00",
 			"time",
+			[]string{time.RFC3339},
+			buildTime("2019-10-07T15:07:39-05:00"),
+			false,
+		},
+		{
+			"Basic success with multiple layouts",
+			"https://example.com/?time=2019-10-07T15:07:39-05:00",
+			"time",
+			[]string{"2006-01-02T15:04:05", "invalid", time.RFC3339},
 			buildTime("2019-10-07T15:07:39-05:00"),
 			false,
 		},
@@ -195,6 +205,7 @@ func TestParseTime(t *testing.T) {
 			"Differently named field",
 			"https://example.com/?foobar=2019-10-07T15:07:39-05:00",
 			"foobar",
+			[]string{time.RFC3339},
 			buildTime("2019-10-07T15:07:39-05:00"),
 			false,
 		},
@@ -202,6 +213,7 @@ func TestParseTime(t *testing.T) {
 			"Unparseable time",
 			"https://example.com/?time=bogus",
 			"time",
+			[]string{time.RFC3339},
 			time.Time{},
 			true,
 		},
@@ -209,8 +221,25 @@ func TestParseTime(t *testing.T) {
 			"Field missing from query",
 			"https://example.com/",
 			"time",
+			[]string{time.RFC3339},
 			time.Time{},
 			false,
+		},
+		{
+			"Mismatched layout",
+			"https://example.com/?time=2019-10-07T15:07:39-05:00",
+			"time",
+			[]string{"2006-01-02T15:04:05"},
+			time.Time{},
+			true,
+		},
+		{
+			"Invalid layout",
+			"https://example.com/?time=2019-10-07T15:07:39-05:00",
+			"time",
+			[]string{"invalid"},
+			time.Time{},
+			true,
 		},
 	}
 
@@ -219,7 +248,7 @@ func TestParseTime(t *testing.T) {
 			assert := assert.New(t)
 
 			r, _ := http.NewRequest(http.MethodGet, test.url, strings.NewReader(""))
-			maybeTime, err := ParseTime(r, test.fieldName)
+			maybeTime, err := ParseTime(r, test.fieldName, test.layouts)
 			assert.True((err == nil) != test.err)
 			assert.Equal(test.result, maybeTime)
 		})
