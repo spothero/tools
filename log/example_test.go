@@ -3,6 +3,7 @@ package log
 import (
     "context"
     "fmt"
+    "net/http"
 )
 
 // Initialize log package
@@ -23,4 +24,11 @@ func ExampleMiddlewareHTTP() {
   f := HTTPServerMiddleware
   fmt.Printf("%T", f)
   // Output: func(http.Handler) http.Handler
+}
+
+// Get a logging http.RoundTripper
+func ExampleRoundTripper() {
+  rt := (http.RoundTripper)(RoundTripper{})
+  fmt.Printf("%T", rt)
+  // Output: log.RoundTripper
 }
