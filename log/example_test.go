@@ -12,7 +12,7 @@ func ExampleInitialize() {
   c.InitializeLogger()
 }
 
-// Create a logger
+// Create logger
 func ExampleCreate() {
   logger := Get(context.Background())
   fmt.Printf("%T", logger)
@@ -26,7 +26,7 @@ func ExampleMiddlewareHTTP() {
   // Output: func(http.Handler) http.Handler
 }
 
-// Get a logging http.RoundTripper
+// Get logging http.RoundTripper
 func ExampleRoundTripper() {
   rt := (http.RoundTripper)(RoundTripper{})
   fmt.Printf("%T", rt)
