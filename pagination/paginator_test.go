@@ -18,27 +18,27 @@ func TestMinInt(t *testing.T) {
 	assert := assert.New(t)
 
 	tests := []struct {
-		name        string
-		first int
-		second int
+		name     string
+		first    int
+		second   int
 		expected int
 	}{
 		{
 			name:     "first input is larger",
-			first: 10,
-			second: 20,
+			first:    10,
+			second:   20,
 			expected: 10,
 		},
 		{
 			name:     "second input is larger",
-			first: 20,
-			second: 10,
+			first:    20,
+			second:   10,
 			expected: 10,
 		},
 		{
 			name:     "equal inputs",
-			first: 10,
-			second: 10,
+			first:    10,
+			second:   10,
 			expected: 10,
 		},
 	}
