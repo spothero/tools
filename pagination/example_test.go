@@ -10,6 +10,7 @@ func (o Thing) ExtractID() string {
 	return string(o)
 }
 
+// ExamplePagination is an exmple
 func ExamplePagination() {
 	pages := []Pageable{
 		Thing("foo"),
@@ -22,5 +23,5 @@ func ExamplePagination() {
 	page := GetPageAfterID(pages, "bar", 2)
 
 	fmt.Printf("%v", page)
-	//Output: [baz, boo]
+	//Output: [baz boo]
 }
