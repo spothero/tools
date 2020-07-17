@@ -68,7 +68,7 @@ func NewDefaultConfig(name string, serverRegistration func(*grpc.Server)) Config
 }
 
 // NewServer creates and returns a configured Server object given a GRPC configuration object.
-func (c Config) NewServer() Server {
+func (c *Config) NewServer() Server {
 	server := grpc.NewServer(
 		grpc.StreamInterceptor(
 			grpc_middleware.ChainStreamServer(
