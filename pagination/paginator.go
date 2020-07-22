@@ -1,10 +1,5 @@
 package pagination
 
-// IDExtractor extracts an ID from an untyped parameter. It's expected that
-// IDExtractors will downcast element to the expected type and panic if the
-// downcast fails.
-type IDExtractor func(element interface{}) interface{}
-
 func minInt(a, b int) int {
 	if a < b {
 		return a
