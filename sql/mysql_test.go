@@ -1,10 +1,19 @@
 package sql
 
 import (
+	"context"
 	"testing"
 
+	"github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestConnectionError(t *testing.T) {
+	c := &MySQLConfig{Config: mysql.Config{Net: "tcp", Addr: "1.2.3.4:-1"}}
+	_, _, err := c.Connect(context.Background(), WithMustRegister(false))
+	assert.Error(t, err)
+	assert.Equal(t, "dial tcp: address -1: invalid port", err.Error())
+}
 
 func TestMySQLConfig_loadCACert(t *testing.T) {
 	tests := []struct {
