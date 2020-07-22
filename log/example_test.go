@@ -11,7 +11,7 @@ func ExampleConfig() {
 	c := Config{UseDevelopmentLogger: true}
 	err := c.InitializeLogger()
 	fmt.Printf("%v", err)
-	// Output: nil
+	// Output: <nil>
 }
 
 // Create logger
