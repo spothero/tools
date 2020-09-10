@@ -48,7 +48,7 @@ func TestNewDefaultCircuitBreakerRoundTripper(t *testing.T) {
 			"host configuration is honored",
 			&mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
 			map[string]circuit.Config{
-				"host": circuit.Config{},
+				"host": {},
 			},
 			false,
 		},
