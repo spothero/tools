@@ -251,3 +251,12 @@ func TestClientMetrics_startUpdating(t *testing.T) {
 	time.Sleep(2 * time.Millisecond)
 	cancel()
 }
+
+func TestNewClient(t *testing.T) {
+	m := Config{
+		Config:     sarama.Config{MetricRegistry: metrics.NewRegistry()},
+		Registerer: prometheus.NewRegistry(),
+	}
+	_, err := m.NewClient(context.Background())
+	assert.NotNil(t, err)
+}
