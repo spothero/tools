@@ -30,4 +30,3 @@ help: ## Prints this help command
 .PHONY: format
 format: ## formats the codebase
 	gofmt -s -w .
-
