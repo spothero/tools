@@ -10,7 +10,7 @@ jobs:
       - run: make lint
   test:
     docker:
-      - image: circleci/golang:1.13
+      - image: circleci/golang:1.14
     working_directory: /tmp/tools
     steps:
       - checkout
