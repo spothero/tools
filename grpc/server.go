@@ -83,6 +83,7 @@ func (c Config) NewServer() Server {
 			),
 		),
 		grpc.MaxRecvMsgSize(maxMessageSizeBytes),
+		grpc.MaxSendMsgSize(maxMessageSizeBytes),
 	)
 	if c.ServerRegistration == nil {
 		panic("no server registration function provided")

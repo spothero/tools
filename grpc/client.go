@@ -64,7 +64,13 @@ func NewDefaultClientConfig(ctx context.Context) ClientConfig {
 			grpczap.StreamClientInterceptor(log.Get(ctx)),
 			grpcprom.StreamClientInterceptor,
 		},
-		Options: []grpc.DialOption{grpc.WithInsecure()},
+		Options: []grpc.DialOption{
+			grpc.WithInsecure(),
+			grpc.WithDefaultCallOptions(
+				grpc.MaxCallSendMsgSize(maxMessageSizeBytes),
+				grpc.MaxCallRecvMsgSize(maxMessageSizeBytes),
+			),
+		},
 	}
 }
 
