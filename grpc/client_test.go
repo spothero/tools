@@ -39,5 +39,5 @@ func TestGetConn(t *testing.T) {
 	}.GetConn()
 	assert.NoError(t, err)
 	assert.NotNil(t, conn)
-	conn.Close()
+	_ = conn.Close()
 }

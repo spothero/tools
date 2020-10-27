@@ -28,6 +28,8 @@ import (
 	"google.golang.org/grpc"
 )
 
+const maxMessageSizeBytes = 20000000 // This is 20mb
+
 // Config contains the configuration necessary for running a GRPC Server.
 type Config struct {
 	Name               string                         // Name of the GRPC Server
@@ -80,6 +82,8 @@ func (c *Config) NewServer() Server {
 				c.UnaryInterceptors...,
 			),
 		),
+		grpc.MaxRecvMsgSize(maxMessageSizeBytes),
+		grpc.MaxSendMsgSize(maxMessageSizeBytes),
 	)
 	if c.ServerRegistration == nil {
 		panic("no server registration function provided")

@@ -47,7 +47,7 @@ func GetContextAuth(jh JOSEHandler) func(context.Context) (context.Context, erro
 		claims := jh.GetClaims()
 		err = jh.ParseValidateJWT(bearerToken, claims...)
 		if err != nil {
-			log.Get(ctx).Debug("failed to parse and validate claims", zap.Error(err))
+			log.Get(ctx).Info("failed to parse and validate claims", zap.Error(err))
 			return ctx, status.Errorf(codes.Unauthenticated, invalidBearerToken)
 		}
 

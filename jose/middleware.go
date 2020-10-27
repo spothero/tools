@@ -64,7 +64,7 @@ func GetHTTPServerMiddleware(jh JOSEHandler) func(next http.Handler) http.Handle
 			bearerToken := strings.TrimPrefix(authHeader, bearerPrefix)
 			err := jh.ParseValidateJWT(bearerToken, claims...)
 			if err != nil {
-				logger.Debug("invalid bearer token", zap.Error(err))
+				logger.Info("failed to parse and validate claims", zap.Error(err))
 				http.Error(w, invalidBearerToken, http.StatusForbidden)
 				return
 			}

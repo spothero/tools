@@ -121,7 +121,7 @@ b9Ym/nxaqyTu0PxajXkKm5Q=
 	key, _ := x509.ParsePKCS8PrivateKey(block.Bytes)
 	rsaKey, _ := key.(*rsa.PrivateKey)
 	jwks := []*jose.JSONWebKeySet{
-		&jose.JSONWebKeySet{
+		{
 			Keys: []jose.JSONWebKey{
 				{
 					KeyID: "foobar",
