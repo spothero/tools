@@ -45,6 +45,7 @@ type Config struct {
 	HealthHandler    bool                                                               // If true, register a healthcheck endpoint at /health
 	MetricsHandler   bool                                                               // If true, register a Prometheus metrics endpoint at /metrics
 	PprofHandler     bool                                                               // If true, register pprof endpoints under /debug/pprof
+	DynamicLogLevel  bool                                                               // If true, register /log_level to modify the global log level
 	PreStart         func(ctx context.Context, router *mux.Router, server *http.Server) // A function to be called before starting the web server
 	PostShutdown     func(ctx context.Context)                                          // A function to be called before stopping the web server
 	RegisterHandlers func(*mux.Router)                                                  // Handler registration callback function. Register your routes in this function.
@@ -68,15 +69,16 @@ type Server struct {
 // invoke this function for a Config before providing further customization.
 func NewDefaultConfig(name string) Config {
 	return Config{
-		Name:           name,
-		Address:        "127.0.0.1",
-		Port:           8080,
-		ReadTimeout:    5,
-		WriteTimeout:   30,
-		HealthHandler:  true,
-		MetricsHandler: true,
-		PprofHandler:   true,
-		CancelSignals:  []os.Signal{os.Interrupt},
+		Name:            name,
+		Address:         "127.0.0.1",
+		Port:            8080,
+		ReadTimeout:     5,
+		WriteTimeout:    30,
+		HealthHandler:   true,
+		MetricsHandler:  true,
+		PprofHandler:    true,
+		DynamicLogLevel: true,
+		CancelSignals:   []os.Signal{os.Interrupt},
 	}
 }
 
@@ -100,6 +102,9 @@ func (c Config) NewServer() Server {
 	}
 	if c.MetricsHandler {
 		router.Handle("/metrics", promhttp.Handler())
+	}
+	if c.DynamicLogLevel {
+		log.RegisterLogLevelHandler(router)
 	}
 	if c.RegisterHandlers != nil {
 		c.RegisterHandlers(router)

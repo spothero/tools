@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/gorilla/mux"
 	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
@@ -36,6 +37,8 @@ var logger = zap.NewNop()
 
 // loggerMutex protects the logger from change by multiple threads
 var loggerMutex = &sync.Mutex{}
+
+var globalLogLevel = zap.NewAtomicLevel()
 
 // Config defines the necessary configuration for instantiating a Logger
 type Config struct {
@@ -74,6 +77,7 @@ func (c Config) InitializeLogger() error {
 		fmt.Printf("invalid log level %s - using INFO\n", c.Level)
 		level = zapcore.InfoLevel
 	}
+	globalLogLevel.SetLevel(level)
 	if c.UseDevelopmentLogger {
 		// Initialize logger with default development options
 		// which enables debug logging, uses console encoder, writes to
@@ -81,11 +85,11 @@ func (c Config) InitializeLogger() error {
 		// See https://godoc.org/go.uber.org/zap#NewDevelopmentConfig
 		logConfig = zap.NewDevelopmentConfig()
 		logConfig.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-		logConfig.Level = zap.NewAtomicLevelAt(level)
+		logConfig.Level = globalLogLevel
 		logConfig.InitialFields = c.Fields
 	} else {
 		logConfig = zap.Config{
-			Level:             zap.NewAtomicLevelAt(level),
+			Level:             globalLogLevel,
 			Development:       false,
 			DisableStacktrace: false,
 			Sampling: &zap.SamplingConfig{
@@ -146,4 +150,8 @@ func Get(ctx context.Context) *zap.Logger {
 		return ctxLogger
 	}
 	return logger
+}
+
+func RegisterLogLevelHandler(router *mux.Router) {
+	router.Handle("/loglevel", globalLogLevel)
 }
