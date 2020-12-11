@@ -152,6 +152,8 @@ func Get(ctx context.Context) *zap.Logger {
 	return logger
 }
 
+// RegisterLogLevelHandler registers an endpoint handler with the specified router to change the global log level
+// for the application.
 func RegisterLogLevelHandler(router *mux.Router) {
 	router.Handle("/loglevel", globalLogLevel)
 }

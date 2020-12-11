@@ -45,7 +45,7 @@ type Config struct {
 	HealthHandler    bool                                                               // If true, register a healthcheck endpoint at /health
 	MetricsHandler   bool                                                               // If true, register a Prometheus metrics endpoint at /metrics
 	PprofHandler     bool                                                               // If true, register pprof endpoints under /debug/pprof
-	DynamicLogLevel  bool                                                               // If true, register /log_level to modify the global log level
+	DynamicLogLevel  bool                                                               // If true, register /loglevel to modify the global log level
 	PreStart         func(ctx context.Context, router *mux.Router, server *http.Server) // A function to be called before starting the web server
 	PostShutdown     func(ctx context.Context)                                          // A function to be called before stopping the web server
 	RegisterHandlers func(*mux.Router)                                                  // Handler registration callback function. Register your routes in this function.
