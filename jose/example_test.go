@@ -32,9 +32,6 @@ func Example() {
 		ClaimGenerators: []jose.ClaimGenerator{
 			jose.CognitoGenerator{},
 		},
-		// If true, any HTTP or GRPC middleware will return unauthenticated errors for missing or
-		// invalid JWTs
-		AuthRequired: true,
 	}
 
 	// Instantiate the JOSE provider
@@ -46,9 +43,9 @@ func Example() {
 	// With the instantiated client, callers may choose to add HTTP Middleware and GRPC
 	// interceptors directly to their servers:
 	//
-	// httpMiddleware := jose.GetHTTPMiddleware(client, c.AuthRequired),
+	// httpMiddleware := jose.GetHTTPServerMiddleware(client),
 	//
-	// joseInterceptorFunc := jose.GetContextAuth(client, c.AuthRequired)
+	// joseInterceptorFunc := jose.GetContextAuth(client)
 	// grpcauth.UnaryServerInterceptor(joseInterceptorFunc)
 
 	// The instantiated client may also be used directly to parse and validate JWTs
