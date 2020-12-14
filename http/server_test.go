@@ -30,16 +30,17 @@ func TestNewDefaultConfig(t *testing.T) {
 	config := NewDefaultConfig("test")
 	// Ensure that the remaining fields are correctly configured
 	assert.Equal(t, Config{
-		Name:           "test",
-		Address:        "127.0.0.1",
-		Port:           8080,
-		ReadTimeout:    5,
-		WriteTimeout:   30,
-		HealthHandler:  true,
-		MetricsHandler: true,
-		PprofHandler:   true,
-		Middleware:     nil,
-		CancelSignals:  []os.Signal{os.Interrupt},
+		Name:            "test",
+		Address:         "127.0.0.1",
+		Port:            8080,
+		ReadTimeout:     5,
+		WriteTimeout:    30,
+		HealthHandler:   true,
+		MetricsHandler:  true,
+		PprofHandler:    true,
+		DynamicLogLevel: true,
+		Middleware:      nil,
+		CancelSignals:   []os.Signal{os.Interrupt},
 	}, config)
 }
 
@@ -57,6 +58,7 @@ func TestNewServer(t *testing.T) {
 		HealthHandler:    true,
 		MetricsHandler:   true,
 		PprofHandler:     true,
+		DynamicLogLevel:  true,
 		RegisterHandlers: mockRegistration,
 		PreStart:         mockPreStart,
 		PostShutdown:     mockPostShutdown,
@@ -77,6 +79,7 @@ func TestNewServer(t *testing.T) {
 		"/debug/pprof/symbol":  true,
 		"/debug/pprof/trace":   true,
 		"/metrics":             true,
+		"/loglevel":            true,
 	}
 	err := server.router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 		routeName, err := route.GetPathTemplate()
