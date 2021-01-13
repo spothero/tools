@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	shHTTP "github.com/spothero/tools/http"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -97,6 +98,10 @@ func buildSchemaRegistryServer(t *testing.T) *httptest.Server {
 			rw.WriteHeader(http.StatusNotFound)
 			_, _ = rw.Write(jsonResp)
 			assert.Equal(t, "{\"schema\":\"test schema\"}", readerToString(req.Body))
+		case "/subjects/test-subject-not-found-bad-json-value":
+			rw.WriteHeader(http.StatusNotFound)
+			_, _ = rw.Write([]byte("not json"))
+			assert.Equal(t, "{\"schema\":\"test schema\"}", readerToString(req.Body))
 		case "/subjects/test-subject-not-json-value":
 			_, _ = rw.Write([]byte("not json"))
 			assert.Equal(t, "{\"schema\":\"test schema\"}", readerToString(req.Body))
@@ -117,6 +122,10 @@ func buildSchemaRegistryServer(t *testing.T) *httptest.Server {
 			jsonResp, _ := json.Marshal(resp)
 			rw.WriteHeader(http.StatusUnprocessableEntity)
 			_, _ = rw.Write(jsonResp)
+			assert.Equal(t, "{\"schema\":\"test schema\"}", readerToString(req.Body))
+		case "/subjects/test-subject-unprocessable-bad-json-value/versions":
+			rw.WriteHeader(http.StatusUnprocessableEntity)
+			_, _ = rw.Write([]byte("not json"))
 			assert.Equal(t, "{\"schema\":\"test schema\"}", readerToString(req.Body))
 		case "/subjects/test-subject-not-json-value/versions":
 			_, _ = rw.Write([]byte("not json"))
@@ -225,6 +234,12 @@ func TestSchemaRegistryClient_CheckSchema(t *testing.T) {
 			error: "Subject not found., error code 40401",
 		},
 		{
+			name: "subject is not found in the schema registry",
+			subject: "test-subject-not-found-bad-json",
+			schema: "test schema",
+			error: "invalid character 'o' in literal null (expecting 'u')",
+		},
+		{
 			name: "schema registry returns bad json",
 			subject: "test-subject-not-json",
 			schema: "test schema",
@@ -306,6 +321,12 @@ func TestSchemaRegistryClient_CreateSchema(t *testing.T) {
 			subject: "test-subject-unprocessable",
 			schema: "test schema",
 			error: "Input schema is an invalid Avro schema, error code 42201",
+		},
+		{
+			name: "schema is not created due to incompatibility",
+			subject: "test-subject-unprocessable-bad-json",
+			schema: "test schema",
+			error: "invalid character 'o' in literal null (expecting 'u')",
 		},
 		{
 			name: "schema registry returns bad json",
@@ -488,4 +509,10 @@ func TestSchemaRegistryClient_DecodeKafkaAvroMessage(t *testing.T) {
 			assert.Equal(t, test.expected, outcome)
 		})
 	}
+}
+
+func TestSchemaRegistryClient_NewSchemaRegistryClient(t *testing.T) {
+	config := SchemaRegistryConfig{}
+	client := config.NewSchemaRegistryClient(shHTTP.Metrics{})
+	assert.NotNil(t, client)
 }
