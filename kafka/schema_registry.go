@@ -15,6 +15,7 @@
 package kafka
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"encoding/json"
@@ -37,6 +38,22 @@ type SchemaRegistryConfig struct {
 	URL string
 }
 
+type schemaRequest struct {
+	Schema string `json:"schema"`
+}
+
+type schemaResponse struct {
+	Subject string `json:"subject"`
+	Version int    `json:"version"`
+	Schema  string `json:"schema"`
+	ID      int    `json:"id"`
+}
+
+type errorResponse struct {
+	ErrorCode int `json:"error_code"`
+	Message string `json:"message"`
+}
+
 // RegisterFlags registers schema registry flags with pflags
 func (c *SchemaRegistryConfig) RegisterFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&c.URL, "kafka-schema-registry-url", "http://localhost:8081", "Kafka schema registry url")
@@ -54,7 +71,7 @@ type SchemaRegistryClient struct {
 }
 
 // NewSchemaRegistryClient creates a schema registry client with the given HTTP metrics bundle.
-func (c SchemaRegistryConfig) NewSchemaRegistryClient(httpMetrics shHTTP.Metrics) SchemaRegistryClient {
+func (c SchemaRegistryConfig) NewSchemaRegistryClient(httpMetrics shHTTP.Metrics) *SchemaRegistryClient {
 	retryRoundTripper := shHTTP.RetryRoundTripper{
 		RoundTripper: http.DefaultTransport,
 		RetriableStatusCodes: map[int]bool{
@@ -72,7 +89,7 @@ func (c SchemaRegistryConfig) NewSchemaRegistryClient(httpMetrics shHTTP.Metrics
 	tracingRoundTripper := tracing.RoundTripper{RoundTripper: retryRoundTripper}
 	loggingRoundTripper := log.RoundTripper{RoundTripper: tracingRoundTripper}
 	metricsRoundTripper := shHTTP.MetricsRoundTripper{RoundTripper: loggingRoundTripper, Metrics: httpMetrics}
-	return SchemaRegistryClient{
+	return &SchemaRegistryClient{
 		SchemaRegistryConfig: c,
 		client:               http.Client{Transport: metricsRoundTripper},
 		cache:                &sync.Map{},
@@ -83,9 +100,10 @@ func (c SchemaRegistryConfig) NewSchemaRegistryClient(httpMetrics shHTTP.Metrics
 const schemaRegistryAcceptFormat = "application/vnd.schemaregistry.v1+json"
 
 // GetSchema retrieves a textual JSON Avro schema from the Kafka schema registry
-func (c SchemaRegistryClient) GetSchema(ctx context.Context, id uint) (string, error) {
+func (c *SchemaRegistryClient) GetSchema(ctx context.Context, id uint) (string, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "get-avro-schema")
 	defer span.Finish()
+
 	endpoint := fmt.Sprintf("%s/schemas/ids/%d", c.URL, id)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
@@ -98,39 +116,122 @@ func (c SchemaRegistryClient) GetSchema(ctx context.Context, id uint) (string, e
 	}
 	switch response.StatusCode {
 	case http.StatusOK:
-		break
+		var schemaResponse schemaResponse
+		if err := json.NewDecoder(response.Body).Decode(&schemaResponse); err != nil {
+			return "", err
+		}
+		return schemaResponse.Schema, nil
 	case http.StatusNotFound:
 		return "", fmt.Errorf("schema %d not found", id)
 	default:
 		return "", fmt.Errorf(
-			"error while retrieving schema; schema registry returned bad status code %d", response.StatusCode)
+			"error while retrieving schema; schema registry returned unhandled status code %d", response.StatusCode)
 	}
-	var schemaResponse struct {
-		Schema string `json:"schema"`
-	}
-	if err := json.NewDecoder(response.Body).Decode(&schemaResponse); err != nil {
-		return "", err
-	}
-	return schemaResponse.Schema, nil
 }
 
-// DecodeKafkaAvroMessage decodes the given Kafka message encoded with Avro into a Go type.
-func (c SchemaRegistryClient) DecodeKafkaAvroMessage(ctx context.Context, message *sarama.ConsumerMessage) (interface{}, error) {
-	// bytes 1-4 are the schema id (big endian), bytes 5... is the message
-	// see: https://docs.confluent.io/current/schema-registry/docs/serializer-formatter.html#wire-format
-	if len(message.Value) < 5 {
-		return nil, fmt.Errorf("no schema id not found in Kafka message")
-	}
-	schemaIDBytes := message.Value[1:5]
-	messageBytes := message.Value[5:]
-	schemaID := uint(binary.BigEndian.Uint32(schemaIDBytes))
+// CheckSchema will check if the schema exists for the given subject
+func (c *SchemaRegistryClient) CheckSchema(ctx context.Context, subject string, schema string, isKey bool) (*schemaResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "check-avro-schema")
+	defer span.Finish()
 
+	concreteSubject := getConcreteSubject(subject, isKey)
+	endpoint := fmt.Sprintf("%s/subjects/%s", c.URL, concreteSubject)
+
+	schemaReq := schemaRequest{Schema: schema}
+	schemaBytes, err := json.Marshal(schemaReq)
+	if err != nil {
+		return nil, err
+	}
+	payload := bytes.NewBuffer(schemaBytes)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build schema registry http request: %w", err)
+	}
+
+	req.Header.Set("Accept", schemaRegistryAcceptFormat)
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		var schemaResponse = new(schemaResponse)
+		if err := json.NewDecoder(resp.Body).Decode(schemaResponse); err != nil {
+			return nil, err
+		}
+		return schemaResponse, nil
+	case http.StatusNotFound:
+		var errorResponse errorResponse
+		if err := json.NewDecoder(resp.Body).Decode(&errorResponse); err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("%s, error code %d", errorResponse.Message, errorResponse.ErrorCode)
+	default:
+		return nil, fmt.Errorf(
+			"error while checking schema; schema registry returned unhandled status code %d", resp.StatusCode)
+	}
+}
+
+// CreateSchema creates a new schema in Schema Registry.
+// The Schema Registry compares this against existing known schemas.  If this schema matches an existing schema, a new
+// schema will not be created and instead the existing ID will be returned.  This applies even if the schema is assgined
+// only to another subject.
+func (c *SchemaRegistryClient) CreateSchema(ctx context.Context, subject string, schema string, isKey bool) (*schemaResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "create-avro-schema")
+	defer span.Finish()
+
+	concreteSubject := getConcreteSubject(subject, isKey)
+	schemaReq := schemaRequest{Schema: schema}
+	endpoint := fmt.Sprintf("%s/subjects/%s/versions", c.URL, concreteSubject)
+	schemaBytes, err := json.Marshal(schemaReq)
+	if err != nil {
+		return nil, err
+	}
+	payload := bytes.NewBuffer(schemaBytes)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, payload)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Accept", schemaRegistryAcceptFormat)
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		var schemaResponse = new(schemaResponse)
+		if err := json.NewDecoder(resp.Body).Decode(schemaResponse); err != nil {
+			return nil, err
+		}
+		return schemaResponse, nil
+	case http.StatusConflict:
+		return nil, fmt.Errorf("incompatible schema")
+	case http.StatusUnprocessableEntity:
+		var errorResponse errorResponse
+		if err := json.NewDecoder(resp.Body).Decode(&errorResponse); err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("%s, error code %d", errorResponse.Message, errorResponse.ErrorCode)
+	default:
+		return nil, fmt.Errorf(
+			"error while creating schema; schema registry returned unhandled status code %d", resp.StatusCode)
+	}
+}
+
+// GetCodec returns an avro codec based on the provided schema id
+func (c *SchemaRegistryClient) GetCodec(ctx context.Context, id uint) (*goavro.Codec, error) {
 	var codec *goavro.Codec
-	codecIface, ok := c.cache.Load(schemaID)
+	codecIface, ok := c.cache.Load(id)
+
 	if ok {
 		codec = codecIface.(*goavro.Codec)
 	} else {
-		schema, err := c.GetSchema(ctx, schemaID)
+		schema, err := c.GetSchema(ctx, id)
 		if err != nil {
 			return nil, err
 		}
@@ -138,12 +239,42 @@ func (c SchemaRegistryClient) DecodeKafkaAvroMessage(ctx context.Context, messag
 		if err != nil {
 			return nil, err
 		}
-		c.cache.Store(schemaID, codec)
+		c.cache.Store(id, codec)
+	}
+
+	return codec, nil
+}
+
+// DecodeKafkaAvroMessage decodes the given Kafka message encoded with Avro into a Go type.
+func (c *SchemaRegistryClient) DecodeKafkaAvroMessage(ctx context.Context, message *sarama.ConsumerMessage) (interface{}, error) {
+	// bytes 1-4 are the schema id (big endian), bytes 5... is the message
+	// see: https://docs.confluent.io/current/schema-registry/docs/serializer-formatter.html#wire-format
+	if len(message.Value) < 5 {
+		return nil, fmt.Errorf("no schema id found in Kafka message")
+	}
+
+	schemaIDBytes := message.Value[1:5]
+	messageBytes := message.Value[5:]
+	schemaID := uint(binary.BigEndian.Uint32(schemaIDBytes))
+
+	codec, err := c.GetCodec(ctx, schemaID)
+	if err != nil {
+		return nil, err
 	}
 
 	decoded, _, err := codec.NativeFromBinary(messageBytes)
 	if err != nil {
 		return nil, err
 	}
+
 	return decoded, nil
+}
+
+func getConcreteSubject(subject string, isKey bool) string {
+	if isKey {
+		subject = fmt.Sprintf("%s-key", subject)
+	} else {
+		subject = fmt.Sprintf("%s-value", subject)
+	}
+	return subject
 }

@@ -267,7 +267,7 @@ func TestConnectAvroUnmarshaller_Unmarshal(t *testing.T) {
 			client := SchemaRegistryClient{
 				SchemaRegistryConfig: SchemaRegistryConfig{URL: "schema.registry"},
 				cache:                &sync.Map{},
-				client:               http.Client{Transport: &mockTransport{t: t}},
+				client:               http.Client{Transport: &mockTransport{t: t, expectedRequest: expectedRequestEmpty()}},
 			}
 			getSchema := client.client.Transport.(*mockTransport).On("RoundTrip", mock.Anything)
 			if test.avroDecodeErr {
