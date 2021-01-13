@@ -174,7 +174,10 @@ func (c *SchemaRegistryClient) CheckSchema(ctx context.Context, subject string, 
 	}
 }
 
-// CreateSchema creates a new schema in Schema Registry
+// CreateSchema creates a new schema in Schema Registry.
+// The Schema Registry compares this against existing known schemas.  If this schema matches an existing schema, a new
+// schema will not be created and instead the existing ID will be returned.  This applies even if the schema is assgined
+// only to another subject.
 func (c *SchemaRegistryClient) CreateSchema(ctx context.Context, subject string, schema string, isKey bool) (*schemaResponse, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "create-avro-schema")
 	defer span.Finish()
