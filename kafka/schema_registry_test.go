@@ -89,6 +89,9 @@ func buildSchemaRegistryServer(t *testing.T) *httptest.Server {
 		case "/subjects/test-subject-value":
 			_, _ = rw.Write(response)
 			assert.Equal(t, "{\"schema\":\"test schema\"}", readerToString(req.Body))
+		case "/subjects/test-subject-key/versions":
+			_, _ = rw.Write(response)
+			assert.Equal(t, "{\"schema\":\"test schema\"}", readerToString(req.Body))
 		case "/subjects/test-subject-not-found-value":
 			resp := errorResponse{
 				ErrorCode: 40401,
@@ -297,6 +300,7 @@ func TestSchemaRegistryClient_CreateSchema(t *testing.T) {
 		schema            string
 		error             string
 		url               string
+		isKey             bool
 		schemaResponse    *schemaResponse
 	}{
 		{
@@ -347,6 +351,18 @@ func TestSchemaRegistryClient_CreateSchema(t *testing.T) {
 			error: "parse \"💀:///subjects/test-subject-value/versions\": first path segment in URL cannot contain colon",
 			url: "💀://",
 		},
+		{
+			name: "schema is created in the schema registry for key",
+			subject: "test-subject",
+			schema: "test schema",
+			schemaResponse: &schemaResponse{
+				"test-subject",
+				1,
+				"test schema",
+				77,
+			},
+			isKey: true,
+		},
 	}
 
 	server := buildSchemaRegistryServer(t)
@@ -365,7 +381,7 @@ func TestSchemaRegistryClient_CreateSchema(t *testing.T) {
 				cache:                &sync.Map{},
 			}
 
-			schemaResponse, err := client.CreateSchema(context.Background(), test.subject, test.schema, false)
+			schemaResponse, err := client.CreateSchema(context.Background(), test.subject, test.schema, test.isKey)
 
 			if test.error == "" {
 				assert.NoError(t, err)
