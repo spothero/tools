@@ -71,7 +71,7 @@ type SchemaRegistryClient struct {
 }
 
 // NewSchemaRegistryClient creates a schema registry client with the given HTTP metrics bundle.
-func (c SchemaRegistryConfig) NewSchemaRegistryClient(httpMetrics shHTTP.Metrics) SchemaRegistryClient {
+func (c SchemaRegistryConfig) NewSchemaRegistryClient(httpMetrics shHTTP.Metrics) *SchemaRegistryClient {
 	retryRoundTripper := shHTTP.RetryRoundTripper{
 		RoundTripper: http.DefaultTransport,
 		RetriableStatusCodes: map[int]bool{
@@ -89,7 +89,7 @@ func (c SchemaRegistryConfig) NewSchemaRegistryClient(httpMetrics shHTTP.Metrics
 	tracingRoundTripper := tracing.RoundTripper{RoundTripper: retryRoundTripper}
 	loggingRoundTripper := log.RoundTripper{RoundTripper: tracingRoundTripper}
 	metricsRoundTripper := shHTTP.MetricsRoundTripper{RoundTripper: loggingRoundTripper, Metrics: httpMetrics}
-	return SchemaRegistryClient{
+	return &SchemaRegistryClient{
 		SchemaRegistryConfig: c,
 		client:               http.Client{Transport: metricsRoundTripper},
 		cache:                sync.Map{},
