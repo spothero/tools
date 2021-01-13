@@ -68,7 +68,6 @@ type SchemaRegistryClient struct {
 	SchemaRegistryConfig
 	client http.Client
 	cache  sync.Map
-	cacheLock sync.RWMutex
 }
 
 // NewSchemaRegistryClient creates a schema registry client with the given HTTP metrics bundle.
@@ -224,9 +223,7 @@ func (c *SchemaRegistryClient) CreateSchema(ctx context.Context, subject string,
 // GetCodec returns an avro codec based on the provided schema id
 func (c *SchemaRegistryClient) GetCodec(ctx context.Context, id uint) (*goavro.Codec, error) {
 	var codec *goavro.Codec
-	c.cacheLock.RLock()
 	codecIface, ok := c.cache.Load(id)
-	c.cacheLock.RUnlock()
 
 	if ok {
 		codec = codecIface.(*goavro.Codec)
@@ -239,9 +236,7 @@ func (c *SchemaRegistryClient) GetCodec(ctx context.Context, id uint) (*goavro.C
 		if err != nil {
 			return nil, err
 		}
-		c.cacheLock.Lock()
 		c.cache.Store(id, codec)
-		c.cacheLock.Unlock()
 	}
 
 	return codec, nil
