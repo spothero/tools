@@ -37,7 +37,6 @@ import (
 
 const avroSchema = `{"type": "record", "name": "test", "fields": [{"name": "name", "type": "string"}]}`
 const schemaID = uint(77)
-const schema = "it's a schema"
 
 type expectedRequest struct {
 	url         string
@@ -182,7 +181,7 @@ func TestSchemaRegistryClient_GetSchema(t *testing.T) {
 			client := SchemaRegistryClient{
 				SchemaRegistryConfig: SchemaRegistryConfig{URL: url},
 				client:               http.Client{},
-				cache:                sync.Map{},
+				cache:                &sync.Map{},
 			}
 
 			schema, err := client.GetSchema(context.Background(), test.schemaID)
@@ -259,7 +258,7 @@ func TestSchemaRegistryClient_CheckSchema(t *testing.T) {
 			client := SchemaRegistryClient{
 				SchemaRegistryConfig: SchemaRegistryConfig{URL: url},
 				client:               http.Client{},
-				cache:                sync.Map{},
+				cache:                &sync.Map{},
 			}
 
 			schemaResponse, err := client.CheckSchema(context.Background(), test.subject, test.schema, false)
@@ -342,7 +341,7 @@ func TestSchemaRegistryClient_CreateSchema(t *testing.T) {
 			client := SchemaRegistryClient{
 				SchemaRegistryConfig: SchemaRegistryConfig{URL: url},
 				client:               http.Client{},
-				cache:                sync.Map{},
+				cache:                &sync.Map{},
 			}
 
 			schemaResponse, err := client.CreateSchema(context.Background(), test.subject, test.schema, false)
@@ -460,7 +459,7 @@ func TestSchemaRegistryClient_DecodeKafkaAvroMessage(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			client := SchemaRegistryClient{
 				SchemaRegistryConfig: SchemaRegistryConfig{URL: "schema.registry"},
-				cache:                sync.Map{},
+				cache:                &sync.Map{},
 				client:               http.Client{Transport: &mockTransport{t: t, expectedRequest: expectedRequestEmpty()}},
 			}
 			if test.prePopulateCache {

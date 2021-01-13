@@ -67,7 +67,7 @@ func (c *SchemaRegistryConfig) RegisterFlags(flags *pflag.FlagSet) {
 type SchemaRegistryClient struct {
 	SchemaRegistryConfig
 	client http.Client
-	cache  sync.Map
+	cache  *sync.Map
 }
 
 // NewSchemaRegistryClient creates a schema registry client with the given HTTP metrics bundle.
@@ -92,7 +92,7 @@ func (c SchemaRegistryConfig) NewSchemaRegistryClient(httpMetrics shHTTP.Metrics
 	return &SchemaRegistryClient{
 		SchemaRegistryConfig: c,
 		client:               http.Client{Transport: metricsRoundTripper},
-		cache:                sync.Map{},
+		cache:                &sync.Map{},
 	}
 }
 
