@@ -35,13 +35,37 @@ type Metrics struct {
 	circuitBreakerOpen  *prometheus.CounterVec
 }
 
+// registerCollector will register the passed collector
+func registerCollector(registry prometheus.Registerer, collector prometheus.Collector, mustRegister bool) prometheus.Collector {
+	if mustRegister {
+		registry.MustRegister(collector)
+	} else {
+		if err := registry.Register(collector); err != nil {
+			if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+				// metric has been registered before so use existing metric
+				return are.ExistingCollector
+			} else {
+				// Something else went wrong so panic
+				panic(err)
+			}
+		}
+	}
+	return collector
+}
+
 // NewMetrics creates and returns a metrics bundle. The user may optionally
 // specify an existing Prometheus Registry. If no Registry is provided, the global Prometheus
 // Registry is used. Finally, if mustRegister is true, and a registration error is encountered,
-// the application will panic.
+// the application will panic.  If mustRegister is false,
 func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 	labels := []string{"path", "status_code"}
-	histogram := prometheus.NewHistogramVec(
+
+	// If the user has not provided a Prometheus Registry, use the global Registry
+	if registry == nil {
+		registry = prometheus.DefaultRegisterer
+	}
+
+	var histogram *prometheus.HistogramVec = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "http_request_duration_seconds",
 			Help: "Total duration histogram for the HTTP request",
@@ -50,6 +74,8 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 		},
 		labels,
 	)
+	histogram = registerCollector(registry, histogram, mustRegister).(*prometheus.HistogramVec)
+
 	clientHistogram := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "http_client_request_duration_seconds",
@@ -59,6 +85,8 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 		},
 		labels,
 	)
+	clientHistogram = registerCollector(registry, clientHistogram, mustRegister).(*prometheus.HistogramVec)
+
 	counter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "http_requests_total",
@@ -66,6 +94,8 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 		},
 		labels,
 	)
+	counter = registerCollector(registry, counter, mustRegister).(*prometheus.CounterVec)
+
 	clientCounter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "http_client_requests_total",
@@ -73,6 +103,8 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 		},
 		labels,
 	)
+	clientCounter = registerCollector(registry, clientCounter, mustRegister).(*prometheus.CounterVec)
+
 	contentLength := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "http_content_length_bytes",
@@ -82,6 +114,8 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 		},
 		labels,
 	)
+	contentLength = registerCollector(registry, contentLength, mustRegister).(*prometheus.HistogramVec)
+
 	clientContentLength := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "http_client_content_length_bytes",
@@ -91,6 +125,8 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 		},
 		labels,
 	)
+	clientContentLength = registerCollector(registry, clientContentLength, mustRegister).(*prometheus.HistogramVec)
+
 	circuitBreakerOpen := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "http_client_circuit_breaker_open_total",
@@ -98,27 +134,7 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 		},
 		[]string{"host"},
 	)
-	// If the user hasnt provided a Prometheus Registry, use the global Registry
-	if registry == nil {
-		registry = prometheus.DefaultRegisterer
-	}
-
-	toRegister := []prometheus.Collector{
-		histogram,
-		clientHistogram,
-		counter,
-		clientCounter,
-		contentLength,
-		clientContentLength,
-		circuitBreakerOpen,
-	}
-	for _, collector := range toRegister {
-		if mustRegister {
-			registry.MustRegister(collector)
-		} else {
-			_ = registry.Register(collector)
-		}
-	}
+	circuitBreakerOpen = registerCollector(registry, circuitBreakerOpen, mustRegister).(*prometheus.CounterVec)
 
 	return Metrics{
 		counter:             counter,
