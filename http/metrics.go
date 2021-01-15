@@ -55,8 +55,14 @@ func registerCollector(registry prometheus.Registerer, collector prometheus.Coll
 
 // NewMetrics creates and returns a metrics bundle. The user may optionally
 // specify an existing Prometheus Registry. If no Registry is provided, the global Prometheus
-// Registry is used. Finally, if mustRegister is true, and a registration error is encountered,
-// the application will panic.  If mustRegister is false,
+// Registry is used.
+//
+// Finally, if mustRegister is true and a registration error is encountered,
+// the application will panic.
+//
+// If mustRegister is false and registration failed due to the collector already being registered
+// then the existing collector will be returned.  But if registration failed for any other reason then
+// the application will panic.
 func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 	labels := []string{"path", "status_code"}
 
