@@ -270,6 +270,21 @@ func (c *SchemaRegistryClient) DecodeKafkaAvroMessage(ctx context.Context, messa
 	return decoded, nil
 }
 
+// EncodeKafkaAvroMessage encode the given Kafka message encoded with Avro into a Go type.
+func (c *SchemaRegistryClient) EncodeKafkaAvroMessage(ctx context.Context, schemaID uint, message interface{}) (interface{}, error) {
+	codec, err := c.GetCodec(ctx, schemaID)
+	if err != nil {
+		return nil, err
+	}
+
+	encoded, err := codec.BinaryFromNative(nil, message)
+	if err != nil {
+		return nil, err
+	}
+
+	return encoded, nil
+}
+
 func getConcreteSubject(subject string, isKey bool) string {
 	if isKey {
 		subject = fmt.Sprintf("%s-key", subject)
