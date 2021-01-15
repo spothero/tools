@@ -168,7 +168,7 @@ func (c *Core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 	event.Message = ent.Message
 	event.Level = severity
 	event.Logger = ent.LoggerName
-	event.Timestamp = ent.Time.Unix()
+	event.Timestamp = ent.Time
 	event.Extra = sentryExtra
 	event.Fingerprint = []string{fingerprint}
 	stackTrace := sentry.NewStacktrace()
