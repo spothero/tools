@@ -282,7 +282,7 @@ func (c *SchemaRegistryClient) EncodeKafkaAvroMessage(ctx context.Context, schem
 		return nil, err
 	}
 
-	return encoded, nil
+	return encodeAvro(schemaID, encoded)
 }
 
 func getConcreteSubject(subject string, isKey bool) string {
@@ -292,4 +292,19 @@ func getConcreteSubject(subject string, isKey bool) string {
 		subject = fmt.Sprintf("%s-value", subject)
 	}
 	return subject
+}
+
+// encodeAvro provides the schema registry compliant avro binary
+// Notice: the Confluent schema registry has special requirements for the Avro serialization rules,
+// not only need to serialize the specific content, but also attach the Schema ID and Magic Byte.
+// Ref: https://docs.confluent.io/current/schema-registry/serializer-formatter.html#wire-format
+func encodeAvro(schemaID uint, content []byte) ([]byte, error) {
+	var binaryMsg []byte
+	// Confluent serialization format version number; currently always 0.
+	binaryMsg = append(binaryMsg, byte(0))
+	binarySchemaID := make([]byte, 4)
+	binary.BigEndian.PutUint32(binarySchemaID, uint32(schemaID))
+	binaryMsg = append(binaryMsg, binarySchemaID...)
+	binaryMsg = append(binaryMsg, content...)
+	return binaryMsg, nil
 }

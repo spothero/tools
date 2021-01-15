@@ -16,6 +16,7 @@ package kafka
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -585,10 +586,10 @@ func TestSchemaRegistryClient_EncodeKafkaAvroMessage(t *testing.T) {
 				assert.Equal(t, test.errorMsg, err.Error())
 				assert.Nil(t, result)
 			} else {
+				assert.Equal(t, test.schemaID, uint(binary.BigEndian.Uint32(result[1:5])))
 				assert.NoError(t, err)
 				assert.NotNil(t, result)
 			}
-
 		})
 	}
 
