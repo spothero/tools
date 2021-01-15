@@ -16,6 +16,7 @@ package kafka
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -68,6 +69,16 @@ func buildSchemaRegistryServer(t *testing.T) *httptest.Server {
 		response, _ := json.Marshal(responsePayload)
 
 		switch req.URL.String() {
+		case "/schemas/ids/1":
+			response, _ := json.Marshal(
+				schemaResponse{
+					Subject: "test-subject",
+					Version: 1,
+					Schema:  avroSchema,
+					ID:      1,
+				})
+			assert.Equal(t, http.NoBody, req.Body)
+			_, _ = rw.Write(response)
 		case "/schemas/ids/77":
 			assert.Equal(t, http.NoBody, req.Body)
 			_, _ = rw.Write(response)
@@ -531,4 +542,55 @@ func TestSchemaRegistryClient_NewSchemaRegistryClient(t *testing.T) {
 	config := SchemaRegistryConfig{}
 	client := config.NewSchemaRegistryClient(shHTTP.Metrics{})
 	assert.NotNil(t, client)
+}
+
+func TestSchemaRegistryClient_EncodeKafkaAvroMessage(t *testing.T) {
+	tests := []struct {
+		name             string
+		msg              map[string]interface{}
+		schemaID         uint
+		errorMsg         string
+	}{
+		{
+			name: "decode avro message",
+			msg: map[string]interface{} {
+				"name": "test-name",
+			},
+			schemaID: 1,
+		},
+		{
+			name: "schema not found error",
+			schemaID: 100,
+			errorMsg: "schema 100 not found",
+		},
+		{
+			name: "message failure during decode",
+			schemaID: 1,
+			msg: map[string]interface{} {
+				"name": nil,
+			},
+			errorMsg: "cannot encode binary record \"test\" field \"name\": value does not match its schema: cannot encode binary bytes: expected: string; received: <nil>",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			server := buildSchemaRegistryServer(t)
+			client := SchemaRegistryClient{
+				SchemaRegistryConfig: SchemaRegistryConfig{URL: server.URL},
+				cache:                &sync.Map{},
+				client:               http.Client{},
+			}
+			result, err := client.EncodeKafkaAvroMessage(context.Background(), test.schemaID, test.msg)
+			if test.errorMsg != "" {
+				assert.NotNil(t, err)
+				assert.Equal(t, test.errorMsg, err.Error())
+				assert.Nil(t, result)
+			} else {
+				assert.Equal(t, test.schemaID, uint(binary.BigEndian.Uint32(result[1:5])))
+				assert.NoError(t, err)
+				assert.NotNil(t, result)
+			}
+		})
+	}
+
 }
