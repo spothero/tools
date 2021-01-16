@@ -15,6 +15,7 @@
 package http
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -27,6 +28,20 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type mockRegistry struct {
+	error error
+}
+
+func (s mockRegistry) Register(prometheus.Collector) error {
+	return s.error
+}
+
+func (s mockRegistry) MustRegister(...prometheus.Collector)  {}
+
+func (s mockRegistry) Unregister(prometheus.Collector) bool {
+	return true
+}
 
 func TestNewMetrics(t *testing.T) {
 	tests := []struct {
@@ -74,6 +89,10 @@ func TestNewMetrics(t *testing.T) {
 			assert.NotNil(t, metrics.clientContentLength)
 		})
 	}
+}
+
+func TestNewMetrics_RegistryErrorDoesNotPanic(t *testing.T) {
+	assert.Panics(t, func() { NewMetrics(mockRegistry{errors.New("some error")}, false) })
 }
 
 func TestMiddleware(t *testing.T) {

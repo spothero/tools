@@ -71,7 +71,7 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 		registry = prometheus.DefaultRegisterer
 	}
 
-	var histogram *prometheus.HistogramVec = prometheus.NewHistogramVec(
+	histogram := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "http_request_duration_seconds",
 			Help: "Total duration histogram for the HTTP request",
