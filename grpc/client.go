@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"time"
 
+	"crypto/tls"
 	"github.com/grpc-ecosystem/go-grpc-middleware"
 	grpczap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	grpcretry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
@@ -28,6 +29,7 @@ import (
 	"github.com/spothero/tools/log"
 	"github.com/spothero/tools/tracing"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 // ClientConfig contains the configuration necessary for connecting to a gRPC Server.
@@ -36,6 +38,7 @@ type ClientConfig struct {
 	Port                 uint16                         // Port on which the server is accessible
 	PropagateAuthHeaders bool                           // If true propagate any authorization header to the server
 	RetryServerErrors    bool                           // If true, the client will automatically retry on server errors
+	TLSEnabled           bool                           // If true, use TLS
 	UnaryInterceptors    []grpc.UnaryClientInterceptor  // Client unary interceptors to apply
 	StreamInterceptors   []grpc.StreamClientInterceptor // Client stream interceptors to apply
 	Options              []grpc.DialOption              // Additional server options
@@ -65,7 +68,6 @@ func NewDefaultClientConfig(ctx context.Context) ClientConfig {
 			grpcprom.StreamClientInterceptor,
 		},
 		Options: []grpc.DialOption{
-			grpc.WithInsecure(),
 			grpc.WithDefaultCallOptions(
 				grpc.MaxCallSendMsgSize(maxMessageSizeBytes),
 				grpc.MaxCallRecvMsgSize(maxMessageSizeBytes),
@@ -77,6 +79,11 @@ func NewDefaultClientConfig(ctx context.Context) ClientConfig {
 // GetConn dials and returns a gRPC connection. It is the responsibility of the caller to make sure
 // they call `conn.Close()` through a defer statement or otherwise.
 func (cc ClientConfig) GetConn() (*grpc.ClientConn, error) {
+	if cc.TLSEnabled {
+		cc.Options = append(cc.Options, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})))
+	} else {
+		cc.Options = append(cc.Options, grpc.WithInsecure())
+	}
 	if cc.PropagateAuthHeaders {
 		cc.UnaryInterceptors = append(cc.UnaryInterceptors, jose.UnaryClientInterceptor)
 		cc.StreamInterceptors = append(cc.StreamInterceptors, jose.StreamClientInterceptor)
