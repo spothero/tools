@@ -50,7 +50,7 @@ func NewDefaultClientConfig(ctx context.Context) ClientConfig {
     return cc
 }
 
-// NewDefaultClientConfig returns the default SpotHero gRPC TLS Client Configuration
+// NewDefaultTLSClientConfig returns the default SpotHero gRPC TLS Client Configuration
 func NewDefaultTLSClientConfig(ctx context.Context) ClientConfig {
     cc := defaultClientConfig(ctx)
     cc.Options = append(cc.Options, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})))
