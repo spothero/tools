@@ -27,6 +27,7 @@ import (
 	grpcprom "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/spf13/cobra"
 	"github.com/spothero/tools/cli"
+	"github.com/spothero/tools/cors"
 	shGRPC "github.com/spothero/tools/grpc"
 	shHTTP "github.com/spothero/tools/http"
 	"github.com/spothero/tools/jose"
@@ -98,6 +99,8 @@ func (c Config) ServerCmd(
 	sc := sentry.Config{AppVersion: c.Version}
 	// Tracing Config
 	tc := tracing.Config{ServiceName: c.Name}
+	// CORS Config
+	cc := cors.Config{}
 	// Jose Config
 	jc := jose.Config{
 		ClaimGenerators: []jose.ClaimGenerator{
@@ -139,6 +142,14 @@ func (c Config) ServerCmd(
 				tracing.StreamServerInterceptor,
 				log.StreamServerInterceptor,
 				grpcprom.StreamServerInterceptor,
+			}
+
+			// Add CORS Middleware
+			if cc.EnableMiddleware {
+				httpConfig.Middleware = append(
+					httpConfig.Middleware,
+					cc.GetHTTPServerMiddleware(),
+				)
 			}
 
 			// Add JOSE Auth interceptors
@@ -228,6 +239,7 @@ func (c Config) ServerCmd(
 	lc.RegisterFlags(flags)
 	sc.RegisterFlags(flags)
 	tc.RegisterFlags(flags)
+	cc.RegisterFlags(flags)
 	jc.RegisterFlags(flags)
 	return cmd
 }
