@@ -41,3 +41,14 @@ func TestGetConn(t *testing.T) {
 	assert.NotNil(t, conn)
 	_ = conn.Close()
 }
+func TestGetTLSConn(t *testing.T) {
+	conn, err := ClientConfig{
+		PropagateAuthHeaders: true,
+		RetryServerErrors:    true,
+		TLSEnabled:           true,
+		Options:              []grpc.DialOption{},
+	}.GetConn()
+	assert.NoError(t, err)
+	assert.NotNil(t, conn)
+	_ = conn.Close()
+}
