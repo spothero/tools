@@ -21,5 +21,5 @@ func (c *Config) RegisterFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&c.EnableMiddleware, "cors-enable-middleware", c.EnableMiddleware, "Specify whether or not CORS middleware is enabled to  enforce policies on cross origin requests")
 	flags.StringVar(&c.AllowedOrigins, "cors-allowed-origins", c.AllowedOrigins, "Specify which origin(s) allow responses to be populated with headers to allow cross origin requests (e.g. \"*\") or \"https://example.com\")")
 	flags.StringVar(&c.AllowedMethods, "cors-allowed-methods", c.AllowedMethods, "Specify which method(s) allow responses to be populated with headers to allow cross origin requests (e.g. \"POST, GET, OPTIONS, PUT, DELETE\")")
-	flags.StringVar(&c.AllowedMethods, "cors-allowed-headers", c.AllowedHeaders, "Specify which header(s) which headers are allowed for cross origin requests (e.g. \"*\" or \"Accept, Content-Type, Content-Length\")")
+	flags.StringVar(&c.AllowedHeaders, "cors-allowed-headers", c.AllowedHeaders, "Specify which header(s) are allowed for cross origin requests (e.g. \"*\" or \"Accept, Content-Type, Content-Length\")")
 }
