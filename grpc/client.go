@@ -38,14 +38,26 @@ type ClientConfig struct {
 	Port                 uint16                         // Port on which the server is accessible
 	PropagateAuthHeaders bool                           // If true propagate any authorization header to the server
 	RetryServerErrors    bool                           // If true, the client will automatically retry on server errors
-	TLSEnabled           bool                           // If true, use TLS
 	UnaryInterceptors    []grpc.UnaryClientInterceptor  // Client unary interceptors to apply
 	StreamInterceptors   []grpc.StreamClientInterceptor // Client stream interceptors to apply
 	Options              []grpc.DialOption              // Additional server options
 }
 
-// NewDefaultClientConfig returns the default SpotHero gRPC Client Configuration
+// NewDefaultClientConfig returns the default SpotHero gRPC plaintext Client Configuration
 func NewDefaultClientConfig(ctx context.Context) ClientConfig {
+    cc := defaultClientConfig(ctx)
+    cc.Options = append(cc.Options, grpc.WithInsecure())
+    return cc
+}
+
+// NewDefaultClientConfig returns the default SpotHero gRPC TLS Client Configuration
+func NewDefaultTLSClientConfig(ctx context.Context) ClientConfig {
+    cc := defaultClientConfig(ctx)
+    cc.Options = append(cc.Options, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})))
+    return cc
+}
+
+func defaultClientConfig(ctx context.Context) ClientConfig {
 	grpcprom.EnableClientHandlingTimeHistogram()
 	grpcprom.EnableClientStreamReceiveTimeHistogram()
 	grpcprom.EnableClientStreamSendTimeHistogram()
@@ -79,11 +91,6 @@ func NewDefaultClientConfig(ctx context.Context) ClientConfig {
 // GetConn dials and returns a gRPC connection. It is the responsibility of the caller to make sure
 // they call `conn.Close()` through a defer statement or otherwise.
 func (cc ClientConfig) GetConn() (*grpc.ClientConn, error) {
-	if cc.TLSEnabled {
-		cc.Options = append(cc.Options, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})))
-	} else {
-		cc.Options = append(cc.Options, grpc.WithInsecure())
-	}
 	if cc.PropagateAuthHeaders {
 		cc.UnaryInterceptors = append(cc.UnaryInterceptors, jose.UnaryClientInterceptor)
 		cc.StreamInterceptors = append(cc.StreamInterceptors, jose.StreamClientInterceptor)

@@ -31,22 +31,20 @@ func TestNewDefaultClientConfig(t *testing.T) {
 	assert.NotNil(t, cc.Options)
 }
 
+func TestNewDefaultTLSClientConfig(t *testing.T) {
+	cc := NewDefaultTLSClientConfig(context.Background())
+	assert.Equal(t, "localhost", cc.Address)
+	assert.Equal(t, uint16(9111), cc.Port)
+	assert.NotNil(t, cc.UnaryInterceptors)
+	assert.NotNil(t, cc.StreamInterceptors)
+	assert.NotNil(t, cc.Options)
+}
+
 func TestGetConn(t *testing.T) {
 	conn, err := ClientConfig{
 		PropagateAuthHeaders: true,
 		RetryServerErrors:    true,
 		Options:              []grpc.DialOption{grpc.WithInsecure()},
-	}.GetConn()
-	assert.NoError(t, err)
-	assert.NotNil(t, conn)
-	_ = conn.Close()
-}
-func TestGetTLSConn(t *testing.T) {
-	conn, err := ClientConfig{
-		PropagateAuthHeaders: true,
-		RetryServerErrors:    true,
-		TLSEnabled:           true,
-		Options:              []grpc.DialOption{},
 	}.GetConn()
 	assert.NoError(t, err)
 	assert.NotNil(t, conn)
