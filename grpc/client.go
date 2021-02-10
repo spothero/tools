@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"time"
 
+	"crypto/tls"
 	"github.com/grpc-ecosystem/go-grpc-middleware"
 	grpczap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	grpcretry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
@@ -28,6 +29,7 @@ import (
 	"github.com/spothero/tools/log"
 	"github.com/spothero/tools/tracing"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 // ClientConfig contains the configuration necessary for connecting to a gRPC Server.
@@ -41,8 +43,21 @@ type ClientConfig struct {
 	Options              []grpc.DialOption              // Additional server options
 }
 
-// NewDefaultClientConfig returns the default SpotHero gRPC Client Configuration
+// NewDefaultClientConfig returns the default SpotHero gRPC plaintext Client Configuration
 func NewDefaultClientConfig(ctx context.Context) ClientConfig {
+    cc := defaultClientConfig(ctx)
+    cc.Options = append(cc.Options, grpc.WithInsecure())
+    return cc
+}
+
+// NewDefaultTLSClientConfig returns the default SpotHero gRPC TLS Client Configuration
+func NewDefaultTLSClientConfig(ctx context.Context) ClientConfig {
+    cc := defaultClientConfig(ctx)
+    cc.Options = append(cc.Options, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})))
+    return cc
+}
+
+func defaultClientConfig(ctx context.Context) ClientConfig {
 	grpcprom.EnableClientHandlingTimeHistogram()
 	grpcprom.EnableClientStreamReceiveTimeHistogram()
 	grpcprom.EnableClientStreamSendTimeHistogram()
@@ -65,7 +80,6 @@ func NewDefaultClientConfig(ctx context.Context) ClientConfig {
 			grpcprom.StreamClientInterceptor,
 		},
 		Options: []grpc.DialOption{
-			grpc.WithInsecure(),
 			grpc.WithDefaultCallOptions(
 				grpc.MaxCallSendMsgSize(maxMessageSizeBytes),
 				grpc.MaxCallRecvMsgSize(maxMessageSizeBytes),
