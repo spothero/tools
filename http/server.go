@@ -23,6 +23,7 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spothero/tools/http/writer"
@@ -87,6 +88,7 @@ func NewDefaultConfig(name string) Config {
 // in the config as a convenience.
 func (c Config) NewServer() Server {
 	router := mux.NewRouter()
+	router.Use(handlers.CompressHandler)
 	router.Use(writer.StatusRecorderMiddleware)
 	router.Use(c.Middleware...)
 	if c.HealthHandler {

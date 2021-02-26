@@ -13,6 +13,7 @@ require (
 	github.com/getsentry/sentry-go v0.9.0
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/golang/snappy v0.0.2 // indirect
+	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.2
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.1-0.20191002090509-6af20e3a5340
