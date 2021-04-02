@@ -35,7 +35,8 @@ type Auth0Generator struct{}
 // UserID and ClientID will not be populated together.
 type Auth0Claim struct {
 	ID        string `json:"sub"`
-	Email     string `json:"email"`
+	// Email claims are namespaced to prevent collisions. Hardcoding for now as this will be constant.
+	Email     string `json:"https://api.spothero.com/claims/email"`
 	GrantType string `json:"gty"`
 }
 
