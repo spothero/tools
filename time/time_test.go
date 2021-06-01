@@ -137,6 +137,46 @@ func TestIncMonth(t *testing.T) {
 	}
 }
 
+func TestIncWeek(t *testing.T) {
+	tests := []struct {
+		name   string
+		in     time.Time
+		count  int
+		expect time.Time
+	}{
+		{
+			"Increment Week by 1",
+			time.Date(2021, time.June, 1, 0, 0, 0, 0, time.UTC),
+			1,
+			time.Date(2021, time.June, 8, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			"Decrement Week by 1",
+			time.Date(2021, time.June, 1, 0, 0, 0, 0, time.UTC),
+			-1,
+			time.Date(2021, time.May, 25, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			"Increment Week by 2",
+			time.Date(2021, time.June, 1, 0, 0, 0, 0, time.UTC),
+			2,
+			time.Date(2021, time.June, 15, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			"Decrement Week by 2",
+			time.Date(2021, time.June, 1, 0, 0, 0, 0, time.UTC),
+			-2,
+			time.Date(2021, time.May, 18, 0, 0, 0, 0, time.UTC),
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := IncWeek(test.in, test.count)
+			assert.Equal(t, test.expect, result)
+		})
+	}
+}
+
 func TestIncDay(t *testing.T) {
 	tests := []struct {
 		name   string
