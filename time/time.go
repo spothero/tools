@@ -15,6 +15,7 @@
 package time
 
 import (
+	"fmt"
 	"sync"
 	"time"
 )
@@ -46,4 +47,42 @@ func LoadLocation(name string) (*time.Location, error) {
 	defer locCache.mutex.Unlock()
 	locCache.cache[name] = loc
 	return loc, nil
+}
+
+// IncYear increments time t by count number of years
+func IncYear(t time.Time, count int) time.Time {
+	return t.AddDate(1*count, 0, 0)
+}
+
+// IncMonth increments time t by count number of months
+func IncMonth(t time.Time, count int) time.Time {
+	return t.AddDate(0, 1*count, 0)
+}
+
+// IncWeek increments time t by count number of weeks
+func IncWeek(t time.Time, count int) time.Time {
+	return t.AddDate(0, 0, (1*7)*count)
+}
+
+// IncDay increments time t by count number of days
+func IncDay(t time.Time, count int) time.Time {
+	return t.AddDate(0, 0, 1*count)
+}
+
+// IncHour increments time t by count number of hours
+func IncHour(t time.Time, count int) time.Time {
+	d, _ := time.ParseDuration(fmt.Sprintf("%vh", count))
+	return t.Add(d)
+}
+
+// IncMinute increments time t by count number of minutes
+func IncMinute(t time.Time, count int) time.Time {
+	d, _ := time.ParseDuration(fmt.Sprintf("%vm", count))
+	return t.Add(d)
+}
+
+// IncSecond increments time t by count number of seconds
+func IncSecond(t time.Time, count int) time.Time {
+	d, _ := time.ParseDuration(fmt.Sprintf("%vs", count))
+	return t.Add(d)
 }
