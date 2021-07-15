@@ -32,6 +32,10 @@ func TestConfig(t *testing.T) {
 	dsn, err := flags.GetString("sentry-dsn")
 	assert.NoError(t, err)
 	assert.Equal(t, "", dsn)
+
+	enabled, err := flags.GetBool("sentry-logger-enabled")
+	assert.NoError(t, err)
+	assert.Equal(t, true, enabled)
 }
 
 func TestInitializeSentry(t *testing.T) {
