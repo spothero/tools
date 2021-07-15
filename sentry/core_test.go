@@ -31,15 +31,12 @@ func (sm StringerMock) String() string {
 	return "stringer-mock"
 }
 
-type TransportMock struct {
-	flushCalled bool
-}
+type TransportMock struct{}
 
 func (t TransportMock) Configure(options sentry.ClientOptions) {}
 func (t TransportMock) SendEvent(event *sentry.Event)          {}
 func (t TransportMock) Events() []*sentry.Event                { return nil }
 func (t TransportMock) Flush(timeout time.Duration) bool {
-	t.flushCalled = true
 	return true
 }
 
