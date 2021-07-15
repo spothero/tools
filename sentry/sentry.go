@@ -24,17 +24,23 @@ type Config struct {
 	DSN         string
 	Environment string
 	AppVersion  string
+	Enabled     bool
 }
 
 // RegisterFlags registers Sentry flags with pflags
 func (c *Config) RegisterFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&c.DSN, "sentry-dsn", "", "Sentry DSN")
+	flags.BoolVarP(&c.Enabled, "sentry-logger-enabled", "t", true, "Enable Sentry")
 }
 
 // InitializeSentry Initializes the Sentry client. This function should be called as soon as
 // possible after the application configuration is loaded so that sentry
 // is setup.
 func (c Config) InitializeSentry() error {
+	if !c.Enabled {
+		return nil
+	}
+
 	opts := sentry.ClientOptions{
 		Dsn:         c.DSN,
 		Environment: c.Environment,

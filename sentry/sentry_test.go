@@ -17,6 +17,7 @@ package sentry
 import (
 	"testing"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 )
@@ -34,5 +35,37 @@ func TestConfig(t *testing.T) {
 }
 
 func TestInitializeSentry(t *testing.T) {
-	assert.NoError(t, Config{}.InitializeSentry())
+	tests := []struct {
+		name                string
+		config              Config
+		expectClientCreated bool
+	}{
+		{
+			"successfully initialize sentry",
+			Config{Enabled: true},
+			true,
+		},
+		{
+			"no client created when sentry is disabled",
+			Config{
+				Enabled: false,
+			},
+			false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.NoError(t, test.config.InitializeSentry())
+
+			sentryClient := sentry.CurrentHub().Client()
+			if test.expectClientCreated {
+				assert.NotNil(t, sentryClient)
+			} else {
+				assert.Nil(t, sentryClient)
+			}
+
+			// Reset client
+			sentry.CurrentHub().BindClient(nil)
+		})
+	}
 }
