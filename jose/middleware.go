@@ -37,6 +37,7 @@ const (
 	bearerPrefixNotFound = "authorization header did not include bearer prefix"
 	invalidBearerToken   = "bearer token is invalid"
 	cannotFindClaim      = "unable to locate token claim which is required to authorize on scope"
+	missingRequiredScope = "missing required scope"
 )
 
 // GetHTTPServerMiddleware returns an HTTP middleware function which extracts the Authorization
@@ -200,7 +201,7 @@ func EnforceAuthenticationWithAuthorization(next http.HandlerFunc, params AuthPa
 				if !hasScope(requiredScope, scope) {
 					metrics.authFailureCounter.With(labels).Inc()
 					w.Header().Set("WWW-Authenticate", "Bearer")
-					http.Error(w, cannotFindClaim, http.StatusForbidden)
+					http.Error(w, missingRequiredScope, http.StatusForbidden)
 					return
 				}
 			}
