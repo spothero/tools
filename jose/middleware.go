@@ -206,6 +206,7 @@ func EnforceAuthenticationWithAuthorization(next http.HandlerFunc, params AuthPa
 
 		hasRequiredScope, message := validateRequiredScope(r, params)
 		if !hasRequiredScope {
+			logger.Debug("authorization enforcement failed on request")
 			metrics.authFailureCounter.With(labels).Inc()
 			w.Header().Set("WWW-Authenticate", "Bearer")
 			http.Error(w, message, http.StatusForbidden)
