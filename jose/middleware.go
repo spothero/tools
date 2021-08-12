@@ -164,9 +164,9 @@ func validateRequiredScope(r *http.Request, params AuthParams) error {
 			return fmt.Errorf(cannotFindClaim)
 		}
 
-		scope := strings.Split(claim.Scope, " ")
+		tokenScopes := strings.Split(claim.Scope, " ")
 		for _, requiredScope := range params.requiredScopes {
-			if !hasScope(requiredScope, scope) {
+			if !hasScope(requiredScope, tokenScopes) {
 				return fmt.Errorf(missingRequiredScope)
 			}
 		}
