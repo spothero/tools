@@ -157,6 +157,23 @@ type AuthParams struct {
 	requiredScopes []string
 }
 
+func validateRequiredScope(r *http.Request, params AuthParams) (valid bool, message string) {
+	if params.requiredScopes != nil {
+		claim, err := FromContext(r.Context())
+		if err != nil {
+			return false, cannotFindClaim
+		}
+
+		scope := strings.Split(claim.Scope, " ")
+		for _, requiredScope := range params.requiredScopes {
+			if !hasScope(requiredScope, scope) {
+				return false, missingRequiredScope
+			}
+		}
+	}
+	return true, ""
+}
+
 func hasScope(requiredScope string, scope []string) bool {
 	for i := range scope {
 		if scope[i] == requiredScope {
@@ -187,24 +204,12 @@ func EnforceAuthenticationWithAuthorization(next http.HandlerFunc, params AuthPa
 			return
 		}
 
-		if params.requiredScopes != nil {
-			claim, err := FromContext(r.Context())
-			if err != nil {
-				metrics.authFailureCounter.With(labels).Inc()
-				w.Header().Set("WWW-Authenticate", "Bearer")
-				http.Error(w, cannotFindClaim, http.StatusForbidden)
-				return
-			}
-
-			scope := strings.Split(claim.Scope, " ")
-			for _, requiredScope := range params.requiredScopes {
-				if !hasScope(requiredScope, scope) {
-					metrics.authFailureCounter.With(labels).Inc()
-					w.Header().Set("WWW-Authenticate", "Bearer")
-					http.Error(w, missingRequiredScope, http.StatusForbidden)
-					return
-				}
-			}
+		hasRequiredScope, message := validateRequiredScope(r, params)
+		if !hasRequiredScope {
+			metrics.authFailureCounter.With(labels).Inc()
+			w.Header().Set("WWW-Authenticate", "Bearer")
+			http.Error(w, message, http.StatusForbidden)
+			return
 		}
 
 		logger.Debug("authentication successfully enforced on request")
