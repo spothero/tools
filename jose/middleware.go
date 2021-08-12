@@ -157,21 +157,21 @@ type AuthParams struct {
 	requiredScopes []string
 }
 
-func validateRequiredScope(r *http.Request, params AuthParams) (valid bool, message string) {
+func validateRequiredScope(r *http.Request, params AuthParams) error {
 	if params.requiredScopes != nil {
 		claim, err := FromContext(r.Context())
 		if err != nil {
-			return false, cannotFindClaim
+			return fmt.Errorf(cannotFindClaim)
 		}
 
 		scope := strings.Split(claim.Scope, " ")
 		for _, requiredScope := range params.requiredScopes {
 			if !hasScope(requiredScope, scope) {
-				return false, missingRequiredScope
+				return fmt.Errorf(missingRequiredScope)
 			}
 		}
 	}
-	return true, ""
+	return nil
 }
 
 func hasScope(requiredScope string, scope []string) bool {
@@ -204,11 +204,10 @@ func EnforceAuthenticationWithAuthorization(next http.HandlerFunc, params AuthPa
 			return
 		}
 
-		hasRequiredScope, message := validateRequiredScope(r, params)
-		if !hasRequiredScope {
+		if err := validateRequiredScope(r, params); err != nil {
 			logger.Debug("authorization enforcement failed on request")
 			metrics.authFailureCounter.With(labels).Inc()
-			http.Error(w, message, http.StatusForbidden)
+			http.Error(w, err.Error(), http.StatusForbidden)
 			return
 		}
 
