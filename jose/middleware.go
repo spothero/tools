@@ -23,6 +23,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spothero/tools/http/writer"
 	"github.com/spothero/tools/log"
+	tools_strings "github.com/spothero/tools/strings"
 	"go.uber.org/zap"
 )
 
@@ -166,21 +167,12 @@ func validateRequiredScope(r *http.Request, params AuthParams) error {
 
 		tokenScopes := strings.Split(claim.Scope, " ")
 		for _, requiredScope := range params.requiredScopes {
-			if !hasScope(requiredScope, tokenScopes) {
+			if !tools_strings.StringInSlice(requiredScope, tokenScopes) {
 				return fmt.Errorf(missingRequiredScope)
 			}
 		}
 	}
 	return nil
-}
-
-func hasScope(requiredScope string, scope []string) bool {
-	for i := range scope {
-		if scope[i] == requiredScope {
-			return true
-		}
-	}
-	return false
 }
 
 func EnforceAuthenticationWithAuthorization(next http.HandlerFunc, params AuthParams) http.HandlerFunc {
