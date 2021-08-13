@@ -50,8 +50,8 @@ type schemaResponse struct {
 }
 
 type errorResponse struct {
-	ErrorCode int `json:"error_code"`
-	Message string `json:"message"`
+	ErrorCode int    `json:"error_code"`
+	Message   string `json:"message"`
 }
 
 // RegisterFlags registers schema registry flags with pflags

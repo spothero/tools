@@ -48,7 +48,7 @@ type expectedRequest struct {
 
 type mockTransport struct {
 	mock.Mock
-	t *testing.T
+	t               *testing.T
 	expectedRequest expectedRequest
 }
 
@@ -85,7 +85,7 @@ func buildSchemaRegistryServer(t *testing.T) *httptest.Server {
 		case "/schemas/ids/100":
 			resp := errorResponse{
 				ErrorCode: 40403,
-				Message: "Schema not found",
+				Message:   "Schema not found",
 			}
 			jsonResp, _ := json.Marshal(resp)
 			rw.WriteHeader(http.StatusNotFound)
@@ -106,7 +106,7 @@ func buildSchemaRegistryServer(t *testing.T) *httptest.Server {
 		case "/subjects/test-subject-not-found-value":
 			resp := errorResponse{
 				ErrorCode: 40401,
-				Message: "Subject not found.",
+				Message:   "Subject not found.",
 			}
 			jsonResp, _ := json.Marshal(resp)
 			rw.WriteHeader(http.StatusNotFound)
@@ -131,7 +131,7 @@ func buildSchemaRegistryServer(t *testing.T) *httptest.Server {
 		case "/subjects/test-subject-unprocessable-value/versions":
 			resp := errorResponse{
 				ErrorCode: 42201,
-				Message: "Input schema is an invalid Avro schema",
+				Message:   "Input schema is an invalid Avro schema",
 			}
 			jsonResp, _ := json.Marshal(resp)
 			rw.WriteHeader(http.StatusUnprocessableEntity)
@@ -154,40 +154,39 @@ func buildSchemaRegistryServer(t *testing.T) *httptest.Server {
 	}))
 }
 
-
 func TestSchemaRegistryClient_GetSchema(t *testing.T) {
 
 	tests := []struct {
-		name              string
-		schemaID          uint
-		schema            string
-		error             string
-		url               string
+		name     string
+		schemaID uint
+		schema   string
+		error    string
+		url      string
 	}{
 		{
-			name: "schema is retrieved from schema registry",
+			name:     "schema is retrieved from schema registry",
 			schemaID: 77,
-			schema: "test schema",
+			schema:   "test schema",
 		},
 		{
-			name: "404 returns error",
+			name:     "404 returns error",
 			schemaID: 100,
-			error: "schema 100 not found",
+			error:    "schema 100 not found",
 		}, {
-			name: "non-200 returns error",
+			name:     "non-200 returns error",
 			schemaID: 1000,
-			error: "error while retrieving schema; schema registry returned unhandled status code 418",
+			error:    "error while retrieving schema; schema registry returned unhandled status code 418",
 		},
 		{
-			name: "bad json returns error",
+			name:     "bad json returns error",
 			schemaID: 999,
-			error: "invalid character 'o' in literal null (expecting 'u')",
+			error:    "invalid character 'o' in literal null (expecting 'u')",
 		},
 		{
-			name: "invalid url returns error",
+			name:     "invalid url returns error",
 			schemaID: 77,
-			error: "failed to build schema registry http request: parse \"💀:///schemas/ids/77\": first path segment in URL cannot contain colon",
-			url: "💀://",
+			error:    "failed to build schema registry http request: parse \"💀:///schemas/ids/77\": first path segment in URL cannot contain colon",
+			url:      "💀://",
 		},
 	}
 
@@ -223,17 +222,17 @@ func TestSchemaRegistryClient_GetSchema(t *testing.T) {
 func TestSchemaRegistryClient_CheckSchema(t *testing.T) {
 
 	tests := []struct {
-		name              string
-		subject           string
-		schema            string
-		error             string
-		url               string
-		schemaResponse    *schemaResponse
+		name           string
+		subject        string
+		schema         string
+		error          string
+		url            string
+		schemaResponse *schemaResponse
 	}{
 		{
-			name: "schema is found in the schema registry",
+			name:    "schema is found in the schema registry",
 			subject: "test-subject",
-			schema: "test schema",
+			schema:  "test schema",
 			schemaResponse: &schemaResponse{
 				"test-subject",
 				1,
@@ -242,35 +241,35 @@ func TestSchemaRegistryClient_CheckSchema(t *testing.T) {
 			},
 		},
 		{
-			name: "subject is not found in the schema registry",
+			name:    "subject is not found in the schema registry",
 			subject: "test-subject-not-found",
-			schema: "test schema",
-			error: "Subject not found., error code 40401",
+			schema:  "test schema",
+			error:   "Subject not found., error code 40401",
 		},
 		{
-			name: "subject is not found in the schema registry",
+			name:    "subject is not found in the schema registry",
 			subject: "test-subject-not-found-bad-json",
-			schema: "test schema",
-			error: "invalid character 'o' in literal null (expecting 'u')",
+			schema:  "test schema",
+			error:   "invalid character 'o' in literal null (expecting 'u')",
 		},
 		{
-			name: "schema registry returns bad json",
+			name:    "schema registry returns bad json",
 			subject: "test-subject-not-json",
-			schema: "test schema",
-			error: "invalid character 'o' in literal null (expecting 'u')",
+			schema:  "test schema",
+			error:   "invalid character 'o' in literal null (expecting 'u')",
 		},
 		{
-			name: "non-200 returns error",
+			name:    "non-200 returns error",
 			subject: "test-subject-unexpected-response",
-			schema: "test schema",
-			error: "error while checking schema; schema registry returned unhandled status code 418",
+			schema:  "test schema",
+			error:   "error while checking schema; schema registry returned unhandled status code 418",
 		},
 		{
-			name: "invalid url returns error",
+			name:    "invalid url returns error",
 			subject: "test-subject",
-			schema: "test schema",
-			error: "failed to build schema registry http request: parse \"💀:///subjects/test-subject-value\": first path segment in URL cannot contain colon",
-			url: "💀://",
+			schema:  "test schema",
+			error:   "failed to build schema registry http request: parse \"💀:///subjects/test-subject-value\": first path segment in URL cannot contain colon",
+			url:     "💀://",
 		},
 	}
 
@@ -306,18 +305,18 @@ func TestSchemaRegistryClient_CheckSchema(t *testing.T) {
 func TestSchemaRegistryClient_CreateSchema(t *testing.T) {
 
 	tests := []struct {
-		name              string
-		subject           string
-		schema            string
-		error             string
-		url               string
-		isKey             bool
-		schemaResponse    *schemaResponse
+		name           string
+		subject        string
+		schema         string
+		error          string
+		url            string
+		isKey          bool
+		schemaResponse *schemaResponse
 	}{
 		{
-			name: "schema is created in the schema registry",
+			name:    "schema is created in the schema registry",
 			subject: "test-subject",
-			schema: "test schema",
+			schema:  "test schema",
 			schemaResponse: &schemaResponse{
 				"test-subject",
 				1,
@@ -326,46 +325,46 @@ func TestSchemaRegistryClient_CreateSchema(t *testing.T) {
 			},
 		},
 		{
-			name: "schema is not created due to incompatibility",
+			name:    "schema is not created due to incompatibility",
 			subject: "test-subject-incompatible",
-			schema: "test schema",
-			error: "incompatible schema",
+			schema:  "test schema",
+			error:   "incompatible schema",
 		},
 		{
-			name: "schema is not created due to incompatibility",
+			name:    "schema is not created due to incompatibility",
 			subject: "test-subject-unprocessable",
-			schema: "test schema",
-			error: "Input schema is an invalid Avro schema, error code 42201",
+			schema:  "test schema",
+			error:   "Input schema is an invalid Avro schema, error code 42201",
 		},
 		{
-			name: "schema is not created due to incompatibility",
+			name:    "schema is not created due to incompatibility",
 			subject: "test-subject-unprocessable-bad-json",
-			schema: "test schema",
-			error: "invalid character 'o' in literal null (expecting 'u')",
+			schema:  "test schema",
+			error:   "invalid character 'o' in literal null (expecting 'u')",
 		},
 		{
-			name: "schema registry returns bad json",
+			name:    "schema registry returns bad json",
 			subject: "test-subject-not-json",
-			schema: "test schema",
-			error: "invalid character 'o' in literal null (expecting 'u')",
+			schema:  "test schema",
+			error:   "invalid character 'o' in literal null (expecting 'u')",
 		},
 		{
-			name: "non-200 returns error",
+			name:    "non-200 returns error",
 			subject: "test-subject-unexpected-response",
-			schema: "test schema",
-			error: "error while creating schema; schema registry returned unhandled status code 418",
+			schema:  "test schema",
+			error:   "error while creating schema; schema registry returned unhandled status code 418",
 		},
 		{
-			name: "invalid url returns error",
+			name:    "invalid url returns error",
 			subject: "test-subject",
-			schema: "test schema",
-			error: "parse \"💀:///subjects/test-subject-value/versions\": first path segment in URL cannot contain colon",
-			url: "💀://",
+			schema:  "test schema",
+			error:   "parse \"💀:///subjects/test-subject-value/versions\": first path segment in URL cannot contain colon",
+			url:     "💀://",
 		},
 		{
-			name: "schema is created in the schema registry for key",
+			name:    "schema is created in the schema registry for key",
 			subject: "test-subject",
-			schema: "test schema",
+			schema:  "test schema",
 			schemaResponse: &schemaResponse{
 				"test-subject",
 				1,
@@ -546,27 +545,27 @@ func TestSchemaRegistryClient_NewSchemaRegistryClient(t *testing.T) {
 
 func TestSchemaRegistryClient_EncodeKafkaAvroMessage(t *testing.T) {
 	tests := []struct {
-		name             string
-		msg              map[string]interface{}
-		schemaID         uint
-		errorMsg         string
+		name     string
+		msg      map[string]interface{}
+		schemaID uint
+		errorMsg string
 	}{
 		{
 			name: "decode avro message",
-			msg: map[string]interface{} {
+			msg: map[string]interface{}{
 				"name": "test-name",
 			},
 			schemaID: 1,
 		},
 		{
-			name: "schema not found error",
+			name:     "schema not found error",
 			schemaID: 100,
 			errorMsg: "schema 100 not found",
 		},
 		{
-			name: "message failure during decode",
+			name:     "message failure during decode",
 			schemaID: 1,
-			msg: map[string]interface{} {
+			msg: map[string]interface{}{
 				"name": nil,
 			},
 			errorMsg: "cannot encode binary record \"test\" field \"name\": value does not match its schema: cannot encode binary bytes: expected: string; received: <nil>",

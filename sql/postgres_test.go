@@ -15,8 +15,8 @@
 package sql
 
 import (
-	"testing"
 	"context"
+	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -118,5 +118,5 @@ func TestPostgresConfigBuildConnectionString(t *testing.T) {
 func TestErrorConnect(t *testing.T) {
 	config := NewDefaultPostgresConfig("test", "testdb")
 	_, _, err := config.Connect(context.Background())
-    assert.NotNil(t, err)
+	assert.NotNil(t, err)
 }
