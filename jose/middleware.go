@@ -155,18 +155,18 @@ func AuthenticationMiddleware(next http.Handler) http.Handler {
 }
 
 type AuthParams struct {
-	requiredScopes []string
+	RequiredScopes []string
 }
 
 func validateRequiredScope(r *http.Request, params AuthParams) error {
-	if params.requiredScopes != nil {
+	if params.RequiredScopes != nil {
 		claim, err := FromContext(r.Context())
 		if err != nil {
 			return fmt.Errorf(cannotFindClaim)
 		}
 
 		tokenScopes := strings.Split(claim.Scope, " ")
-		for _, requiredScope := range params.requiredScopes {
+		for _, requiredScope := range params.RequiredScopes {
 			if !tools_strings.StringInSlice(requiredScope, tokenScopes) {
 				return fmt.Errorf(missingRequiredScope)
 			}
