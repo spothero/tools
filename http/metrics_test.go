@@ -37,7 +37,7 @@ func (s mockRegistry) Register(prometheus.Collector) error {
 	return s.error
 }
 
-func (s mockRegistry) MustRegister(...prometheus.Collector)  {}
+func (s mockRegistry) MustRegister(...prometheus.Collector) {}
 
 func (s mockRegistry) Unregister(prometheus.Collector) bool {
 	return true
