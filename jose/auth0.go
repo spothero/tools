@@ -34,10 +34,11 @@ type Auth0Generator struct{}
 // JWTs, ClientID will be populated. For normal User authentication UserID will be populated. Both
 // UserID and ClientID will not be populated together.
 type Auth0Claim struct {
-	ID        string `json:"sub"`
+	ID string `json:"sub"`
 	// Email claims are namespaced to prevent collisions. Hardcoding for now as this will be constant.
 	Email     string `json:"https://api.spothero.com/claims/email"`
 	GrantType string `json:"gty"`
+	Scope     string `json:"scope"`
 }
 
 // New satisfies the ClaimGenerator interface, returning an empty claim for use with JOSE parsing

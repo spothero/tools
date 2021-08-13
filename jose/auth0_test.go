@@ -74,22 +74,22 @@ func TestGetClientID(t *testing.T) {
 	}{
 		{
 			name:     "client id present",
-			input:    Auth0Claim{"id", "email", "client-credentials"},
+			input:    Auth0Claim{"id", "email", "client-credentials", ""},
 			expected: "id",
 		},
 		{
 			name:     "user id present",
-			input:    Auth0Claim{"id", "email", "password"},
+			input:    Auth0Claim{"id", "email", "password", ""},
 			expected: "",
 		},
 		{
 			name:     "unknown grant",
-			input:    Auth0Claim{"id", "email", "BoGuS"},
+			input:    Auth0Claim{"id", "email", "BoGuS", ""},
 			expected: "",
 		},
 		{
 			name:     "remove @clients suffix",
-			input:    Auth0Claim{"leeroy-jenkins@clients", "email", "client-credentials"},
+			input:    Auth0Claim{"leeroy-jenkins@clients", "email", "client-credentials", ""},
 			expected: "leeroy-jenkins",
 		},
 	}
@@ -110,22 +110,22 @@ func TestGetUserID(t *testing.T) {
 	}{
 		{
 			name:     "client id present",
-			input:    Auth0Claim{"client-id", "email", "client-credentials"},
+			input:    Auth0Claim{"client-id", "email", "client-credentials", ""},
 			expected: "",
 		},
 		{
 			name:     "user id presented as password",
-			input:    Auth0Claim{"user-id", "email", "password"},
+			input:    Auth0Claim{"user-id", "email", "password", ""},
 			expected: "user-id",
 		},
 		{
 			name:     "user id presented as authorization_code",
-			input:    Auth0Claim{"user-id", "email", "password"},
+			input:    Auth0Claim{"user-id", "email", "password", ""},
 			expected: "user-id",
 		},
 		{
 			name:     "unknown grant",
-			input:    Auth0Claim{"id", "email", "BoGuS"},
+			input:    Auth0Claim{"id", "email", "BoGuS", ""},
 			expected: "",
 		},
 	}

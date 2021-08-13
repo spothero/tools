@@ -23,6 +23,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spothero/tools/http/writer"
 	"github.com/spothero/tools/log"
+	tools_strings "github.com/spothero/tools/strings"
 	"go.uber.org/zap"
 )
 
@@ -36,6 +37,8 @@ const bearerPrefix = "Bearer "
 const (
 	bearerPrefixNotFound = "authorization header did not include bearer prefix"
 	invalidBearerToken   = "bearer token is invalid"
+	cannotFindClaim      = "unable to locate token claim which is required to authorize on scope"
+	missingRequiredScope = "missing required scope"
 )
 
 // GetHTTPServerMiddleware returns an HTTP middleware function which extracts the Authorization
@@ -151,29 +154,63 @@ func AuthenticationMiddleware(next http.Handler) http.Handler {
 	return EnforceAuthentication(next.ServeHTTP)
 }
 
-// EnforceAuthentication enforces authentication for a single HTTP handler.
-func EnforceAuthentication(next http.HandlerFunc) http.HandlerFunc {
+type AuthParams struct {
+	requiredScopes []string
+}
+
+func validateRequiredScope(r *http.Request, params AuthParams) error {
+	if params.requiredScopes != nil {
+		claim, err := FromContext(r.Context())
+		if err != nil {
+			return fmt.Errorf(cannotFindClaim)
+		}
+
+		tokenScopes := strings.Split(claim.Scope, " ")
+		for _, requiredScope := range params.requiredScopes {
+			if !tools_strings.StringInSlice(requiredScope, tokenScopes) {
+				return fmt.Errorf(missingRequiredScope)
+			}
+		}
+	}
+	return nil
+}
+
+func EnforceAuthenticationWithAuthorization(next http.HandlerFunc, params AuthParams) http.HandlerFunc {
 	var defaultRegistry prometheus.Registerer = nil
 	metrics := newAuthMetrics(defaultRegistry)
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		logger := log.Get(ctx)
-		isAuthenticated := ctx.Value(JWTClaimKey) != nil
 		labels := prometheus.Labels{
 			"path":   writer.FetchRoutePathTemplate(r),
 			"method": r.Method,
 		}
 
-		if isAuthenticated {
-			logger.Debug("authentication successfully enforced on request")
-			metrics.authSuccessCounter.With(labels).Inc()
-			next(w, r)
-		} else {
+		isAuthenticated := ctx.Value(JWTClaimKey) != nil
+		if !isAuthenticated {
 			logger.Debug("authentication enforcement failed on request")
 			metrics.authFailureCounter.With(labels).Inc()
 			w.Header().Set("WWW-Authenticate", "Bearer")
 			http.Error(w, bearerPrefixNotFound, http.StatusUnauthorized)
+			return
 		}
+
+		if err := validateRequiredScope(r, params); err != nil {
+			logger.Debug("authorization enforcement failed on request")
+			metrics.authFailureCounter.With(labels).Inc()
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
+
+		logger.Debug("authentication successfully enforced on request")
+		metrics.authSuccessCounter.With(labels).Inc()
+		next(w, r)
 	}
+}
+
+// EnforceAuthentication enforces authentication for a single HTTP handler.
+// This handler only performs authentication.  For authorization see EnforceAuthenticationWithAuthorization
+func EnforceAuthentication(next http.HandlerFunc) http.HandlerFunc {
+	return EnforceAuthenticationWithAuthorization(next, AuthParams{})
 }
