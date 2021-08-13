@@ -239,7 +239,7 @@ func TestEnforceAuthenticationWithAuthorization(t *testing.T) {
 			requestIsAuthenticated: true,
 			requestHasClaim:        false,
 			expectedAuthSuccess:    false,
-			authParams:             AuthParams{requiredScopes: []string{"update:service"}},
+			authParams:             AuthParams{RequiredScopes: []string{"update:service"}},
 			authClaim:              Auth0Claim{},
 		},
 		{
@@ -247,7 +247,7 @@ func TestEnforceAuthenticationWithAuthorization(t *testing.T) {
 			requestIsAuthenticated: true,
 			requestHasClaim:        true,
 			expectedAuthSuccess:    false,
-			authParams:             AuthParams{requiredScopes: []string{"update:service"}},
+			authParams:             AuthParams{RequiredScopes: []string{"update:service"}},
 			authClaim:              Auth0Claim{Scope: "read:service"},
 		},
 		{
@@ -255,7 +255,7 @@ func TestEnforceAuthenticationWithAuthorization(t *testing.T) {
 			requestIsAuthenticated: true,
 			requestHasClaim:        true,
 			expectedAuthSuccess:    false,
-			authParams:             AuthParams{requiredScopes: []string{"update:service read:service"}},
+			authParams:             AuthParams{RequiredScopes: []string{"update:service read:service"}},
 			authClaim:              Auth0Claim{Scope: "read:service"},
 		},
 		{
@@ -263,7 +263,7 @@ func TestEnforceAuthenticationWithAuthorization(t *testing.T) {
 			requestIsAuthenticated: true,
 			requestHasClaim:        true,
 			expectedAuthSuccess:    true,
-			authParams:             AuthParams{requiredScopes: []string{"update:service"}},
+			authParams:             AuthParams{RequiredScopes: []string{"update:service"}},
 			authClaim:              Auth0Claim{Scope: "update:service"},
 		},
 	}
