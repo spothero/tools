@@ -59,6 +59,21 @@ func (c *SchemaRegistryConfig) RegisterFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&c.URL, "kafka-schema-registry-url", "http://localhost:8081", "Kafka schema registry url")
 }
 
+// SchemaRegistryProducer defines an interface that contains methods to create schemas and encode kafka messages
+// using the uploaded schemas.
+type SchemaRegistryProducer interface {
+	CreateSchema(ctx context.Context, subject string, schema string, isKey bool) (*schemaResponse, error)
+	EncodeKafkaAvroMessage(ctx context.Context, schemaID uint, message interface{}) ([]byte, error)
+}
+
+// SchemaRegistryConsumer defines an interface that contains methods to retrieve schemas and decode kafka messages
+// using the retrieved schemas.
+type SchemaRegistryConsumer interface {
+	GetSchema(ctx context.Context, id uint) (string, error)
+	CheckSchema(ctx context.Context, subject string, schema string, isKey bool) (*schemaResponse, error)
+	DecodeKafkaAvroMessage(ctx context.Context, message *sarama.ConsumerMessage) (interface{}, error)
+}
+
 // SchemaRegistryClient provides functionality for interacting with Kafka schema registry. This type
 // has methods for getting schemas from the registry and decoding sarama ConsumerMessages from Avro into
 // Go types. In addition, since the schema registry is immutable, the client contains a cache of schemas
