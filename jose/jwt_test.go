@@ -3,6 +3,7 @@ package jose
 import (
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"net/http"
 	"net/http/httptest"
@@ -14,41 +15,43 @@ import (
 
 func TestNewJOSE(t *testing.T) {
 	tests := []struct {
-		name        string
-		keyData     []byte
-		statusCode  int
-		expectErr   bool
-		provideURL  bool
-		urlOverride string
+		name         string
+		keyData      []byte
+		statusCode   int
+		provideURL   bool
+		urlOverride  string
+		expectedJWKS *jose.JSONWebKeySet
 	}{
 		{
 			"empty keys array is parsed correctly",
 			[]byte("{\"keys\": []}"),
 			http.StatusOK,
-			false,
 			true,
 			"",
+			&jose.JSONWebKeySet{
+				Keys: []jose.JSONWebKey{},
+			},
 		}, {
 			"non-200 responses return an error",
 			[]byte("{\"keys\": []}"),
 			http.StatusNotFound,
 			true,
-			true,
 			"",
+			nil,
 		}, {
 			"bad JSON data causes an error",
 			[]byte("not json data"),
 			http.StatusOK,
 			true,
-			true,
 			"",
+			nil,
 		}, {
 			"bad jwks url results in an error",
 			[]byte("{\"keys\": []}"),
 			http.StatusOK,
 			true,
-			true,
 			"badurl",
+			nil,
 		},
 	}
 	for _, test := range tests {
@@ -59,22 +62,16 @@ func TestNewJOSE(t *testing.T) {
 				assert.Equal(t, "GET", r.Method)
 			}))
 			defer ts.Close()
-			url := ts.URL
+			urls := []string{ts.URL}
 			if !test.provideURL {
-				url = ""
+				urls = []string{}
 			}
 			if len(test.urlOverride) > 0 {
-				url = test.urlOverride
+				urls = []string{test.urlOverride}
 			}
-			c := &Config{JSONWebKeySetURLs: []string{url}}
-			jose, err := c.NewJOSE()
-			if test.expectErr {
-				assert.Error(t, err)
-				assert.Equal(t, JOSE{}, jose)
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, jose)
-			}
+			c := &Config{JSONWebKeySetURLs: urls}
+			newJOSE := c.NewJOSE()
+			assert.Equal(t, test.expectedJWKS, newJOSE.jwks[ts.URL])
 		})
 	}
 }
@@ -120,8 +117,9 @@ b9Ym/nxaqyTu0PxajXkKm5Q=
 	block, _ := pem.Decode([]byte(privateRSAKey))
 	key, _ := x509.ParsePKCS8PrivateKey(block.Bytes)
 	rsaKey, _ := key.(*rsa.PrivateKey)
-	jwks := []*jose.JSONWebKeySet{
-		{
+	jwksURL := "test-jwks-url"
+	jwks := map[string]*jose.JSONWebKeySet{
+		jwksURL: {
 			Keys: []jose.JSONWebKey{
 				{
 					KeyID: "foobar",
@@ -132,36 +130,79 @@ b9Ym/nxaqyTu0PxajXkKm5Q=
 	}
 
 	tests := []struct {
-		name        string
-		jwt         string
-		issuer      string
-		jwks        []*jose.JSONWebKeySet
-		expectError bool
+		name         string
+		jwt          string
+		issuer       string
+		jwks         map[string]*jose.JSONWebKeySet
+		returnedKeys *jose.JSONWebKeySet
+		expectError  bool
 	}{
 		{
 			"valid jwks and token does not produce an error",
 			`eyJhbGciOiJSUzI1NiIsImtpZCI6ImZvb2JhciJ9.eyJpc3MiOiJpc3N1ZXIiLCJzY29wZXMiOlsiczEiLCJzMiJdLCJzdWIiOiJzdWJqZWN0In0.RxZhTRfPDb6UJ58FwvC89GgJGC8lAO04tz5iLlBpIJsyPZB0X_UgXSj0SGVFm2jbP_i-ZVH4HFC2fMB1n-so9CnCOpunWwhYNdgF6ewQJ0ADTWwfDGsK12UOmyT2naaZN8ZUBF8cgPtOgdWqQjk2Ng9QFRJxlUuKYczBp7vjWvgX8WMwQcaA-eK7HtguR4e9c4FMbeFK8Soc4jCsVTjIKdSn9SErc42gFu65NI1hZ3OPe_T7AZqdDjCkJpoiJ65GdD_qvGkVndJSEcMp3riXQpAy0JbctVkYecdFaGidbxHRrdcQYHtKn-XGMCh2uoBKleUr1fTMiyCGPQQesy3xHw`,
 			"issuer",
 			jwks,
+			nil,
 			false,
 		}, {
 			"valid token that is not correctly signed produces an error",
 			`eyJhbGciOiJSUzI1NiIsImtpZCI6ImZvb2JhcmFiYyJ9.eyJpc3MiOiJpc3N1ZXIiLCJzY29wZXMiOlsiczEiLCJzMiJdLCJzdWIiOiJzdWJqZWN0In0.RxZhTRfPDb6UJ58FwvC89GgJGC8lAO04tz5iLlBpIJsyPZB0X_UgXSj0SGVFm2jbP_i-ZVH4HFC2fMB1n-so9CnCOpunWwhYNdgF6ewQJ0ADTWwfDGsK12UOmyT2naaZN8ZUBF8cgPtOgdWqQjk2Ng9QFRJxlUuKYczBp7vjWvgX8WMwQcaA-eK7HtguR4e9c4FMbeFK8Soc4jCsVTjIKdSn9SErc42gFu65NI1hZ3OPe_T7AZqdDjCkJpoiJ65GdD_qvGkVndJSEcMp3riXQpAy0JbctVkYecdFaGidbxHRrdcQYHtKn-XGMCh2uoBKleUr1fTMiyCGPQQesy3xHw`,
 			"issuer",
 			jwks,
+			nil,
 			true,
 		}, {
 			"invalid jwt produces an error",
 			"invalid jwt",
 			"issuer",
 			jwks,
+			nil,
+			true,
+		}, {
+			"lazy load missing keys",
+			`eyJhbGciOiJSUzI1NiIsImtpZCI6ImZvb2JhciJ9.eyJpc3MiOiJpc3N1ZXIiLCJzY29wZXMiOlsiczEiLCJzMiJdLCJzdWIiOiJzdWJqZWN0In0.RxZhTRfPDb6UJ58FwvC89GgJGC8lAO04tz5iLlBpIJsyPZB0X_UgXSj0SGVFm2jbP_i-ZVH4HFC2fMB1n-so9CnCOpunWwhYNdgF6ewQJ0ADTWwfDGsK12UOmyT2naaZN8ZUBF8cgPtOgdWqQjk2Ng9QFRJxlUuKYczBp7vjWvgX8WMwQcaA-eK7HtguR4e9c4FMbeFK8Soc4jCsVTjIKdSn9SErc42gFu65NI1hZ3OPe_T7AZqdDjCkJpoiJ65GdD_qvGkVndJSEcMp3riXQpAy0JbctVkYecdFaGidbxHRrdcQYHtKn-XGMCh2uoBKleUr1fTMiyCGPQQesy3xHw`,
+			"issuer",
+			map[string]*jose.JSONWebKeySet{
+				jwksURL: nil,
+			},
+			&jose.JSONWebKeySet{
+				Keys: []jose.JSONWebKey{
+					{
+						KeyID: "foobar",
+						Key:   &rsaKey.PublicKey,
+					},
+				},
+			},
+			false,
+		}, {
+			"lazy load missing keys unsuccessfully",
+			`eyJhbGciOiJSUzI1NiIsImtpZCI6ImZvb2JhciJ9.eyJpc3MiOiJpc3N1ZXIiLCJzY29wZXMiOlsiczEiLCJzMiJdLCJzdWIiOiJzdWJqZWN0In0.RxZhTRfPDb6UJ58FwvC89GgJGC8lAO04tz5iLlBpIJsyPZB0X_UgXSj0SGVFm2jbP_i-ZVH4HFC2fMB1n-so9CnCOpunWwhYNdgF6ewQJ0ADTWwfDGsK12UOmyT2naaZN8ZUBF8cgPtOgdWqQjk2Ng9QFRJxlUuKYczBp7vjWvgX8WMwQcaA-eK7HtguR4e9c4FMbeFK8Soc4jCsVTjIKdSn9SErc42gFu65NI1hZ3OPe_T7AZqdDjCkJpoiJ65GdD_qvGkVndJSEcMp3riXQpAy0JbctVkYecdFaGidbxHRrdcQYHtKn-XGMCh2uoBKleUr1fTMiyCGPQQesy3xHw`,
+			"issuer",
+			map[string]*jose.JSONWebKeySet{
+				jwksURL: nil,
+			},
+			nil,
 			true,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			jose := JOSE{jwks: test.jwks, validIssuers: []string{test.issuer}}
-			err := jose.ParseValidateJWT(test.jwt)
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				if test.returnedKeys != nil {
+					jsonResp, _ := json.Marshal(test.returnedKeys)
+					_, _ = w.Write(jsonResp)
+				}
+				assert.Equal(t, "GET", r.Method)
+			}))
+			defer ts.Close()
+
+			// Overwrite JWKS URL with test server url
+			test.jwks[ts.URL] = test.jwks[jwksURL]
+			delete(test.jwks, jwksURL)
+
+			testJOSE := JOSE{jwks: test.jwks, validIssuers: []string{test.issuer}}
+			err := testJOSE.ParseValidateJWT(test.jwt)
 			if test.expectError {
 				assert.Error(t, err)
 			} else {
