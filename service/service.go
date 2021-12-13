@@ -153,10 +153,7 @@ func (c Config) ServerCmd(
 			}
 
 			// Add JOSE Auth interceptors
-			jh, err := jc.NewJOSE()
-			if err != nil {
-				return err
-			}
+			jh := jc.NewJOSE()
 			joseInterceptorFunc := jose.GetContextAuth(jh)
 			grpcConfig.UnaryInterceptors = append(
 				grpcConfig.UnaryInterceptors,

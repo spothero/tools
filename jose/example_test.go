@@ -35,10 +35,7 @@ func Example() {
 	}
 
 	// Instantiate the JOSE provider
-	client, err := c.NewJOSE()
-	if err != nil {
-		fmt.Println(fmt.Errorf("failed to create the JOSE client: %w", err))
-	}
+	client := c.NewJOSE()
 
 	// With the instantiated client, callers may choose to add HTTP Middleware and GRPC
 	// interceptors directly to their servers:

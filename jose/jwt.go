@@ -62,7 +62,8 @@ type JOSEHandler interface {
 type JOSE struct {
 	claimGenerators []ClaimGenerator
 	validIssuers    []string
-	jwks            []*jose.JSONWebKeySet
+	// Map of JSON Web Key Set (JWKS) URLs and their retrieved public keys
+	jwks map[string]*jose.JSONWebKeySet
 }
 
 // JWTHeaderCtxKey is the type used to uniquely place the JWT Header in the context
@@ -72,38 +73,51 @@ type JWTHeaderCtxKey int
 const JWTClaimKey JWTHeaderCtxKey = iota
 
 // NewJOSE creates and returns a JOSE client for use.
-func (c Config) NewJOSE() (JOSE, error) {
+func (c Config) NewJOSE() JOSE {
 	logger := log.Get(context.Background())
 	if len(c.JSONWebKeySetURLs) == 0 {
 		logger.Warn("no jwks urls specified - no authentication will be performed")
-		return JOSE{}, nil
+		return JOSE{}
 	}
 
 	// Fetch JSON Web Key Sets from the specified URL
-	allJWKS := make([]*jose.JSONWebKeySet, 0)
-	for _, jwks_url := range c.JSONWebKeySetURLs {
-		resp, err := http.Get(jwks_url)
+	allJWKS := make(map[string]*jose.JSONWebKeySet)
+	for _, jwksURL := range c.JSONWebKeySetURLs {
+		jwks, err := getKeysForURL(jwksURL)
 		if err != nil {
-			return JOSE{}, fmt.Errorf("failed to retrieve jwks from url: %w", err)
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			return JOSE{}, fmt.Errorf("received non-200 response from jwks url `%v`", resp.Status)
+			// Log error and continue. Any jwks URL that failed to return a
+			// valid set of keys will be retried as incoming tokens are decoded.
+			logger.Error(err.Error())
 		}
 
-		// Decode the response body into a JSONWebKeySet
-		jwks := &jose.JSONWebKeySet{}
-		err = json.NewDecoder(resp.Body).Decode(jwks)
-		if err != nil {
-			return JOSE{}, fmt.Errorf("failed to decoded jwks json: %w", err)
-		}
-		allJWKS = append(allJWKS, jwks)
+		allJWKS[jwksURL] = jwks
 	}
 	return JOSE{
 		jwks:            allJWKS,
 		validIssuers:    c.ValidIssuers,
 		claimGenerators: c.ClaimGenerators,
-	}, nil
+	}
+}
+
+// getKeysForURL retrieves the set of public keys hosted at the specified URL
+func getKeysForURL(jwksURL string) (*jose.JSONWebKeySet, error) {
+	resp, err := http.Get(jwksURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve jwks from url: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("received non-200 response from jwks url `%v`", resp.Status)
+	}
+
+	// Decode the response body into a JSONWebKeySet
+	jwks := &jose.JSONWebKeySet{}
+	err = json.NewDecoder(resp.Body).Decode(jwks)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode jwks json: %w", err)
+	}
+
+	return jwks, nil
 }
 
 // GetClaims returns a set of empty and initialized Claims registered to the JOSE struct
@@ -133,8 +147,22 @@ func (j JOSE) ParseValidateJWT(input string, claims ...Claim) error {
 		allClaims = append(allClaims, claims[i])
 	}
 
-	for _, jwks := range j.jwks {
-		err = tok.Claims(jwks, allClaims...)
+	for jwksURL, keys := range j.jwks {
+		// Lazily load any public keys that have not yet been successfully
+		// retrieved and stored
+		if keys == nil {
+			keys, err = getKeysForURL(jwksURL)
+			if err != nil {
+				// Log error and continue. Another attempt will be made when the
+				// next incoming token is decoded.
+				log.Get(context.Background()).Error(err.Error())
+				continue
+			}
+			// Save keys in map for next time
+			j.jwks[jwksURL] = keys
+		}
+
+		err = tok.Claims(keys, allClaims...)
 		if err == nil {
 			break
 		}
