@@ -28,7 +28,7 @@ func TestNewDefaultPostgresConfig(t *testing.T) {
 		NewDefaultPostgresConfig("test", "testdb"),
 		PostgresConfig{
 			ApplicationName: "test",
-			Host:            "localhost",
+			Host:            "127.0.0.1",
 			Port:            5432,
 			Database:        "testdb",
 			ConnectTimeout:  5 * time.Second,
@@ -58,29 +58,29 @@ func TestPostgresConfigBuildConnectionString(t *testing.T) {
 			PostgresConfig{
 				ApplicationName: "test",
 				Database:        "test",
-				Host:            "localhost",
+				Host:            "127.0.0.1",
 				Port:            5432,
 			},
 			false,
-			"postgres://localhost:5432/test?application_name=test&sslmode=disable",
+			"postgres://127.0.0.1:5432/test?application_name=test&sslmode=disable",
 		}, {
 			"username and password are encoded into the URL",
 			PostgresConfig{
 				ApplicationName: "test",
 				Database:        "test",
-				Host:            "localhost",
+				Host:            "127.0.0.1",
 				Port:            5432,
 				Username:        "user",
 				Password:        "pass",
 			},
 			false,
-			"postgres://user:pass@localhost:5432/test?application_name=test&sslmode=disable",
+			"postgres://user:pass@127.0.0.1:5432/test?application_name=test&sslmode=disable",
 		}, {
 			"ssl options are encoded",
 			PostgresConfig{
 				ApplicationName: "test",
 				Database:        "test",
-				Host:            "localhost",
+				Host:            "127.0.0.1",
 				Port:            5432,
 				SSL:             true,
 				SSLCert:         "/ssl/cert/path",
@@ -88,18 +88,18 @@ func TestPostgresConfigBuildConnectionString(t *testing.T) {
 				SSLRootCert:     "/ssl/root/cert/path",
 			},
 			false,
-			"postgres://localhost:5432/test?application_name=test&sslmode=verify-full&sslcert=/ssl/cert/path&sslkey=/ssl/key/path&sslrootcert=/ssl/root/cert/path",
+			"postgres://127.0.0.1:5432/test?application_name=test&sslmode=verify-full&sslcert=/ssl/cert/path&sslkey=/ssl/key/path&sslrootcert=/ssl/root/cert/path",
 		}, {
 			"connect timeout is properly encoded when specified",
 			PostgresConfig{
 				ApplicationName: "test",
 				Database:        "test",
-				Host:            "localhost",
+				Host:            "127.0.0.1",
 				Port:            5432,
 				ConnectTimeout:  3 * time.Second,
 			},
 			false,
-			"postgres://localhost:5432/test?application_name=test&sslmode=disable&connect_timeout=3",
+			"postgres://127.0.0.1:5432/test?application_name=test&sslmode=disable&connect_timeout=3",
 		},
 	}
 	for _, test := range tests {

@@ -24,7 +24,7 @@ func (c *Config) RegisterFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&c.ReporterLogSpans, "tracer-reporter-log-spans", false, "Tracer Reporter Logs Spans")
 	flags.IntVar(&c.ReporterMaxQueueSize, "tracer-reporter-max-queue-size", 100, "Tracer Reporter Max Queue Size")
 	flags.DurationVar(&c.ReporterFlushInterval, "tracer-reporter-flush-interval", 1000000000, "Tracer Reporter Flush Interval in nanoseconds")
-	flags.StringVar(&c.AgentHost, "tracer-agent-host", "localhost", "Tracer Agent Host")
+	flags.StringVar(&c.AgentHost, "tracer-agent-host", "127.0.0.1", "Tracer Agent Host")
 	flags.IntVar(&c.AgentPort, "tracer-agent-port", 5775, "Tracer Agent Port")
 	flags.StringVar(&c.ServiceName, "tracer-service-name", c.ServiceName, "Determines the service name for the Tracer UI")
 }

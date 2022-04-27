@@ -24,7 +24,7 @@ import (
 
 func TestNewDefaultClientConfig(t *testing.T) {
 	cc := NewDefaultClientConfig(context.Background())
-	assert.Equal(t, "localhost", cc.Address)
+	assert.Equal(t, "127.0.0.1", cc.Address)
 	assert.Equal(t, uint16(9111), cc.Port)
 	assert.NotNil(t, cc.UnaryInterceptors)
 	assert.NotNil(t, cc.StreamInterceptors)
@@ -33,7 +33,7 @@ func TestNewDefaultClientConfig(t *testing.T) {
 
 func TestNewDefaultTLSClientConfig(t *testing.T) {
 	cc := NewDefaultTLSClientConfig(context.Background())
-	assert.Equal(t, "localhost", cc.Address)
+	assert.Equal(t, "127.0.0.1", cc.Address)
 	assert.Equal(t, uint16(9111), cc.Port)
 	assert.NotNil(t, cc.UnaryInterceptors)
 	assert.NotNil(t, cc.StreamInterceptors)

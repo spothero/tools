@@ -56,7 +56,7 @@ type errorResponse struct {
 
 // RegisterFlags registers schema registry flags with pflags
 func (c *SchemaRegistryConfig) RegisterFlags(flags *pflag.FlagSet) {
-	flags.StringVar(&c.URL, "kafka-schema-registry-url", "http://localhost:8081", "Kafka schema registry url")
+	flags.StringVar(&c.URL, "kafka-schema-registry-url", "http://127.0.0.1:8081", "Kafka schema registry url")
 }
 
 // SchemaRegistryProducer defines an interface that contains methods to create schemas and encode kafka messages
