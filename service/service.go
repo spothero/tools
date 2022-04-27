@@ -60,20 +60,41 @@ type GRPCService interface {
 // function that should satisfy most use cases.
 //
 // Note that Version and GitSHA *must be specified* before calling this function.
+
 func (c Config) ServerCmd(
 	ctx context.Context,
 	shortDescription, longDescription string,
 	newHTTPService func(Config) HTTPService,
 	newGRPCService func(Config) GRPCService,
 ) *cobra.Command {
+	return c.ServerCmdWithExtraMiddlewares(
+		ctx,
+		shortDescription,
+		longDescription,
+		newHTTPService,
+		newGRPCService,
+		[]mux.MiddlewareFunc{},
+		[]grpc.UnaryServerInterceptor{},
+		[]grpc.StreamServerInterceptor{})
+}
+func (c Config) ServerCmdWithExtraMiddlewares(
+	ctx context.Context,
+	shortDescription, longDescription string,
+	newHTTPService func(Config) HTTPService,
+	newGRPCService func(Config) GRPCService,
+	extraHTTPMiddlewareFuncs []mux.MiddlewareFunc,
+	extraGRPCUnaryServerInterceptors []grpc.UnaryServerInterceptor,
+	extraGRPCStreamServerInterceptors []grpc.StreamServerInterceptor,
+) *cobra.Command {
 	// HTTP Config
 	httpConfig := shHTTP.NewDefaultConfig(c.Name)
-	httpConfig.Middleware = []mux.MiddlewareFunc{
+	httpConfig.Middleware = append(httpConfig.Middleware,
 		tracing.HTTPServerMiddleware,
 		shHTTP.NewMetrics(c.Registry, true).Middleware,
 		log.HTTPServerMiddleware,
 		sentry.NewMiddleware().HTTP,
-	}
+	)
+	httpConfig.Middleware = append(httpConfig.Middleware, extraHTTPMiddlewareFuncs...)
 
 	// GRPC Config
 	// XXX: passing `nil` as newGRPCService is a hack to delay the calling of
@@ -131,18 +152,21 @@ func (c Config) ServerCmd(
 
 			// Ensure that gRPC Interceptors capture histograms
 			grpcprom.EnableHandlingTimeHistogram()
-			grpcConfig.UnaryInterceptors = []grpc.UnaryServerInterceptor{
+			grpcConfig.UnaryInterceptors = append(grpcConfig.UnaryInterceptors,
 				grpcot.UnaryServerInterceptor(),
 				tracing.UnaryServerInterceptor,
 				log.UnaryServerInterceptor,
 				grpcprom.UnaryServerInterceptor,
-			}
-			grpcConfig.StreamInterceptors = []grpc.StreamServerInterceptor{
+			)
+			grpcConfig.UnaryInterceptors = append(grpcConfig.UnaryInterceptors, extraGRPCUnaryServerInterceptors...)
+
+			grpcConfig.StreamInterceptors = append(grpcConfig.StreamInterceptors,
 				grpcot.StreamServerInterceptor(),
 				tracing.StreamServerInterceptor,
 				log.StreamServerInterceptor,
 				grpcprom.StreamServerInterceptor,
-			}
+			)
+			grpcConfig.StreamInterceptors = append(grpcConfig.StreamInterceptors, extraGRPCStreamServerInterceptors...)
 
 			// Add CORS Middleware
 			if cc.EnableMiddleware {
