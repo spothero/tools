@@ -49,38 +49,30 @@ type GRPCService interface {
 	RegisterAPIs(*grpc.Server)
 }
 
-// ServerCmd takes functions, newHTTPService and newGRPCService, that instantiate
-// the GRPCService and HTTPService by consuming the Config object after all values
-// are populated from the CLI and/or environment variables so that values configured
-// by this package are accessible by newService.
-//
-// Note that this function creates the default server configuration (grpc and http)
-// for use at SpotHero. Consumers of the tools libraries are free to define their
-// own server entrypoints if desired. This function is provided as a convenience
-// function that should satisfy most use cases.
-//
-// Note that Version and GitSHA *must be specified* before calling this function.
-func (c Config) ServerCmd(
-	ctx context.Context,
-	shortDescription, longDescription string,
-	newHTTPService func(Config) HTTPService,
-	newGRPCService func(Config) GRPCService,
-) *cobra.Command {
-	// HTTP Config
-	httpConfig := shHTTP.NewDefaultConfig(c.Name)
-	httpConfig.Middleware = []mux.MiddlewareFunc{
+type ServerCmdConfig struct {
+	ctx               context.Context
+	shortDescription  string
+	longDescription   string
+	newHTTPService    func(Config) HTTPService
+	newGRPCService    func(Config) GRPCService
+	httpDefaultConfig shHTTP.Config
+	grpcDefaultConfig shGRPC.Config
+}
+
+func (c Config) ServerCmdWithConfig(scc ServerCmdConfig) *cobra.Command {
+
+	httpConfig := scc.httpDefaultConfig
+	httpConfig.Middleware = append(httpConfig.Middleware,
 		tracing.HTTPServerMiddleware,
 		shHTTP.NewMetrics(c.Registry, true).Middleware,
 		log.HTTPServerMiddleware,
-		sentry.NewMiddleware().HTTP,
-	}
+		sentry.NewMiddleware().HTTP)
 
-	// GRPC Config
 	// XXX: passing `nil` as newGRPCService is a hack to delay the calling of
 	// that closure until control reaches the `RunE` function.
 	// see reference:f9d302c2-df3f-4110-9529-94b0515c4a17 in this file.
 	// Follow-up: https://spothero.atlassian.net/browse/PMP-402
-	grpcConfig := shGRPC.NewDefaultConfig(c.Name, nil)
+	grpcConfig := scc.grpcDefaultConfig
 
 	if len(c.CancelSignals) > 0 {
 		grpcConfig.CancelSignals = c.CancelSignals
@@ -110,8 +102,8 @@ func (c Config) ServerCmd(
 	}
 	cmd := &cobra.Command{
 		Use:              c.Name,
-		Short:            shortDescription,
-		Long:             longDescription,
+		Short:            scc.shortDescription,
+		Long:             scc.longDescription,
 		Version:          fmt.Sprintf("%s (%s)", c.Version, c.GitSHA),
 		PersistentPreRun: cli.CobraBindEnvironmentVariables(strings.Replace(c.Name, "-", "_", -1)),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -131,18 +123,18 @@ func (c Config) ServerCmd(
 
 			// Ensure that gRPC Interceptors capture histograms
 			grpcprom.EnableHandlingTimeHistogram()
-			grpcConfig.UnaryInterceptors = []grpc.UnaryServerInterceptor{
+			grpcConfig.UnaryInterceptors = append(grpcConfig.UnaryInterceptors,
 				grpcot.UnaryServerInterceptor(),
 				tracing.UnaryServerInterceptor,
 				log.UnaryServerInterceptor,
 				grpcprom.UnaryServerInterceptor,
-			}
-			grpcConfig.StreamInterceptors = []grpc.StreamServerInterceptor{
+			)
+			grpcConfig.StreamInterceptors = append(grpcConfig.StreamInterceptors,
 				grpcot.StreamServerInterceptor(),
 				tracing.StreamServerInterceptor,
 				log.StreamServerInterceptor,
 				grpcprom.StreamServerInterceptor,
-			}
+			)
 
 			// Add CORS Middleware
 			if cc.EnableMiddleware {
@@ -184,21 +176,21 @@ func (c Config) ServerCmd(
 
 			if c.PreStart != nil {
 				var err error
-				ctx, err = c.PreStart(ctx)
+				scc.ctx, err = c.PreStart(scc.ctx)
 				if err != nil {
 					return err
 				}
 			}
 
 			var wg sync.WaitGroup
-			if newGRPCService != nil {
+			if scc.newGRPCService != nil {
 				// XXX: here we mutate grpc.Config, which is hitherto nil; this
 				// is done in order to defer calling newGRPCService until
 				// control reaches this point and to avoid calling this closure
 				// from within the scope of the ServerCmd func.
 				// reference:f9d302c2-df3f-4110-9529-94b0515c4a17
 				// Follow-up: https://spothero.atlassian.net/browse/PMP-402
-				grpcConfig.ServerRegistration = newGRPCService(c).RegisterAPIs
+				grpcConfig.ServerRegistration = scc.newGRPCService(c).RegisterAPIs
 				grpcDone, err := grpcConfig.NewServer().Run()
 				if err != nil {
 					return err
@@ -212,8 +204,8 @@ func (c Config) ServerCmd(
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				if newHTTPService != nil {
-					httpService := newHTTPService(c)
+				if scc.newHTTPService != nil {
+					httpService := scc.newHTTPService(c)
 					httpConfig.RegisterHandlers = httpService.RegisterHandlers
 				}
 				httpConfig.NewServer().Run()
@@ -221,7 +213,7 @@ func (c Config) ServerCmd(
 
 			wg.Wait()
 			if c.PostShutdown != nil {
-				if err := c.PostShutdown(ctx); err != nil {
+				if err := c.PostShutdown(scc.ctx); err != nil {
 					return err
 				}
 			}
@@ -239,4 +231,32 @@ func (c Config) ServerCmd(
 	cc.RegisterFlags(flags)
 	jc.RegisterFlags(flags)
 	return cmd
+}
+
+// ServerCmd takes functions, newHTTPService and newGRPCService, that instantiate
+// the GRPCService and HTTPService by consuming the Config object after all values
+// are populated from the CLI and/or environment variables so that values configured
+// by this package are accessible by newService.
+//
+// Note that this function creates the default server configuration (grpc and http)
+// for use at SpotHero. Consumers of the tools libraries are free to define their
+// own server entrypoints if desired. This function is provided as a convenience
+// function that should satisfy most use cases.
+//
+// Note that Version and GitSHA *must be specified* before calling this function.
+func (c Config) ServerCmd(
+	ctx context.Context,
+	shortDescription string,
+	longDescription string,
+	newHTTPService func(Config) HTTPService,
+	newGRPCService func(Config) GRPCService) *cobra.Command {
+
+	return c.ServerCmdWithConfig(ServerCmdConfig{
+		ctx:               ctx,
+		shortDescription:  shortDescription,
+		longDescription:   longDescription,
+		newHTTPService:    newHTTPService,
+		newGRPCService:    newGRPCService,
+		httpDefaultConfig: shHTTP.NewDefaultConfig(c.Name),
+		grpcDefaultConfig: shGRPC.NewDefaultConfig(c.Name, nil)})
 }
