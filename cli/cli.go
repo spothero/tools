@@ -33,7 +33,7 @@ import (
 // variables like "AVAILABILITY_KAFKA_BROKER" and not "KAFKA_BROKER". There is no need to
 // capitalize the prefix name.
 //
-// Note: CLI arguments (eg --address=localhost) will always take precedence over environment variables
+// Note: CLI arguments (eg --address=127.0.0.1) will always take precedence over environment variables
 func CobraBindEnvironmentVariables(prefix string) func(cmd *cobra.Command, _ []string) {
 	// Search for environment values with the given prefix
 	viper.SetEnvPrefix(prefix)

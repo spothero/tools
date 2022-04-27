@@ -154,7 +154,7 @@ func Get(ctx context.Context) *zap.Logger {
 
 // RegisterLogLevelHandler registers an endpoint handler with the specified router to change the global log level
 // for the application. Once the handler is registered, the log level can be changed with an HTTP PUT request to
-// the endpoint with the desired log level. e.g. curl -X PUT -d '{"level":"debug"}' localhost:8080/loglevel
+// the endpoint with the desired log level. e.g. curl -X PUT -d '{"level":"debug"}' 127.0.0.1:8080/loglevel
 func RegisterLogLevelHandler(router *mux.Router) {
 	router.Handle("/loglevel", globalLogLevel)
 }

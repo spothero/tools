@@ -63,7 +63,7 @@ func defaultClientConfig(ctx context.Context) ClientConfig {
 	grpcprom.EnableClientStreamSendTimeHistogram()
 	grpcprom.EnableHandlingTimeHistogram()
 	return ClientConfig{
-		Address:              "localhost",
+		Address:              "127.0.0.1",
 		Port:                 9111,
 		PropagateAuthHeaders: false,
 		RetryServerErrors:    false,

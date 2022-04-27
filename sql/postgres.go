@@ -56,7 +56,7 @@ type PostgresConfig struct {
 func NewDefaultPostgresConfig(appName, dbName string) PostgresConfig {
 	return PostgresConfig{
 		ApplicationName: appName,
-		Host:            "localhost",
+		Host:            "127.0.0.1",
 		Port:            5432,
 		Database:        dbName,
 		ConnectTimeout:  defaultTimeout,

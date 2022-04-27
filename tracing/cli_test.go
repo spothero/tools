@@ -55,7 +55,7 @@ func TestRegisterFlags(t *testing.T) {
 
 	tah, err := flags.GetString("tracer-agent-host")
 	assert.NoError(t, err)
-	assert.Equal(t, "localhost", tah)
+	assert.Equal(t, "127.0.0.1", tah)
 
 	tap, err := flags.GetInt("tracer-agent-port")
 	assert.NoError(t, err)
