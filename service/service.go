@@ -60,7 +60,6 @@ type GRPCService interface {
 // function that should satisfy most use cases.
 //
 // Note that Version and GitSHA *must be specified* before calling this function.
-
 func (c Config) ServerCmd(
 	ctx context.Context,
 	shortDescription, longDescription string,
@@ -77,6 +76,9 @@ func (c Config) ServerCmd(
 		[]grpc.UnaryServerInterceptor{},
 		[]grpc.StreamServerInterceptor{})
 }
+
+// ServerCmdWithExtraMiddlewares is the same as ServerCmd but allows
+// additional configuration for http and grpc middleware
 func (c Config) ServerCmdWithExtraMiddlewares(
 	ctx context.Context,
 	shortDescription, longDescription string,
