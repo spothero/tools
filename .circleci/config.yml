@@ -2,7 +2,7 @@ version: 2.1
 jobs:
   lint:
     docker:
-      - image: cimg/go:1.17.1
+      - image: cimg/go:1.18.3
     working_directory: /tmp/tools
     steps:
       - checkout
@@ -10,7 +10,7 @@ jobs:
       - run: make lint
   test:
     docker:
-      - image: cimg/go:1.17.1
+      - image: cimg/go:1.18.3
     working_directory: /tmp/tools
     steps:
       - checkout
