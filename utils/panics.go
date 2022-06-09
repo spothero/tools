@@ -13,4 +13,3 @@ func CatchPanic(ctx context.Context) {
 		log.Get(ctx).Error("caught panic", zap.String("error", fmt.Sprint(err)))
 	}
 }
-

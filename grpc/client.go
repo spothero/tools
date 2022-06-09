@@ -16,10 +16,10 @@ package grpc
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"time"
 
-	"crypto/tls"
 	"github.com/grpc-ecosystem/go-grpc-middleware"
 	grpczap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	grpcretry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
@@ -30,6 +30,7 @@ import (
 	"github.com/spothero/tools/tracing"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // ClientConfig contains the configuration necessary for connecting to a gRPC Server.
@@ -46,7 +47,7 @@ type ClientConfig struct {
 // NewDefaultClientConfig returns the default SpotHero gRPC plaintext Client Configuration
 func NewDefaultClientConfig(ctx context.Context) ClientConfig {
 	cc := defaultClientConfig(ctx)
-	cc.Options = append(cc.Options, grpc.WithInsecure())
+	cc.Options = append(cc.Options, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	return cc
 }
 

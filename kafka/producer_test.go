@@ -55,16 +55,15 @@ func TestAsyncProducer_run(t *testing.T) {
 			}
 			producer.run()
 			msg := &sarama.ProducerMessage{
-				Value:     sarama.ByteEncoder([]byte("value")),
-				Topic:     "topic",
-				Partition: 0,
+				Value: sarama.ByteEncoder([]byte("value")),
+				Topic: "topic",
 			}
 			producer.Input() <- msg
 
-			labels := prometheus.Labels{"topic": "topic", "partition": "0"}
 			if test.fail {
 				msgErr := <-producer.Errors()
 				assert.Equal(t, msg, msgErr.Msg)
+				labels := prometheus.Labels{"topic": "topic", "partition": fmt.Sprint(msg.Partition)}
 				errored, err := producer.metrics.errorsProduced.GetMetricWith(labels)
 				require.NoError(t, err)
 				erroredMetric := &dto.Metric{}
@@ -72,6 +71,7 @@ func TestAsyncProducer_run(t *testing.T) {
 				assert.Equal(t, float64(1), erroredMetric.Gauge.GetValue())
 			} else {
 				assert.Equal(t, msg, <-producer.Successes())
+				labels := prometheus.Labels{"topic": "topic", "partition": fmt.Sprint(msg.Partition)}
 				produced, err := producer.metrics.messagesProduced.GetMetricWith(labels)
 				require.NoError(t, err)
 				producedMetric := &dto.Metric{}

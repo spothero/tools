@@ -20,6 +20,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func TestNewDefaultClientConfig(t *testing.T) {
@@ -44,7 +45,7 @@ func TestGetConn(t *testing.T) {
 	conn, err := ClientConfig{
 		PropagateAuthHeaders: true,
 		RetryServerErrors:    true,
-		Options:              []grpc.DialOption{grpc.WithInsecure()},
+		Options:              []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())},
 	}.GetConn()
 	assert.NoError(t, err)
 	assert.NotNil(t, conn)
