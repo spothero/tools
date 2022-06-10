@@ -1,4 +1,4 @@
-// Copyright 2021 SpotHero
+// Copyright 2022 SpotHero
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -68,7 +68,7 @@ func Example() {
 
 	// In the previous function call, we discard the cobra command that is returned. If we had
 	// called it `cobraCmd`, we could then run the server by simply calling `Execute()`
-	//if err := cobraCmd.Execute(); err != nil {
+	// if err := cobraCmd.Execute(); err != nil {
 	//	os.Exit(1)
-	//}
+	// }
 }

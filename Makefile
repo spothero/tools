@@ -16,7 +16,7 @@ coverage: test ## Displays test coverage report
 .PHONY: lint
 lint: ## Runs the go code linter
 ifdef LINTER_INSTALLED
-	golangci-lint run
+	golangci-lint run --timeout 2m0s
 else
 	$(error golangci-lint not found, skipping linting. Installation instructions: https://github.com/golangci/golangci-lint#ci-installation)
 endif

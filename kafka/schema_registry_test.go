@@ -1,4 +1,4 @@
-// Copyright 2021 SpotHero
+// Copyright 2022 SpotHero
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	shHTTP "github.com/spothero/tools/http"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -28,6 +27,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	shHTTP "github.com/spothero/tools/http"
 
 	"github.com/Shopify/sarama"
 	"github.com/linkedin/goavro/v2"

@@ -1,4 +1,4 @@
-// Copyright 2021 SpotHero
+// Copyright 2022 SpotHero
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,8 +15,9 @@
 package strings
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestStringInSlice(t *testing.T) {
