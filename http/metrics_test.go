@@ -306,9 +306,9 @@ func TestRetrieveAuthenticatedClient(t *testing.T) {
 			expected: "spothero",
 		},
 		{
-			name:     "partner authenticated - lyft",
-			client:   "lyft",
-			expected: "lyft",
+			name:     "partner authenticated",
+			client:   "good_partner",
+			expected: "good_partner",
 		},
 	}
 	for _, test := range tests {
