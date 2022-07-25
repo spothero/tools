@@ -114,8 +114,9 @@ func TestMiddleware(t *testing.T) {
 
 	// Expected prometheus labels after this request
 	labels := prometheus.Labels{
-		"path":        "/",
-		"status_code": "666",
+		"path":                 "/",
+		"status_code":          "666",
+		"authenticated_client": "unauthenticated",
 	}
 
 	// Check duration histogram
@@ -232,8 +233,9 @@ func TestMetricsRoundTrip(t *testing.T) {
 
 				// Expected prometheus labels after this request
 				labels := prometheus.Labels{
-					"path":        "/path",
-					"status_code": "200",
+					"path":                 "/path",
+					"status_code":          "200",
+					"authenticated_client": "unauthenticated",
 				}
 
 				// Check duration histogram
