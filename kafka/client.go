@@ -67,7 +67,6 @@ func (c *Config) populateSaramaConfig(ctx context.Context) error {
 			Certificates:       []tls.Certificate{cert},
 			InsecureSkipVerify: true,
 		}
-		c.Net.TLS.Config.BuildNameToCertificate()
 		c.Net.TLS.Enable = true
 		if c.TLSCaCrtPath != "" {
 			caCert, err := ioutil.ReadFile(c.TLSCaCrtPath)
