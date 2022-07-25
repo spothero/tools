@@ -16,6 +16,7 @@ package http
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -23,6 +24,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spothero/tools/http/writer"
 )
+
+// AUTHENTICATED_CLIENT_KEY is the key used in the request context to pass the client to metrics
+const AUTHENTICATED_CLIENT_KEY = "authenticated_client"
+
+// UNAUTHENTICATED is the string used when the client is unknown
+const UNAUTHENTICATED = "unauthenticated"
 
 // Metrics is a bundle of prometheus HTTP metrics recorders
 type Metrics struct {
@@ -215,4 +222,12 @@ func (metricsRT MetricsRoundTripper) RoundTrip(r *http.Request) (*http.Response,
 	defer timer.ObserveDuration()
 	resp, err = metricsRT.RoundTripper.RoundTrip(r)
 	return resp, err
+}
+
+func retrieveAuthenticatedClient(r *http.Request) string {
+	authenticatedClient := r.Context().Value(AUTHENTICATED_CLIENT_KEY)
+	if authenticatedClient == nil {
+		return UNAUTHENTICATED
+	}
+	return fmt.Sprintf("%v", authenticatedClient)
 }

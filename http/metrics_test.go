@@ -15,6 +15,7 @@
 package http
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -282,6 +283,41 @@ func TestMetricsRoundTrip(t *testing.T) {
 			prometheus.Unregister(metricsRT.Metrics.counter)
 			prometheus.Unregister(metricsRT.Metrics.clientCounter)
 			prometheus.Unregister(metricsRT.Metrics.circuitBreakerOpen)
+		})
+	}
+}
+
+func TestRetrieveAuthenticatedClient(t *testing.T) {
+	tests := []struct {
+		name     string
+		client   string
+		expected string
+	}{
+		{
+			name:     "base case - no existing key",
+			client:   "",
+			expected: UNAUTHENTICATED,
+		},
+		{
+			name:     "user authenticated",
+			client:   "spothero",
+			expected: "spothero",
+		},
+		{
+			name:     "partner authenticated - lyft",
+			client:   "lyft",
+			expected: "lyft",
+		},
+	}
+	for _, test := range tests {
+		request := http.Request{}
+		if test.client != "" {
+			testContext := context.WithValue(request.Context(), AUTHENTICATED_CLIENT_KEY, test.client)
+			request = *request.WithContext(testContext)
+
+		}
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expected, retrieveAuthenticatedClient(&request))
 		})
 	}
 }
