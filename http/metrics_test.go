@@ -314,7 +314,7 @@ func TestRetrieveAuthenticatedClient(t *testing.T) {
 	for _, test := range tests {
 		request := http.Request{}
 		if test.client != "" {
-			testContext := context.WithValue(request.Context(), AUTHENTICATED_CLIENT_KEY, test.client)
+			testContext := context.WithValue(request.Context(), AuthenticatedClientKey, test.client)
 			request = *request.WithContext(testContext)
 
 		}
