@@ -15,6 +15,7 @@
 package http
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -113,8 +114,9 @@ func TestMiddleware(t *testing.T) {
 
 	// Expected prometheus labels after this request
 	labels := prometheus.Labels{
-		"path":        "/",
-		"status_code": "666",
+		"path":                 "/",
+		"status_code":          "666",
+		"authenticated_client": UNAUTHENTICATED,
 	}
 
 	// Check duration histogram
@@ -231,8 +233,9 @@ func TestMetricsRoundTrip(t *testing.T) {
 
 				// Expected prometheus labels after this request
 				labels := prometheus.Labels{
-					"path":        "/path",
-					"status_code": "200",
+					"path":                 "/path",
+					"status_code":          "200",
+					"authenticated_client": UNAUTHENTICATED,
 				}
 
 				// Check duration histogram
@@ -282,6 +285,41 @@ func TestMetricsRoundTrip(t *testing.T) {
 			prometheus.Unregister(metricsRT.Metrics.counter)
 			prometheus.Unregister(metricsRT.Metrics.clientCounter)
 			prometheus.Unregister(metricsRT.Metrics.circuitBreakerOpen)
+		})
+	}
+}
+
+func TestRetrieveAuthenticatedClient(t *testing.T) {
+	tests := []struct {
+		name     string
+		client   string
+		expected string
+	}{
+		{
+			name:     "base case - no existing key",
+			client:   "",
+			expected: UNAUTHENTICATED,
+		},
+		{
+			name:     "user authenticated",
+			client:   "spothero",
+			expected: "spothero",
+		},
+		{
+			name:     "partner authenticated",
+			client:   "good_partner",
+			expected: "good_partner",
+		},
+	}
+	for _, test := range tests {
+		request := http.Request{}
+		if test.client != "" {
+			testContext := context.WithValue(request.Context(), AuthenticatedClientKey, test.client)
+			request = *request.WithContext(testContext)
+
+		}
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expected, retrieveAuthenticatedClient(&request))
 		})
 	}
 }

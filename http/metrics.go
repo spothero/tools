@@ -16,6 +16,7 @@ package http
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -23,6 +24,16 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spothero/tools/http/writer"
 )
+
+// ContextKey this type is created to avoid the linting error:
+// SA1029: should not use built-in type string as key for value; define your own type to avoid collisions (staticcheck)
+type ContextKey string
+
+// AuthenticatedClientKey is the key used in the request context to pass the client to metrics
+const AuthenticatedClientKey = ContextKey("authenticated_client")
+
+// UNAUTHENTICATED is the string used when the client is unknown
+const UNAUTHENTICATED = "unauthenticated"
 
 // Metrics is a bundle of prometheus HTTP metrics recorders
 type Metrics struct {
@@ -64,7 +75,7 @@ func registerCollector(registry prometheus.Registerer, collector prometheus.Coll
 // then the existing collector will be returned.  But if registration failed for any other reason then
 // the application will panic.
 func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
-	labels := []string{"path", "status_code"}
+	labels := []string{"path", "status_code", "authenticated_client"}
 
 	// If the user has not provided a Prometheus Registry, use the global Registry
 	if registry == nil {
@@ -159,7 +170,10 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 func (m Metrics) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		timer := prometheus.NewTimer(prometheus.ObserverFunc(func(durationSec float64) {
-			labels := prometheus.Labels{"path": writer.FetchRoutePathTemplate(r)}
+			labels := prometheus.Labels{
+				"path":                 writer.FetchRoutePathTemplate(r),
+				"authenticated_client": retrieveAuthenticatedClient(r),
+			}
 			if statusRecorder, ok := w.(*writer.StatusRecorder); ok {
 				labels["status_code"] = strconv.Itoa(statusRecorder.StatusCode)
 			}
@@ -196,8 +210,9 @@ func (metricsRT MetricsRoundTripper) RoundTrip(r *http.Request) (*http.Response,
 	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(durationSec float64) {
 		if resp != nil {
 			labels := prometheus.Labels{
-				"path":        r.URL.Path,
-				"status_code": strconv.Itoa(resp.StatusCode),
+				"path":                 r.URL.Path,
+				"status_code":          strconv.Itoa(resp.StatusCode),
+				"authenticated_client": retrieveAuthenticatedClient(r),
 			}
 			metricsRT.Metrics.clientCounter.With(labels).Inc()
 			if contentLengthStr := r.Header.Get("Content-Length"); len(contentLengthStr) > 0 {
@@ -215,4 +230,12 @@ func (metricsRT MetricsRoundTripper) RoundTrip(r *http.Request) (*http.Response,
 	defer timer.ObserveDuration()
 	resp, err = metricsRT.RoundTripper.RoundTrip(r)
 	return resp, err
+}
+
+func retrieveAuthenticatedClient(r *http.Request) string {
+	authenticatedClient := r.Context().Value(AuthenticatedClientKey)
+	if authenticatedClient == nil {
+		return UNAUTHENTICATED
+	}
+	return fmt.Sprintf("%v", authenticatedClient)
 }
