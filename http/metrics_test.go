@@ -116,7 +116,7 @@ func TestMiddleware(t *testing.T) {
 	labels := prometheus.Labels{
 		"path":                 "/",
 		"status_code":          "666",
-		"authenticated_client": "unauthenticated",
+		"authenticated_client": UNAUTHENTICATED,
 	}
 
 	// Check duration histogram
@@ -235,7 +235,7 @@ func TestMetricsRoundTrip(t *testing.T) {
 				labels := prometheus.Labels{
 					"path":                 "/path",
 					"status_code":          "200",
-					"authenticated_client": "unauthenticated",
+					"authenticated_client": UNAUTHENTICATED,
 				}
 
 				// Check duration histogram
