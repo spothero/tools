@@ -17,6 +17,7 @@ package jose
 import (
 	"context"
 	"fmt"
+	"github.com/spothero/tools/utils"
 	"net/http"
 	"strings"
 
@@ -170,6 +171,13 @@ func validateRequiredScope(r *http.Request, params AuthParams) error {
 			if !tools_strings.StringInSlice(requiredScope, tokenScopes) {
 				return fmt.Errorf(missingRequiredScope)
 			}
+		}
+
+		// set authenticated client on request context for use in downstream metrics
+		authenticatedClient := claim.ExtractAuthenticatedClientGroup()
+		if authenticatedClient != "" {
+			newContext := context.WithValue(r.Context(), utils.AuthenticatedClientKey, authenticatedClient)
+			*r = *r.WithContext(newContext)
 		}
 	}
 	return nil

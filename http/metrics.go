@@ -17,6 +17,7 @@ package http
 import (
 	"errors"
 	"fmt"
+	"github.com/spothero/tools/utils"
 	"net/http"
 	"strconv"
 
@@ -24,13 +25,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spothero/tools/http/writer"
 )
-
-// ContextKey this type is created to avoid the linting error:
-// SA1029: should not use built-in type string as key for value; define your own type to avoid collisions (staticcheck)
-type ContextKey string
-
-// AuthenticatedClientKey is the key used in the request context to pass the client to metrics
-const AuthenticatedClientKey = ContextKey("authenticated_client")
 
 // UNAUTHENTICATED is the string used when the client is unknown
 const UNAUTHENTICATED = "unauthenticated"
@@ -233,7 +227,7 @@ func (metricsRT MetricsRoundTripper) RoundTrip(r *http.Request) (*http.Response,
 }
 
 func retrieveAuthenticatedClient(r *http.Request) string {
-	authenticatedClient := r.Context().Value(AuthenticatedClientKey)
+	authenticatedClient := r.Context().Value(utils.AuthenticatedClientKey)
 	if authenticatedClient == nil {
 		return UNAUTHENTICATED
 	}

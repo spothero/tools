@@ -17,6 +17,7 @@ package http
 import (
 	"context"
 	"errors"
+	"github.com/spothero/tools/utils"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -314,7 +315,7 @@ func TestRetrieveAuthenticatedClient(t *testing.T) {
 	for _, test := range tests {
 		request := http.Request{}
 		if test.client != "" {
-			testContext := context.WithValue(request.Context(), AuthenticatedClientKey, test.client)
+			testContext := context.WithValue(request.Context(), utils.AuthenticatedClientKey, test.client)
 			request = *request.WithContext(testContext)
 
 		}
