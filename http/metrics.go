@@ -17,13 +17,13 @@ package http
 import (
 	"errors"
 	"fmt"
-	"github.com/spothero/tools/utils"
 	"net/http"
 	"strconv"
 
 	"github.com/cep21/circuit/v3"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spothero/tools/http/writer"
+	"github.com/spothero/tools/utils"
 )
 
 // UNAUTHENTICATED is the string used when the client is unknown
