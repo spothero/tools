@@ -17,6 +17,7 @@ package jose
 import (
 	"context"
 	"fmt"
+	"github.com/spothero/tools/utils"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -318,17 +319,22 @@ func TestValidateRequiredScope(t *testing.T) {
 	)
 	authenticatedRequest := blankRequest.WithContext(authenticatedContext)
 
+	resultingFinalRequest := authenticatedRequest.WithContext(
+		context.WithValue(authenticatedContext, utils.AuthenticatedClientKey, "spothero_user"))
+
 	tests := []struct {
-		name     string
-		request  http.Request
-		params   AuthParams
-		expected error
+		name            string
+		request         http.Request
+		params          AuthParams
+		expected        error
+		expectedRequest http.Request
 	}{
 		{
-			name:     "no required scopes - nil",
-			request:  blankRequest,
-			params:   blankAuthParams,
-			expected: nil,
+			name:            "no required scopes - nil",
+			request:         blankRequest,
+			params:          blankAuthParams,
+			expected:        nil,
+			expectedRequest: blankRequest,
 		},
 		{
 			name:    "no claim in request context - error",
@@ -352,14 +358,19 @@ func TestValidateRequiredScope(t *testing.T) {
 			params: AuthParams{
 				RequiredScopes: []string{"scope2"},
 			},
-			expected: nil,
+			expected:        nil,
+			expectedRequest: *resultingFinalRequest,
 		},
 	}
-
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := validateRequiredScope(&test.request, test.params)
 			assert.Equal(t, test.expected, err)
+			assert.Equal(
+				t,
+				test.expectedRequest.Context().Value(utils.AuthenticatedClientKey),
+				test.request.Context().Value(utils.AuthenticatedClientKey),
+			)
 		})
 	}
 }
