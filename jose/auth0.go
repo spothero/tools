@@ -20,6 +20,9 @@ import (
 	"strings"
 )
 
+const SPOTHERO_USER = "spothero_user"
+const PARTNER_MACHINE = "partner_machine"
+
 // Auth0CtxKey is the type used to uniquely place the cognito claim in the context
 type Auth0CtxKey int
 
@@ -80,4 +83,14 @@ func FromContext(ctx context.Context) (*Auth0Claim, error) {
 	}
 
 	return nil, fmt.Errorf("unable to extract claim from given context")
+}
+
+// ExtractAuthenticatedClientGroup determines the client group from the auth0claim for use in downstream metrics
+func (cc Auth0Claim) ExtractAuthenticatedClientGroup() string {
+	if len(cc.GetUserID()) > 0 {
+		return SPOTHERO_USER
+	} else if len(cc.GetClientID()) > 0 {
+		return PARTNER_MACHINE
+	}
+	return ""
 }

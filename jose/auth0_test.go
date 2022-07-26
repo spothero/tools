@@ -137,3 +137,39 @@ func TestGetUserID(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractAuthenticatedClientGroup(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    Auth0Claim
+		expected string
+	}{
+		{
+			name:     "client id present",
+			input:    Auth0Claim{"client-id", "email", "client-credentials", ""},
+			expected: PARTNER_MACHINE,
+		},
+		{
+			name:     "user id presented as password",
+			input:    Auth0Claim{"user-id", "email", "password", ""},
+			expected: SPOTHERO_USER,
+		},
+		{
+			name:     "user id presented as authorization_code",
+			input:    Auth0Claim{"user-id", "email", "password", ""},
+			expected: SPOTHERO_USER,
+		},
+		{
+			name:     "unknown grant",
+			input:    Auth0Claim{"id", "email", "BoGuS", ""},
+			expected: "",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			actual := test.input.ExtractAuthenticatedClientGroup()
+			assert.Equal(t, test.expected, actual)
+		})
+	}
+}
