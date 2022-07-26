@@ -301,3 +301,65 @@ func TestEnforceAuthenticationWithAuthorization(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateRequiredScope(t *testing.T) {
+	blankRequest := http.Request{}
+	blankAuthParams := AuthParams{}
+
+	authenticatedContext := context.WithValue(
+		blankRequest.Context(),
+		Auth0ClaimKey,
+		&Auth0Claim{
+			ID:        "123",
+			Email:     "email@gmail.com",
+			GrantType: "password",
+			Scope:     "scope2",
+		},
+	)
+	authenticatedRequest := blankRequest.WithContext(authenticatedContext)
+
+	tests := []struct {
+		name     string
+		request  http.Request
+		params   AuthParams
+		expected error
+	}{
+		{
+			name:     "no required scopes - nil",
+			request:  blankRequest,
+			params:   blankAuthParams,
+			expected: nil,
+		},
+		{
+			name:    "no claim in request context - error",
+			request: blankRequest,
+			params: AuthParams{
+				RequiredScopes: []string{"scope1"},
+			},
+			expected: fmt.Errorf(cannotFindClaim),
+		},
+		{
+			name:    "wrong scopes supplied",
+			request: *authenticatedRequest,
+			params: AuthParams{
+				RequiredScopes: []string{"scope1"},
+			},
+			expected: fmt.Errorf(missingRequiredScope),
+		},
+		{
+			name:    "correct scope supplied",
+			request: *authenticatedRequest,
+			params: AuthParams{
+				RequiredScopes: []string{"scope2"},
+			},
+			expected: nil,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := validateRequiredScope(&test.request, test.params)
+			assert.Equal(t, test.expected, err)
+		})
+	}
+}
