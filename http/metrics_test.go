@@ -17,7 +17,6 @@ package http
 import (
 	"context"
 	"errors"
-	"github.com/spothero/tools/utils"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -27,6 +26,7 @@ import (
 	dto "github.com/prometheus/client_model/go"
 	"github.com/spothero/tools/http/mock"
 	"github.com/spothero/tools/http/writer"
+	"github.com/spothero/tools/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -17,7 +17,6 @@ package jose
 import (
 	"context"
 	"fmt"
-	"github.com/spothero/tools/utils"
 	"net/http"
 	"strings"
 
@@ -25,6 +24,7 @@ import (
 	"github.com/spothero/tools/http/writer"
 	"github.com/spothero/tools/log"
 	tools_strings "github.com/spothero/tools/strings"
+	"github.com/spothero/tools/utils"
 	"go.uber.org/zap"
 )
 
