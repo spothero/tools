@@ -17,6 +17,7 @@ package jose
 import (
 	"context"
 	"fmt"
+	"github.com/spothero/tools/utils"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -298,6 +299,78 @@ func TestEnforceAuthenticationWithAuthorization(t *testing.T) {
 			} else {
 				assert.Equal(http.StatusForbidden, actualResponse.StatusCode)
 			}
+		})
+	}
+}
+
+func TestValidateRequiredScope(t *testing.T) {
+	blankRequest := http.Request{}
+	blankAuthParams := AuthParams{}
+
+	authenticatedContext := context.WithValue(
+		blankRequest.Context(),
+		Auth0ClaimKey,
+		&Auth0Claim{
+			ID:        "123",
+			Email:     "email@gmail.com",
+			GrantType: "password",
+			Scope:     "scope2",
+		},
+	)
+	authenticatedRequest := blankRequest.WithContext(authenticatedContext)
+
+	resultingFinalRequest := authenticatedRequest.WithContext(
+		context.WithValue(authenticatedContext, utils.AuthenticatedClientKey, "spothero_user"))
+
+	tests := []struct {
+		name            string
+		request         http.Request
+		params          AuthParams
+		expected        error
+		expectedRequest http.Request
+	}{
+		{
+			name:            "no required scopes - nil",
+			request:         blankRequest,
+			params:          blankAuthParams,
+			expected:        nil,
+			expectedRequest: blankRequest,
+		},
+		{
+			name:    "no claim in request context - error",
+			request: blankRequest,
+			params: AuthParams{
+				RequiredScopes: []string{"scope1"},
+			},
+			expected: fmt.Errorf(cannotFindClaim),
+		},
+		{
+			name:    "wrong scopes supplied",
+			request: *authenticatedRequest,
+			params: AuthParams{
+				RequiredScopes: []string{"scope1"},
+			},
+			expected: fmt.Errorf(missingRequiredScope),
+		},
+		{
+			name:    "correct scope supplied",
+			request: *authenticatedRequest,
+			params: AuthParams{
+				RequiredScopes: []string{"scope2"},
+			},
+			expected:        nil,
+			expectedRequest: *resultingFinalRequest,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := validateRequiredScope(&test.request, test.params)
+			assert.Equal(t, test.expected, err)
+			assert.Equal(
+				t,
+				test.expectedRequest.Context().Value(utils.AuthenticatedClientKey),
+				test.request.Context().Value(utils.AuthenticatedClientKey),
+			)
 		})
 	}
 }

@@ -26,6 +26,7 @@ import (
 	dto "github.com/prometheus/client_model/go"
 	"github.com/spothero/tools/http/mock"
 	"github.com/spothero/tools/http/writer"
+	"github.com/spothero/tools/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -314,7 +315,7 @@ func TestRetrieveAuthenticatedClient(t *testing.T) {
 	for _, test := range tests {
 		request := http.Request{}
 		if test.client != "" {
-			testContext := context.WithValue(request.Context(), AuthenticatedClientKey, test.client)
+			testContext := context.WithValue(request.Context(), utils.AuthenticatedClientKey, test.client)
 			request = *request.WithContext(testContext)
 
 		}
