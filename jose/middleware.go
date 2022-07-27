@@ -80,6 +80,17 @@ func GetHTTPServerMiddleware(jh JOSEHandler) func(next http.Handler) http.Handle
 			// Set the bearer token on the context so it can be passed to any downstream services
 			r = r.WithContext(context.WithValue(r.Context(), JWTClaimKey, bearerToken))
 
+			// Set the authenticated client group for use in downstream metrics
+			claim, err := FromContext(r.Context())
+			if err != nil {
+				logger.Info("failed to retrieve claim from context", zap.Error(err))
+			} else {
+				authenticatedClient := claim.ExtractAuthenticatedClientGroup()
+				if authenticatedClient != "" {
+					r = r.WithContext(context.WithValue(r.Context(), utils.AuthenticatedClientKey, authenticatedClient))
+				}
+			}
+
 			next.ServeHTTP(w, r)
 		})
 	}
@@ -171,13 +182,6 @@ func validateRequiredScope(r *http.Request, params AuthParams) error {
 			if !tools_strings.StringInSlice(requiredScope, tokenScopes) {
 				return fmt.Errorf(missingRequiredScope)
 			}
-		}
-
-		// set authenticated client on request context for use in downstream metrics
-		authenticatedClient := claim.ExtractAuthenticatedClientGroup()
-		if authenticatedClient != "" {
-			newContext := context.WithValue(r.Context(), utils.AuthenticatedClientKey, authenticatedClient)
-			*r = *r.WithContext(newContext)
 		}
 	}
 	return nil
