@@ -7,7 +7,7 @@ all: lint test ## Lints and runs the tests
 
 .PHONY: test
 test: ## Runs application tests
-	go test -race -v ./... -coverprofile=coverage.txt -covermode=atomic
+	go test -race ./... -coverprofile=coverage.txt -covermode=atomic
 
 .PHONY: coverage
 coverage: test ## Displays test coverage report
