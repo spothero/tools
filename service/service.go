@@ -104,7 +104,6 @@ func (c Config) ServerCmd(
 	// Jose Config
 	jc := jose.Config{
 		ClaimGenerators: []jose.ClaimGenerator{
-			jose.CognitoGenerator{},
 			jose.Auth0Generator{},
 		},
 	}
