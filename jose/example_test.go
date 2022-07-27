@@ -30,7 +30,7 @@ func Example() {
 		ValidIssuers: []string{"https://your-oidc-provider/issuerID"},
 		// ClaimGenerators determine how JWT claims are to be parsed.
 		ClaimGenerators: []jose.ClaimGenerator{
-			jose.CognitoGenerator{},
+			jose.Auth0Generator{},
 		},
 	}
 
