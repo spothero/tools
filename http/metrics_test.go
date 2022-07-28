@@ -17,7 +17,6 @@ package http
 import (
 	"context"
 	"errors"
-	"github.com/spothero/tools/jose"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -27,6 +26,7 @@ import (
 	dto "github.com/prometheus/client_model/go"
 	"github.com/spothero/tools/http/mock"
 	"github.com/spothero/tools/http/writer"
+	"github.com/spothero/tools/jose"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -314,12 +314,12 @@ func TestRetrieveAuthenticatedClient(t *testing.T) {
 		{
 			name: "machine authenticated - client credentials",
 			auth0Claim: &jose.Auth0Claim{
-				ID:        "123",
-				Email:     "email@gmail.com",
-				GrantType: "password",
-				Scope:     "scope2",
+				ID:        "987",
+				Email:     "email",
+				GrantType: "client-credentials",
+				Scope:     "scope20",
 			},
-			expected: jose.SPOTHERO_USER,
+			expected: jose.PARTNER_MACHINE,
 		},
 	}
 	for _, test := range tests {
