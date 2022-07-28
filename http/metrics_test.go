@@ -26,7 +26,7 @@ import (
 	dto "github.com/prometheus/client_model/go"
 	"github.com/spothero/tools/http/mock"
 	"github.com/spothero/tools/http/writer"
-	"github.com/spothero/tools/utils"
+	"github.com/spothero/tools/jose"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -292,35 +292,62 @@ func TestMetricsRoundTrip(t *testing.T) {
 
 func TestRetrieveAuthenticatedClient(t *testing.T) {
 	tests := []struct {
-		name     string
-		client   string
-		expected string
+		name       string
+		auth0Claim *jose.Auth0Claim
+		expected   string
 	}{
 		{
-			name:     "base case - no existing key",
-			client:   "",
+			name:       "base case - no key",
+			auth0Claim: nil,
+			expected:   UNAUTHENTICATED,
+		},
+		{
+			name: "spothero user authenticated - password",
+			auth0Claim: &jose.Auth0Claim{
+				ID:        "123",
+				Email:     "email@gmail.com",
+				GrantType: "password",
+				Scope:     "scope2",
+			},
+			expected: jose.SPOTHERO_USER,
+		},
+		{
+			name: "machine authenticated - client credentials",
+			auth0Claim: &jose.Auth0Claim{
+				ID:        "987",
+				Email:     "email",
+				GrantType: "client-credentials",
+				Scope:     "scope20",
+			},
+			expected: jose.PARTNER_MACHINE,
+		},
+		{
+			name: "unexpected grant type",
+			auth0Claim: &jose.Auth0Claim{
+				ID:        "579",
+				Email:     "email",
+				GrantType: "sdafsdafasdfsadfs",
+				Scope:     "scope290",
+			},
 			expected: UNAUTHENTICATED,
-		},
-		{
-			name:     "user authenticated",
-			client:   "spothero",
-			expected: "spothero",
-		},
-		{
-			name:     "partner authenticated",
-			client:   "good_partner",
-			expected: "good_partner",
 		},
 	}
 	for _, test := range tests {
-		request := http.Request{}
-		if test.client != "" {
-			testContext := context.WithValue(request.Context(), utils.AuthenticatedClientKey, test.client)
-			request = *request.WithContext(testContext)
+		request := &http.Request{}
 
+		if test.auth0Claim != nil {
+			authenticatedContext := context.WithValue(
+				request.Context(),
+				jose.Auth0ClaimKey,
+				test.auth0Claim,
+			)
+			request = request.WithContext(authenticatedContext)
 		}
+
+		authenticatedClient := retrieveAuthenticatedClient(request)
+
 		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.expected, retrieveAuthenticatedClient(&request))
+			assert.Equal(t, test.expected, authenticatedClient)
 		})
 	}
 }

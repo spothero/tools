@@ -20,7 +20,10 @@ import (
 	"strings"
 )
 
+// SPOTHERO_USER is the string used when the user is a public authenticated spothero client
 const SPOTHERO_USER = "spothero_user"
+
+// PARTNER_MACHINE is the string used when the client is partner authenticated machine
 const PARTNER_MACHINE = "partner_machine"
 
 // Auth0CtxKey is the type used to uniquely place the cognito claim in the context

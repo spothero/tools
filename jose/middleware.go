@@ -24,7 +24,6 @@ import (
 	"github.com/spothero/tools/http/writer"
 	"github.com/spothero/tools/log"
 	tools_strings "github.com/spothero/tools/strings"
-	"github.com/spothero/tools/utils"
 	"go.uber.org/zap"
 )
 
@@ -72,7 +71,6 @@ func GetHTTPServerMiddleware(jh JOSEHandler) func(next http.Handler) http.Handle
 				http.Error(w, invalidBearerToken, http.StatusForbidden)
 				return
 			}
-
 			// Populate each claim on the context, if any
 			for _, claim := range claims {
 				r = r.WithContext(claim.NewContext(r.Context()))
@@ -171,13 +169,6 @@ func validateRequiredScope(r *http.Request, params AuthParams) error {
 			if !tools_strings.StringInSlice(requiredScope, tokenScopes) {
 				return fmt.Errorf(missingRequiredScope)
 			}
-		}
-
-		// set authenticated client on request context for use in downstream metrics
-		authenticatedClient := claim.ExtractAuthenticatedClientGroup()
-		if authenticatedClient != "" {
-			newContext := context.WithValue(r.Context(), utils.AuthenticatedClientKey, authenticatedClient)
-			*r = *r.WithContext(newContext)
 		}
 	}
 	return nil
