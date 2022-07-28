@@ -16,14 +16,15 @@ package http
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/cep21/circuit/v3"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spothero/tools/http/writer"
-	"github.com/spothero/tools/utils"
+	"github.com/spothero/tools/jose"
+	"github.com/spothero/tools/log"
+	"go.uber.org/zap"
 )
 
 // UNAUTHENTICATED is the string used when the client is unknown
@@ -227,9 +228,18 @@ func (metricsRT MetricsRoundTripper) RoundTrip(r *http.Request) (*http.Response,
 }
 
 func retrieveAuthenticatedClient(r *http.Request) string {
-	authenticatedClient := r.Context().Value(utils.AuthenticatedClientKey)
-	if authenticatedClient == nil {
+	logger := log.Get(r.Context())
+
+	claim, err := jose.FromContext(r.Context())
+	if err != nil {
+		logger.Info("failed to retrieve auth0 claim from request context", zap.Error(err))
 		return UNAUTHENTICATED
 	}
-	return fmt.Sprintf("%v", authenticatedClient)
+
+	authenticatedClient := claim.ExtractAuthenticatedClientGroup()
+	if authenticatedClient == "" {
+		return UNAUTHENTICATED
+	}
+
+	return authenticatedClient
 }
