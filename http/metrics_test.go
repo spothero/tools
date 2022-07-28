@@ -321,6 +321,16 @@ func TestRetrieveAuthenticatedClient(t *testing.T) {
 			},
 			expected: jose.PARTNER_MACHINE,
 		},
+		{
+			name: "unexpected grant type",
+			auth0Claim: &jose.Auth0Claim{
+				ID:        "579",
+				Email:     "email",
+				GrantType: "sdafsdafasdfsadfs",
+				Scope:     "scope290",
+			},
+			expected: UNAUTHENTICATED,
+		},
 	}
 	for _, test := range tests {
 		request := &http.Request{}
