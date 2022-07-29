@@ -73,7 +73,7 @@ func (c Config) ServerCmd(
 		},
 	}
 	jh := jc.NewJOSE()
-	
+
 	// HTTP Config
 	httpConfig := shHTTP.NewDefaultConfig(c.Name)
 	httpConfig.Middleware = []mux.MiddlewareFunc{
@@ -83,13 +83,6 @@ func (c Config) ServerCmd(
 		log.HTTPServerMiddleware,
 		sentry.NewMiddleware().HTTP,
 	}
-
-	//httpConfig.Middleware = append(
-	//	httpConfig.Middleware,
-	//	jose.GetHTTPServerMiddleware(jh),
-	//)
-	httpConfig.Middleware = httpConfig.Middleware
-
 
 	// GRPC Config
 	// XXX: passing `nil` as newGRPCService is a hack to delay the calling of
