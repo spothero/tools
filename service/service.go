@@ -66,19 +66,10 @@ func (c Config) ServerCmd(
 	newHTTPService func(Config) HTTPService,
 	newGRPCService func(Config) GRPCService,
 ) *cobra.Command {
-	// Jose Config
-	jc := jose.Config{
-		ClaimGenerators: []jose.ClaimGenerator{
-			jose.Auth0Generator{},
-		},
-	}
-	jh := jc.NewJOSE()
-
 	// HTTP Config
 	httpConfig := shHTTP.NewDefaultConfig(c.Name)
 	httpConfig.Middleware = []mux.MiddlewareFunc{
 		tracing.HTTPServerMiddleware,
-		jose.GetHTTPServerMiddleware(jh),
 		shHTTP.NewMetrics(c.Registry, true).Middleware,
 		log.HTTPServerMiddleware,
 		sentry.NewMiddleware().HTTP,
@@ -110,7 +101,12 @@ func (c Config) ServerCmd(
 	tc := tracing.Config{ServiceName: c.Name}
 	// CORS Config
 	cc := cors.Config{}
-
+	// Jose Config
+	jc := jose.Config{
+		ClaimGenerators: []jose.ClaimGenerator{
+			jose.Auth0Generator{},
+		},
+	}
 	cmd := &cobra.Command{
 		Use:              c.Name,
 		Short:            shortDescription,
@@ -155,7 +151,8 @@ func (c Config) ServerCmd(
 				)
 			}
 
-			// Add JOSE GRPC Auth interceptors
+			// Add JOSE Auth interceptors
+			jh := jc.NewJOSE()
 			joseInterceptorFunc := jose.GetContextAuth(jh)
 			grpcConfig.UnaryInterceptors = append(
 				grpcConfig.UnaryInterceptors,
@@ -164,6 +161,10 @@ func (c Config) ServerCmd(
 			grpcConfig.StreamInterceptors = append(
 				grpcConfig.StreamInterceptors,
 				grpcauth.StreamServerInterceptor(joseInterceptorFunc),
+			)
+			httpConfig.Middleware = append(
+				httpConfig.Middleware,
+				jose.GetHTTPServerMiddleware(jh),
 			)
 
 			// Add panic handlers to the middleware. Panic handlers should always come last,
