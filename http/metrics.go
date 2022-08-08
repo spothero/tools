@@ -23,8 +23,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spothero/tools/http/writer"
 	"github.com/spothero/tools/jose"
-	"github.com/spothero/tools/log"
-	"go.uber.org/zap"
 )
 
 // UNAUTHENTICATED is the string used when the client is unknown
