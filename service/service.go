@@ -114,8 +114,6 @@ func (c Config) ServerCmd(
 		Version:          fmt.Sprintf("%s (%s)", c.Version, c.GitSHA),
 		PersistentPreRun: cli.CobraBindEnvironmentVariables(strings.Replace(c.Name, "-", "_", -1)),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			jh := jc.NewJOSE()
-
 			sc.Environment = c.Environment
 
 			if err := c.CheckFlags(); err != nil {
@@ -154,6 +152,7 @@ func (c Config) ServerCmd(
 			}
 
 			// Add JOSE Auth interceptors
+			jh := jc.NewJOSE()
 			joseInterceptorFunc := jose.GetContextAuth(jh)
 			grpcConfig.UnaryInterceptors = append(
 				grpcConfig.UnaryInterceptors,

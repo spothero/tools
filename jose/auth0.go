@@ -81,8 +81,6 @@ func (cc Auth0Claim) GetUserID() string {
 
 // FromContext extracts an Auth0 claim from a context
 func FromContext(ctx context.Context) (*Auth0Claim, error) {
-	fmt.Println("auth0 claim context value from FromContext", ctx.Value(Auth0ClaimKey))
-
 	if claim, ok := ctx.Value(Auth0ClaimKey).(*Auth0Claim); ok {
 		return claim, nil
 	}

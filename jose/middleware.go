@@ -78,8 +78,6 @@ func GetHTTPServerMiddleware(jh JOSEHandler) func(next http.Handler) http.Handle
 			// Set the bearer token on the context so it can be passed to any downstream services
 			r = r.WithContext(context.WithValue(r.Context(), JWTClaimKey, bearerToken))
 
-			fmt.Println("auth0 claim context value from jose mw", r.Context().Value(Auth0ClaimKey))
-
 			next.ServeHTTP(w, r)
 		})
 	}
