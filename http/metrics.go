@@ -241,5 +241,7 @@ func retrieveAuthenticatedClient(r *http.Request) string {
 		return UNAUTHENTICATED
 	}
 
+	logger.Info(authenticatedClient)
+	
 	return authenticatedClient
 }
