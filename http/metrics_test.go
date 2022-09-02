@@ -302,7 +302,7 @@ func TestRetrieveAuthenticatedClient(t *testing.T) {
 			expected:   UNAUTHENTICATED,
 		},
 		{
-			name: "spothero user authenticated - password",
+			name: "auth0claim exists",
 			auth0Claim: &jose.Auth0Claim{
 				ID:         "123",
 				ClientName: "client-application",
