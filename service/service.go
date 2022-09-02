@@ -163,8 +163,8 @@ func (c Config) ServerCmd(
 				grpcauth.StreamServerInterceptor(joseInterceptorFunc),
 			)
 			httpConfig.Middleware = append(
-				httpConfig.Middleware,
-				jose.GetHTTPServerMiddleware(jh),
+				[]mux.MiddlewareFunc{jose.GetHTTPServerMiddleware(jh)},
+				httpConfig.Middleware...,
 			)
 
 			// Add panic handlers to the middleware. Panic handlers should always come last,
