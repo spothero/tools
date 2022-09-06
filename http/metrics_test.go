@@ -297,39 +297,17 @@ func TestRetrieveAuthenticatedClient(t *testing.T) {
 		expected   string
 	}{
 		{
-			name:       "base case - no key",
+			name:       "base case - no auth0 claim",
 			auth0Claim: nil,
 			expected:   UNAUTHENTICATED,
 		},
 		{
-			name: "spothero user authenticated - password",
+			name: "auth0claim exists",
 			auth0Claim: &jose.Auth0Claim{
-				ID:        "123",
-				Email:     "email@gmail.com",
-				GrantType: "password",
-				Scope:     "scope2",
+				ID:         "123",
+				ClientName: "client-application",
 			},
-			expected: jose.SPOTHERO_USER,
-		},
-		{
-			name: "machine authenticated - client credentials",
-			auth0Claim: &jose.Auth0Claim{
-				ID:        "987",
-				Email:     "email",
-				GrantType: "client-credentials",
-				Scope:     "scope20",
-			},
-			expected: jose.PARTNER_MACHINE,
-		},
-		{
-			name: "unexpected grant type",
-			auth0Claim: &jose.Auth0Claim{
-				ID:        "579",
-				Email:     "email",
-				GrantType: "sdafsdafasdfsadfs",
-				Scope:     "scope290",
-			},
-			expected: UNAUTHENTICATED,
+			expected: "client-application",
 		},
 	}
 	for _, test := range tests {
