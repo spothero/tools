@@ -42,9 +42,10 @@ type Auth0Generator struct{}
 type Auth0Claim struct {
 	ID string `json:"sub"`
 	// Email claims are namespaced to prevent collisions. Hardcoding for now as this will be constant.
-	Email     string `json:"https://api.spothero.com/claims/email"`
-	GrantType string `json:"gty"`
-	Scope     string `json:"scope"`
+	Email      string `json:"https://api.spothero.com/claims/email"`
+	ClientName string `json:"https://api.spothero.com/claims/clientName"`
+	GrantType  string `json:"gty"`
+	Scope      string `json:"scope"`
 }
 
 // New satisfies the ClaimGenerator interface, returning an empty claim for use with JOSE parsing
@@ -86,14 +87,4 @@ func FromContext(ctx context.Context) (*Auth0Claim, error) {
 	}
 
 	return nil, fmt.Errorf("unable to extract claim from given context")
-}
-
-// ExtractAuthenticatedClientGroup determines the client group from the auth0claim for use in downstream metrics
-func (cc Auth0Claim) ExtractAuthenticatedClientGroup() string {
-	if len(cc.GetUserID()) > 0 {
-		return SPOTHERO_USER
-	} else if len(cc.GetClientID()) > 0 {
-		return PARTNER_MACHINE
-	}
-	return ""
 }

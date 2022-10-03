@@ -230,9 +230,6 @@ func retrieveAuthenticatedClient(r *http.Request) string {
 	if err != nil {
 		return UNAUTHENTICATED
 	}
-	authenticatedClient := claim.ExtractAuthenticatedClientGroup()
-	if authenticatedClient == "" {
-		return UNAUTHENTICATED
-	}
-	return authenticatedClient
+
+	return claim.ClientName
 }
