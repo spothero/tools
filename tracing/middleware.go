@@ -66,7 +66,7 @@ func HTTPServerMiddleware(next http.Handler) http.Handler {
 		//wireContext := otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
 		//trace.SpanFromContext(r.Context()).SpanContext()
 		//span, spanCtx := opentracing.StartSpanFromContext(r.Context(), writer.FetchRoutePathTemplate(r), ext.RPCServerOption(wireContext))
-		links := []trace.Link{trace.Link{SpanContext: trace.SpanFromContext(r.Context()).SpanContext()}}
+		links := []trace.Link{{SpanContext: trace.SpanFromContext(r.Context()).SpanContext()}}
 		trace.WithLinks(links...)
 		span, spanCtx := StartSpanFromContext(r.Context(), writer.FetchRoutePathTemplate(r), trace.WithLinks(links...))
 		span = setSpanTags(r, span)

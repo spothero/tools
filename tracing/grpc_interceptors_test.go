@@ -16,18 +16,22 @@ package tracing
 
 import (
 	"context"
-	"testing"
-
 	grpcmock "github.com/spothero/tools/grpc/mock"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
+	"testing"
 )
 
 func TestUnaryServerInterceptor(t *testing.T) {
 	shutdown, _ := GetTracerProvider()
-	defer shutdown(context.Background())
+	ctx := context.Background()
+	defer func() {
+		if err := shutdown(ctx); err != nil {
+			assert.Error(t, err)
+		}
+	}()
 
-	_, spanCtx := StartSpanFromContext(context.Background(), "test")
+	_, spanCtx := StartSpanFromContext(ctx, "test")
 	info := &grpc.UnaryServerInfo{}
 	mockHandler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		correlationId, ok := ctx.Value(CorrelationIDCtxKey).(string)
@@ -43,7 +47,12 @@ func TestUnaryServerInterceptor(t *testing.T) {
 
 func TestStreamServerInterceptor(t *testing.T) {
 	shutdown, _ := GetTracerProvider()
-	defer shutdown(context.Background())
+	ctx := context.Background()
+	defer func() {
+		if err := shutdown(ctx); err != nil {
+			assert.Error(t, err)
+		}
+	}()
 
 	_, spanCtx := StartSpanFromContext(context.Background(), "test")
 	info := &grpc.StreamServerInfo{}
@@ -62,7 +71,12 @@ func TestStreamServerInterceptor(t *testing.T) {
 
 func TestUnaryClientInterceptor(t *testing.T) {
 	shutdown, _ := GetTracerProvider()
-	defer shutdown(context.Background())
+	ctx := context.Background()
+	defer func() {
+		if err := shutdown(ctx); err != nil {
+			assert.Error(t, err)
+		}
+	}()
 
 	mockInvoker := func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, opts ...grpc.CallOption) error {
 		correlationId, ok := ctx.Value(CorrelationIDCtxKey).(string)
@@ -87,7 +101,12 @@ func TestUnaryClientInterceptor(t *testing.T) {
 
 func TestStreamClientInterceptor(t *testing.T) {
 	shutdown, _ := GetTracerProvider()
-	defer shutdown(context.Background())
+	ctx := context.Background()
+	defer func() {
+		if err := shutdown(ctx); err != nil {
+			assert.Error(t, err)
+		}
+	}()
 	_, spanCtx := StartSpanFromContext(context.Background(), "test")
 
 	mockStreamer := func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {

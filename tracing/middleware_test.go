@@ -62,7 +62,12 @@ func TestHTTPServerMiddleware(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			shutdown, _ := GetTracerProvider()
-			defer shutdown(context.Background())
+			ctx := context.Background()
+			defer func() {
+				if err := shutdown(ctx); err != nil {
+					assert.Error(t, err)
+				}
+			}()
 
 			// Configure a preset span and place in request context
 			var rootSpanCtx trace.SpanContext
@@ -157,7 +162,12 @@ func TestRoundTrip(t *testing.T) {
 				assert.Nil(t, resp)
 			} else {
 				shutdown, _ := GetTracerProvider()
-				defer shutdown(context.Background())
+				ctx := context.Background()
+				defer func() {
+					if err := shutdown(ctx); err != nil {
+						assert.Error(t, err)
+					}
+				}()
 
 				mockReq := httptest.NewRequest("GET", "/path", nil)
 				resp, err := rt.RoundTrip(mockReq)
@@ -172,7 +182,12 @@ func TestGetCorrelationID(t *testing.T) {
 	// first, assert a request through the HTTPServerMiddleware contains a context
 	// which produces a meaningful result for GetCorrelationID()
 	shutdown, _ := GetTracerProvider()
-	defer shutdown(context.Background())
+	ctx := context.Background()
+	defer func() {
+		if err := shutdown(ctx); err != nil {
+			assert.Error(t, err)
+		}
+	}()
 
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		correlationId, ok := r.Context().Value(CorrelationIDCtxKey).(string)
@@ -231,7 +246,12 @@ func TestSQLMiddleware(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			shutdown, _ := GetTracerProvider()
-			defer shutdown(context.Background())
+			ctx := context.Background()
+			defer func() {
+				if err := shutdown(ctx); err != nil {
+					assert.Error(t, err)
+				}
+			}()
 
 			// Create a span and span context
 			span, spanCtx := StartSpanFromContext(context.Background(), "test")

@@ -51,7 +51,12 @@ func TestConfigureTracer(t *testing.T) {
 				//assert.Equal(t, t, opentracing.GlobalTracer())
 			} else {
 				assert.NotNil(t, shutdown)
-				defer shutdown(context.Background())
+				ctx := context.Background()
+				defer func() {
+					if err := shutdown(ctx); err != nil {
+						assert.Error(t, err)
+					}
+				}()
 				assert.NotNil(t, shutdown)
 			}
 		})
@@ -61,7 +66,11 @@ func TestConfigureTracer(t *testing.T) {
 func TestEmbedCorrelationID(t *testing.T) {
 	octx := context.Background()
 	shutdown, _ := GetTracerProvider()
-	defer shutdown(octx)
+	defer func() {
+		if err := shutdown(octx); err != nil {
+			assert.Error(t, err)
+		}
+	}()
 	_, spanCtx := StartSpanFromContext(octx, "test")
 
 	ctx := EmbedCorrelationID(spanCtx)
