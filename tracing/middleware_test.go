@@ -29,9 +29,6 @@ import (
 )
 
 func TestSetSpanTags(t *testing.T) {
-	/*	tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
-		defer closer.Close()
-		opentracing.SetGlobalTracer(tracer)*/
 	span, _ := StartSpanFromContext(context.Background(), "test")
 
 	mockReq := httptest.NewRequest("POST", "/path", nil)

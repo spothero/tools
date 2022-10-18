@@ -46,9 +46,9 @@ func TestConfigureTracer(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			shutdown, _ := test.c.TracerProvider()
+			shutdown, err := test.c.TracerProvider()
 			if test.expectErr {
-				//assert.Equal(t, t, opentracing.GlobalTracer())
+				assert.NotNil(t, err)
 			} else {
 				assert.NotNil(t, shutdown)
 				ctx := context.Background()
@@ -57,7 +57,6 @@ func TestConfigureTracer(t *testing.T) {
 						assert.Error(t, err)
 					}
 				}()
-				assert.NotNil(t, shutdown)
 			}
 		})
 	}

@@ -1,7 +1,22 @@
+// Copyright 2022 SpotHero
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package tracing
 
 import (
 	"context"
+	"errors"
 	"github.com/spothero/tools/log"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/jaeger"
@@ -44,6 +59,12 @@ type Config struct {
 func (c Config) TracerProvider() (func(context.Context) error, error) {
 	logger := log.Get(context.Background()).Named("jaeger-exporter")
 
+	// check serviceName is provided or not.
+	// If not provided throw the error.
+	if c.ServiceName == "" {
+		return nil, errors.New("Tracing ServiceName can't be empty. ")
+	}
+
 	// Create the Jaeger exporter
 	agentPort := "6831" //default port for Jaeger
 	if c.AgentPort > 0 {
@@ -80,11 +101,10 @@ func (c Config) TracerProvider() (func(context.Context) error, error) {
 }
 
 // EmbedCorrelationID embeds the current Trace ID as the correlation ID in the context logger
+// Continuing this function for backward compatability.
 func EmbedCorrelationID(ctx context.Context) context.Context {
-	// While this removes the veneer of OpenTracing abstraction, the current specification does not
-	// provide a method of accessing Trace ID directly. Until OpenTracing 2.0 is released with
-	// support for abstract access for Trace ID we will coerce the type to the underlying tracer.
-	// See: https://github.com/opentracing/specification/issues/123
+	// While this removes the veneer of OpenTelemetry abstraction, the current specification does not
+	// provide a method of accessing Trace ID directly.
 	if span := trace.SpanFromContext(ctx); span != nil {
 		sc := span.SpanContext()
 		// Embed the Trace ID in the logging context for all future requests

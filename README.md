@@ -39,7 +39,7 @@ Currently, this library supports the following features:
 * gRPC Server and client tooling with instrumentation
 * Prometheus Metrics
 * High-Performance Logging
-* OpenTracing/Jaeger Support
+* OpenTelemetry/Jaeger Support
 * JSON Web Token (JWT) and Javascript Object Signing and Encryption (JOSE) Support
 * Sentry Integration
 
@@ -51,7 +51,7 @@ In addition, all the above packages may automatically be integrated with Cobra/V
 The packages in this library may be used together or independently. At SpotHero, our applications
 all start from the Service `ServerCmd` which contains a "best-practice" configuration of a SpotHero
 web server. This web-server includes a GRPC and HTTP Server, as well as full instrumentation with
-tools such as Prometheus, Jaeger/OpenTracing, Sentry, and so on.
+tools such as Prometheus, Jaeger/OpenTelemetry, Sentry, and so on.
 
 A simple example is provided under [service/example_test.go](service/example_test.go) which shows usage of this
 library to create a simple 12-factor Go Web application which has tracing, logging, metrics,

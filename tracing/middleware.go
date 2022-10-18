@@ -18,9 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 	"net/http"
 	"strconv"
@@ -46,7 +44,7 @@ func setSpanTags(r *http.Request, span trace.Span) trace.Span {
 	return span
 }
 
-// HTTPServerMiddleware extracts the OpenTracing context on all incoming HTTP requests, if present. if
+// HTTPServerMiddleware extracts the OpenTelemetry context on all incoming HTTP requests, if present. if
 // no trace ID is present in the headers, a trace is initiated.
 //
 // The following tags are placed on all incoming HTTP requests:
@@ -57,15 +55,11 @@ func setSpanTags(r *http.Request, span trace.Span) trace.Span {
 // * http.status_code
 // * error (if the status code is >= 500)
 //
-// The returned HTTP Request includes the wrapped OpenTracing Span Context.
+// The returned HTTP Request includes the wrapped OpenTelemetry Span Context.
 // Note that this middleware must be attached after writer.StatusRecorderMiddleware
 // for HTTP response span tagging to function.
 func HTTPServerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
-		//wireContext := otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
-		//trace.SpanFromContext(r.Context()).SpanContext()
-		//span, spanCtx := opentracing.StartSpanFromContext(r.Context(), writer.FetchRoutePathTemplate(r), ext.RPCServerOption(wireContext))
 		links := []trace.Link{{SpanContext: trace.SpanFromContext(r.Context()).SpanContext()}}
 		trace.WithLinks(links...)
 		span, spanCtx := StartSpanFromContext(r.Context(), writer.FetchRoutePathTemplate(r), trace.WithLinks(links...))
