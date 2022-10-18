@@ -16,12 +16,15 @@ package tracing
 
 import (
 	"context"
-	"net/http"
+	"fmt"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"testing"
 
-	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/stretchr/testify/assert"
-	jaeger "github.com/uber/jaeger-client-go"
 )
 
 func TestConfigureTracer(t *testing.T) {
@@ -43,36 +46,45 @@ func TestConfigureTracer(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			closer := test.c.ConfigureTracer()
+			shutdown, _ := test.c.TracerProvider()
 			if test.expectErr {
-				assert.Equal(t, &opentracing.NoopTracer{}, opentracing.GlobalTracer())
+				//assert.Equal(t, t, opentracing.GlobalTracer())
 			} else {
-				assert.NotNil(t, closer)
-				defer closer.Close()
-				assert.NotNil(t, opentracing.GlobalTracer())
+				assert.NotNil(t, shutdown)
+				defer shutdown(context.Background())
+				assert.NotNil(t, shutdown)
 			}
 		})
 	}
 }
 
-func TestTraceOutbound(t *testing.T) {
-	req, err := http.NewRequest("GET", "/fake", nil)
-	assert.NoError(t, err)
-	span := opentracing.StartSpan("test-span")
-	defer span.Finish()
-	err = TraceOutbound(req, span)
-	assert.NoError(t, err)
-}
-
 func TestEmbedCorrelationID(t *testing.T) {
-	tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
-	defer closer.Close()
-	opentracing.SetGlobalTracer(tracer)
-	_, spanCtx := opentracing.StartSpanFromContext(context.Background(), "test")
+	octx := context.Background()
+	shutdown, _ := GetTracerProvider()
+	defer shutdown(octx)
+	_, spanCtx := StartSpanFromContext(octx, "test")
 
 	ctx := EmbedCorrelationID(spanCtx)
 	correlationId, ok := ctx.Value(CorrelationIDCtxKey).(string)
 	assert.Equal(t, true, ok)
 	assert.NotNil(t, correlationId)
 	assert.NotEqual(t, "", correlationId)
+}
+
+func GetTracerProvider() (func(context.Context) error, error) {
+	exporter, err := stdouttrace.New(stdouttrace.WithPrettyPrint())
+	if err != nil {
+		return nil, fmt.Errorf("creating stdout exporter: %w", err)
+	}
+
+	tracerProvider := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exporter),
+		sdktrace.WithResource(resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceNameKey.String("tracing-test"),
+			semconv.ServiceVersionKey.String("0.0.1"),
+		)),
+	)
+	otel.SetTracerProvider(tracerProvider)
+	return tracerProvider.Shutdown, nil
 }

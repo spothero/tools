@@ -18,19 +18,16 @@ import (
 	"context"
 	"testing"
 
-	"github.com/opentracing/opentracing-go"
 	grpcmock "github.com/spothero/tools/grpc/mock"
 	"github.com/stretchr/testify/assert"
-	jaeger "github.com/uber/jaeger-client-go"
 	"google.golang.org/grpc"
 )
 
 func TestUnaryServerInterceptor(t *testing.T) {
-	tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
-	defer closer.Close()
-	opentracing.SetGlobalTracer(tracer)
+	shutdown, _ := GetTracerProvider()
+	defer shutdown(context.Background())
 
-	_, spanCtx := opentracing.StartSpanFromContext(context.Background(), "test")
+	_, spanCtx := StartSpanFromContext(context.Background(), "test")
 	info := &grpc.UnaryServerInfo{}
 	mockHandler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		correlationId, ok := ctx.Value(CorrelationIDCtxKey).(string)
@@ -45,11 +42,10 @@ func TestUnaryServerInterceptor(t *testing.T) {
 }
 
 func TestStreamServerInterceptor(t *testing.T) {
-	tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
-	defer closer.Close()
-	opentracing.SetGlobalTracer(tracer)
+	shutdown, _ := GetTracerProvider()
+	defer shutdown(context.Background())
 
-	_, spanCtx := opentracing.StartSpanFromContext(context.Background(), "test")
+	_, spanCtx := StartSpanFromContext(context.Background(), "test")
 	info := &grpc.StreamServerInfo{}
 	mockHandler := func(srv interface{}, stream grpc.ServerStream) error {
 		correlationId, ok := stream.Context().Value(CorrelationIDCtxKey).(string)
@@ -65,9 +61,8 @@ func TestStreamServerInterceptor(t *testing.T) {
 }
 
 func TestUnaryClientInterceptor(t *testing.T) {
-	tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
-	defer closer.Close()
-	opentracing.SetGlobalTracer(tracer)
+	shutdown, _ := GetTracerProvider()
+	defer shutdown(context.Background())
 
 	mockInvoker := func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, opts ...grpc.CallOption) error {
 		correlationId, ok := ctx.Value(CorrelationIDCtxKey).(string)
@@ -77,7 +72,7 @@ func TestUnaryClientInterceptor(t *testing.T) {
 		return nil
 	}
 
-	_, spanCtx := opentracing.StartSpanFromContext(context.Background(), "test")
+	_, spanCtx := StartSpanFromContext(context.Background(), "test")
 	assert.NoError(
 		t,
 		UnaryClientInterceptor(
@@ -91,11 +86,9 @@ func TestUnaryClientInterceptor(t *testing.T) {
 }
 
 func TestStreamClientInterceptor(t *testing.T) {
-	tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
-	defer closer.Close()
-	opentracing.SetGlobalTracer(tracer)
-
-	_, spanCtx := opentracing.StartSpanFromContext(context.Background(), "test")
+	shutdown, _ := GetTracerProvider()
+	defer shutdown(context.Background())
+	_, spanCtx := StartSpanFromContext(context.Background(), "test")
 
 	mockStreamer := func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
 		correlationId, ok := ctx.Value(CorrelationIDCtxKey).(string)

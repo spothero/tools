@@ -17,23 +17,22 @@ package tracing
 import (
 	"context"
 	"fmt"
+	"go.opentelemetry.io/otel/trace"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/spothero/tools/http/mock"
 	"github.com/spothero/tools/http/writer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	jaeger "github.com/uber/jaeger-client-go"
 )
 
 func TestSetSpanTags(t *testing.T) {
-	tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
-	defer closer.Close()
-	opentracing.SetGlobalTracer(tracer)
-	span, _ := opentracing.StartSpanFromContext(context.Background(), "test")
+	/*	tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
+		defer closer.Close()
+		opentracing.SetGlobalTracer(tracer)*/
+	span, _ := StartSpanFromContext(context.Background(), "test")
 
 	mockReq := httptest.NewRequest("POST", "/path", nil)
 	mockReq.Header.Set("Content-Length", "1")
@@ -62,17 +61,16 @@ func TestHTTPServerMiddleware(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
-			defer closer.Close()
-			opentracing.SetGlobalTracer(tracer)
+			shutdown, _ := GetTracerProvider()
+			defer shutdown(context.Background())
 
 			// Configure a preset span and place in request context
-			var rootSpanCtx opentracing.SpanContext
+			var rootSpanCtx trace.SpanContext
 			existingSpanMiddleware := func(next http.Handler) http.Handler {
 				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					if test.withExistingTrace {
-						span, spanCtx := opentracing.StartSpanFromContext(r.Context(), "test")
-						rootSpanCtx = span.Context()
+						span, spanCtx := StartSpanFromContext(r.Context(), "test")
+						rootSpanCtx = span.SpanContext()
 						r = r.WithContext(spanCtx)
 					}
 					next.ServeHTTP(w, r)
@@ -80,26 +78,19 @@ func TestHTTPServerMiddleware(t *testing.T) {
 			}
 
 			testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				requestSpan := opentracing.SpanFromContext(r.Context())
-				if spanCtx, ok := requestSpan.Context().(jaeger.SpanContext); ok {
-					if test.withExistingTrace {
-						assert.NotNil(t, rootSpanCtx)
-						if rootJaegerSpanCtx, ok := rootSpanCtx.(jaeger.SpanContext); ok {
-							assert.Equal(t, rootJaegerSpanCtx.TraceID(), spanCtx.TraceID())
-						} else {
-							assert.FailNow(t, "unable to extract root jaeger span from span context")
-						}
-					}
-				} else {
-					assert.FailNow(t, "unable to extract jaeger span from span context")
+				requestSpan := trace.SpanFromContext(r.Context())
+				spanCtx := requestSpan.SpanContext()
+				if test.withExistingTrace {
+					assert.NotNil(t, rootSpanCtx)
+					rootJaegerSpanCtx := rootSpanCtx
+					assert.Equal(t, rootJaegerSpanCtx.TraceID(), spanCtx.TraceID())
+
+					correlationId, ok := r.Context().Value(CorrelationIDCtxKey).(string)
+					assert.Equal(t, true, ok)
+					assert.NotNil(t, correlationId)
+					assert.NotEqual(t, "", correlationId)
 				}
-
-				correlationId, ok := r.Context().Value(CorrelationIDCtxKey).(string)
-				assert.Equal(t, true, ok)
-				assert.NotNil(t, correlationId)
-				assert.NotEqual(t, "", correlationId)
 			})
-
 			testServer := httptest.NewServer(
 				writer.StatusRecorderMiddleware(existingSpanMiddleware(HTTPServerMiddleware(testHandler))))
 			defer testServer.Close()
@@ -165,9 +156,8 @@ func TestRoundTrip(t *testing.T) {
 				assert.Error(t, err)
 				assert.Nil(t, resp)
 			} else {
-				tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
-				defer closer.Close()
-				opentracing.SetGlobalTracer(tracer)
+				shutdown, _ := GetTracerProvider()
+				defer shutdown(context.Background())
 
 				mockReq := httptest.NewRequest("GET", "/path", nil)
 				resp, err := rt.RoundTrip(mockReq)
@@ -181,9 +171,8 @@ func TestRoundTrip(t *testing.T) {
 func TestGetCorrelationID(t *testing.T) {
 	// first, assert a request through the HTTPServerMiddleware contains a context
 	// which produces a meaningful result for GetCorrelationID()
-	tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
-	defer closer.Close()
-	opentracing.SetGlobalTracer(tracer)
+	shutdown, _ := GetTracerProvider()
+	defer shutdown(context.Background())
 
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		correlationId, ok := r.Context().Value(CorrelationIDCtxKey).(string)
@@ -241,16 +230,12 @@ func TestSQLMiddleware(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			tracer, closer := jaeger.NewTracer("t", jaeger.NewConstSampler(false), jaeger.NewInMemoryReporter())
-			defer closer.Close()
-			opentracing.SetGlobalTracer(tracer)
+			shutdown, _ := GetTracerProvider()
+			defer shutdown(context.Background())
 
 			// Create a span and span context
-			span, spanCtx := opentracing.StartSpanFromContext(context.Background(), "test")
-			jaegerSpanCtxStart, ok := span.Context().(jaeger.SpanContext)
-			if !ok {
-				assert.FailNow(t, "unable to convert opentracing to jaeger span")
-			}
+			span, spanCtx := StartSpanFromContext(context.Background(), "test")
+			jaegerSpanCtxStart := span.SpanContext()
 			expectedTraceID := jaegerSpanCtxStart.TraceID()
 
 			// Invoke the middleware
@@ -269,13 +254,10 @@ func TestSQLMiddleware(t *testing.T) {
 			assert.Nil(t, err)
 
 			// Test that the span context is returned
-			span = opentracing.SpanFromContext(spanCtx)
-			if jaegerSpanCtxEnd, ok := span.Context().(jaeger.SpanContext); ok {
-
-				assert.Equal(t, expectedTraceID, jaegerSpanCtxEnd.TraceID())
-			} else {
-				assert.FailNow(t, "unable to extract jaeger span from span context")
-			}
+			span = trace.SpanFromContext(spanCtx)
+			jaegerSpanCtxEnd := span.SpanContext()
+			endTraceID := jaegerSpanCtxEnd.TraceID()
+			assert.Equal(t, expectedTraceID, endTraceID)
 		})
 	}
 }

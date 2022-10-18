@@ -23,7 +23,6 @@ import (
 	"github.com/gorilla/mux"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpcrecovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
-	grpcot "github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing"
 	grpcprom "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/spf13/cobra"
 	"github.com/spothero/tools/cli"
@@ -34,6 +33,7 @@ import (
 	"github.com/spothero/tools/log"
 	"github.com/spothero/tools/sentry"
 	"github.com/spothero/tools/tracing"
+	otelgrpc "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
@@ -125,19 +125,23 @@ func (c Config) ServerCmd(
 			if err := sc.InitializeSentry(); err != nil {
 				return err
 			}
-			closer := tc.ConfigureTracer()
-			defer closer.Close()
+
+			shutdown, err := tc.TracerProvider()
+			if err != nil {
+				return err
+			}
+			defer shutdown(ctx)
 
 			// Ensure that gRPC Interceptors capture histograms
 			grpcprom.EnableHandlingTimeHistogram()
 			grpcConfig.UnaryInterceptors = []grpc.UnaryServerInterceptor{
-				grpcot.UnaryServerInterceptor(),
+				otelgrpc.UnaryServerInterceptor(),
 				tracing.UnaryServerInterceptor,
 				log.UnaryServerInterceptor,
 				grpcprom.UnaryServerInterceptor,
 			}
 			grpcConfig.StreamInterceptors = []grpc.StreamServerInterceptor{
-				grpcot.StreamServerInterceptor(),
+				otelgrpc.StreamServerInterceptor(),
 				tracing.StreamServerInterceptor,
 				log.StreamServerInterceptor,
 				grpcprom.StreamServerInterceptor,
