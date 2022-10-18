@@ -43,6 +43,11 @@ func TestConfigureTracer(t *testing.T) {
 			Config{Enabled: true},
 			true,
 		},
+		{
+			"numeric agent port leads to no error",
+			Config{Enabled: true, ServiceName: "service-name", AgentPort: 6837},
+			false,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
