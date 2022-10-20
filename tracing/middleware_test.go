@@ -17,15 +17,14 @@ package tracing
 import (
 	"context"
 	"fmt"
-	"go.opentelemetry.io/otel/trace"
-	"net/http"
-	"net/http/httptest"
-	"testing"
-
 	"github.com/spothero/tools/http/mock"
 	"github.com/spothero/tools/http/writer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/trace"
+	"net/http"
+	"net/http/httptest"
+	"testing"
 )
 
 func TestSetSpanTags(t *testing.T) {
@@ -220,24 +219,35 @@ func TestSQLMiddleware(t *testing.T) {
 		queryName string
 		query     string
 		expectErr bool
+		args      []interface{}
 	}{
 		{
 			"non-errored no queryname requests are successfully traced",
 			"",
 			"SELECT * FROM tests",
 			false,
+			nil,
 		},
 		{
 			"non-errored with queryname requests are successfully traced",
 			"getAllTests",
 			"SELECT * FROM tests",
 			false,
+			nil,
+		},
+		{
+			"non-errored with args requests are successfully traced",
+			"getAllTests",
+			"SELECT * FROM tests",
+			false,
+			[]interface{}{1, "test"},
 		},
 		{
 			"errored requests are successfully traced and marked as errored",
 			"",
 			"SELECT * FROM tests",
 			true,
+			nil,
 		},
 	}
 	for _, test := range tests {
@@ -256,7 +266,7 @@ func TestSQLMiddleware(t *testing.T) {
 			expectedTraceID := jaegerSpanCtxStart.TraceID()
 
 			// Invoke the middleware
-			spanCtx, mwEnd, err := SQLMiddleware(spanCtx, test.queryName, test.query)
+			spanCtx, mwEnd, err := SQLMiddleware(spanCtx, test.queryName, test.query, test.args)
 			assert.NotNil(t, spanCtx)
 			assert.NotNil(t, mwEnd)
 			assert.Nil(t, err)

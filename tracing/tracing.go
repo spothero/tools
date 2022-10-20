@@ -79,11 +79,11 @@ func (c Config) TracerProvider() (func(context.Context) error, error) {
 
 	// Set sampler for the traceprovider
 	sampler := tracesdk.AlwaysSample()
-
+	bsp := tracesdk.NewBatchSpanProcessor(exp)
 	tracerProvider := tracesdk.NewTracerProvider(
 		tracesdk.WithBatcher(exp,
 			tracesdk.WithMaxQueueSize(c.ReporterMaxQueueSize)),
-
+		tracesdk.WithSpanProcessor(bsp),
 		tracesdk.WithSampler(sampler),
 
 		// Record information about this application in a Resource.
