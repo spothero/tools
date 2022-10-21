@@ -17,16 +17,18 @@ package tracing
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/spothero/tools/log"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/jaeger"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
-	"strconv"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"time"
 )
 
@@ -57,7 +59,8 @@ type Config struct {
 // TracerProvider will also use a Resource configured with all the information
 // about the application.
 func (c Config) TracerProvider() (func(context.Context) error, error) {
-	logger := log.Get(context.Background()).Named("jaeger-exporter")
+	ctx := context.Background()
+	logger := log.Get(ctx).Named("otel-tracer-provider")
 
 	// check serviceName is provided or not.
 	// If not provided throw the error.
@@ -66,7 +69,7 @@ func (c Config) TracerProvider() (func(context.Context) error, error) {
 	}
 
 	// Create the Jaeger exporter
-	agentPort := "6831" //default port for Jaeger
+	/*agentPort := "6831" //default port for Jaeger
 	if c.AgentPort > 0 {
 		agentPort = strconv.Itoa(c.AgentPort)
 	}
@@ -75,14 +78,30 @@ func (c Config) TracerProvider() (func(context.Context) error, error) {
 	if err != nil {
 		logger.Error("could not initialize Jaeger OTEL exporter", zap.Error(err))
 		return nil, err
-	}
+	}*/
 
 	// Set sampler for the traceprovider
 	sampler := tracesdk.AlwaysSample()
-	bsp := tracesdk.NewBatchSpanProcessor(exp)
+
+	ctx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+	conn, err := grpc.DialContext(ctx, "opentelemetry-collector.ops.svc.cluster.local:4317", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	if err != nil {
+		logger.Error("failed to create gRPC connection to collector: ", zap.Error(err))
+		return nil, fmt.Errorf("failed to create gRPC connection to collector: %w", err)
+	}
+
+	// Set up a trace exporter
+	traceExporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithGRPCConn(conn))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create trace exporter: %w", err)
+	}
+
+	// Register the trace exporter with a TracerProvider, using a batch
+	// span processor to aggregate spans before export.
+	bsp := tracesdk.NewBatchSpanProcessor(traceExporter)
+
 	tracerProvider := tracesdk.NewTracerProvider(
-		tracesdk.WithBatcher(exp,
-			tracesdk.WithMaxQueueSize(c.ReporterMaxQueueSize)),
 		tracesdk.WithSpanProcessor(bsp),
 		tracesdk.WithSampler(sampler),
 
