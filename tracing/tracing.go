@@ -85,7 +85,7 @@ func (c Config) TracerProvider() (func(context.Context) error, error) {
 
 	ctx, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
-	conn, err := grpc.DialContext(ctx, "opentelemetry-collector.ops.svc.cluster.local:4317", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	conn, err := grpc.DialContext(ctx, "opentelemetry-collector.ops.svc.cluster.local:4318", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {
 		logger.Error("failed to create gRPC connection to collector: ", zap.Error(err))
 		return nil, fmt.Errorf("failed to create gRPC connection to collector: %w", err)
