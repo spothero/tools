@@ -131,11 +131,11 @@ func (c Config) ServerCmd(
 				return err
 			}
 			defer func() {
-				err = shutdown(ctx)
+				err := shutdown(ctx)
+				if err != nil {
+					return
+				}
 			}()
-			if err != nil {
-				return err
-			}
 
 			// Ensure that gRPC Interceptors capture histograms
 			grpcprom.EnableHandlingTimeHistogram()
