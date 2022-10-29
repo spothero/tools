@@ -17,18 +17,19 @@ package tracing
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/spothero/tools/log"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/jaeger"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"os"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -65,57 +66,51 @@ func (c Config) TracerProvider() (func(context.Context) error, error) {
 	// check serviceName is provided or not.
 	// If not provided throw the error.
 	if c.ServiceName == "" {
-		return nil, errors.New("Tracing ServiceName can't be empty. ")
+		return nil, errors.New("tracing ServiceName can't be empty")
 	}
 
 	// Create the Jaeger exporter
-	/*agentPort := "6831" //default port for Jaeger
+	agentPort := "6831" //default port for Jaeger
 	if c.AgentPort > 0 {
 		agentPort = strconv.Itoa(c.AgentPort)
 	}
+
 	exp, err := jaeger.New(
 		jaeger.WithAgentEndpoint(jaeger.WithAgentHost(c.AgentHost), jaeger.WithAgentPort(agentPort)))
 	if err != nil {
 		logger.Error("could not initialize Jaeger OTEL exporter", zap.Error(err))
 		return nil, err
-	}*/
+	}
 
-	// Set sampler for the traceprovider
+	// Set sampler for the trace Provider
 	sampler := tracesdk.AlwaysSample()
-
-	ctx, cancel := context.WithTimeout(ctx, time.Second)
-	defer cancel()
-	conn, err := grpc.DialContext(ctx, "opentelemetry-collector.ops.svc.cluster.local:4318", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
-	if err != nil {
-		logger.Error("failed to create gRPC connection to collector: ", zap.Error(err))
-		return nil, fmt.Errorf("failed to create gRPC connection to collector: %w", err)
+	if strings.ToLower(c.SamplerType) == "ratio" {
+		sampler = tracesdk.TraceIDRatioBased(c.SamplerParam)
+	} else if strings.ToLower(c.SamplerType) == "never" {
+		sampler = tracesdk.NeverSample()
 	}
 
-	// Set up a trace exporter
-	traceExporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithGRPCConn(conn))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create trace exporter: %w", err)
-	}
-
-	// Register the trace exporter with a TracerProvider, using a batch
-	// span processor to aggregate spans before export.
-	bsp := tracesdk.NewBatchSpanProcessor(traceExporter)
+	tpResource := tracesdk.WithResource(resource.NewWithAttributes(
+		semconv.SchemaURL,
+		semconv.ServiceNameKey.String(c.ServiceName),
+		attribute.String("process.pid", "1"),
+		attribute.String("ip", os.Getenv("podIP")),
+		attribute.String("hostname", os.Getenv("HOSTNAME")),
+		attribute.String("telemetry.sdk.language", "go-telemetry"),
+		attribute.String("telemetry.sdk.name", "opentelemetry"),
+		attribute.String("telemetry.sdk.version", "1.11.0"),
+	))
 
 	tracerProvider := tracesdk.NewTracerProvider(
-		tracesdk.WithSpanProcessor(bsp),
+		tracesdk.WithBatcher(exp,
+			tracesdk.WithMaxQueueSize(c.ReporterMaxQueueSize)),
 		tracesdk.WithSampler(sampler),
-
-		// Record information about this application in a Resource.
-		tracesdk.WithResource(resource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceNameKey.String(c.ServiceName),
-		)),
+		tpResource,
 	)
 	otel.SetTracerProvider(tracerProvider)
 
 	// set global propagator to tracecontext (the default is no-op).
-	otel.SetTextMapPropagator(propagation.TraceContext{})
-
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
 	return tracerProvider.Shutdown, nil
 }
 
@@ -134,6 +129,7 @@ func EmbedCorrelationID(ctx context.Context) context.Context {
 	return ctx
 }
 
+// StartSpanFromContext Start the span from the provided context with provided options
 func StartSpanFromContext(ctx context.Context, operationName string, opts ...trace.SpanStartOption) (trace.Span, context.Context) {
 	tracer := otel.GetTracerProvider().Tracer(operationName)
 	returnCtx, span := tracer.Start(ctx, operationName, opts...)
