@@ -53,6 +53,16 @@ func TestConfigureTracer(t *testing.T) {
 			Config{Enabled: true, ServiceName: "service-name", AgentPort: 6831},
 			false,
 		},
+		{
+			"ratio based sampler.",
+			Config{Enabled: true, ServiceName: "service-name", SamplerType: "ratio", SamplerParam: 0.99},
+			false,
+		},
+		{
+			"never based sampler.",
+			Config{Enabled: true, ServiceName: "service-name", SamplerType: "never"},
+			false,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
