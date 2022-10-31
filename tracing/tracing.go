@@ -16,17 +16,21 @@ package tracing
 
 import (
 	"context"
-	"fmt"
-	"io"
-	"net/http"
-	"time"
-
-	"github.com/opentracing/opentracing-go"
+	"errors"
 	"github.com/spothero/tools/log"
-	"github.com/uber/jaeger-client-go"
-	jaegercfg "github.com/uber/jaeger-client-go/config"
-	jaegerzap "github.com/uber/jaeger-client-go/log/zap"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/jaeger"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	tracesdk "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
+	"os"
+	"strconv"
+	"strings"
+	"time"
 )
 
 // CorrelationIDCtxKeyType is the type used to uniquely place the trace header in contexts
@@ -49,63 +53,89 @@ type Config struct {
 	AgentHost             string
 	AgentPort             int
 	ServiceName           string
+	ServiceNamespace      string
 }
 
-// ConfigureTracer instantiates and configures the OpenTracer and returns the tracer closer
-func (c Config) ConfigureTracer() io.Closer {
-	samplerConfig := jaegercfg.SamplerConfig{}
-	if c.SamplerType == "" {
-		c.SamplerType = jaeger.SamplerTypeConst
-	}
-	samplerConfig.Type = c.SamplerType
-	samplerConfig.Param = c.SamplerParam
+// TracerProvider returns an OpenTelemetry TracerProvider configured to use
+// the Jaeger exporter that will send spans to the provided url. The returned
+// TracerProvider will also use a Resource configured with all the information
+// about the application.
+func (c Config) TracerProvider() (func(context.Context) error, error) {
+	ctx := context.Background()
+	logger := log.Get(ctx).Named("otel-tracer-provider")
 
-	reporterConfig := jaegercfg.ReporterConfig{}
-	reporterConfig.LogSpans = c.ReporterLogSpans
-	reporterConfig.QueueSize = c.ReporterMaxQueueSize
-	reporterConfig.BufferFlushInterval = c.ReporterFlushInterval
-	reporterConfig.LocalAgentHostPort = fmt.Sprintf("%s:%d", c.AgentHost, c.AgentPort)
-
-	jaegerConfig := jaegercfg.Configuration{
-		ServiceName: c.ServiceName,
-		Sampler:     &samplerConfig,
-		Reporter:    &reporterConfig,
-		Disabled:    !c.Enabled,
+	// check serviceName is provided or not.
+	// If not provided throw the error.
+	if c.ServiceName == "" {
+		return nil, errors.New("tracing ServiceName can't be empty")
 	}
 
-	logger := log.Get(context.Background()).Named("jaeger")
-	tracer, closer, err := jaegerConfig.NewTracer(
-		jaegercfg.Logger(jaegerzap.NewLogger(logger)))
+	// Create the Jaeger exporter
+	agentPort := "6831" //default port for Jaeger
+	if c.AgentPort > 0 {
+		agentPort = strconv.Itoa(c.AgentPort)
+	}
+
+	exp, err := jaeger.New(
+		jaeger.WithAgentEndpoint(jaeger.WithAgentHost(c.AgentHost), jaeger.WithAgentPort(agentPort)))
 	if err != nil {
-		logger.Error("could not initialize jaeger tracer", zap.Error(err))
-		return nil
+		logger.Error("could not initialize Jaeger OTEL exporter", zap.Error(err))
+		return nil, err
 	}
-	logger.Info("jaeger tracer configured", zap.Bool("enabled", c.Enabled))
-	opentracing.SetGlobalTracer(tracer)
-	return closer
-}
 
-// TraceOutbound injects outbound HTTP requests with OpenTracing headers
-func TraceOutbound(r *http.Request, span opentracing.Span) error {
-	return opentracing.GlobalTracer().Inject(
-		span.Context(),
-		opentracing.HTTPHeaders,
-		opentracing.HTTPHeadersCarrier(r.Header))
+	// Set sampler for the trace Provider
+	sampler := tracesdk.AlwaysSample()
+	if strings.ToLower(c.SamplerType) == "ratio" {
+		sampler = tracesdk.TraceIDRatioBased(c.SamplerParam)
+	} else if strings.ToLower(c.SamplerType) == "never" {
+		sampler = tracesdk.NeverSample()
+	}
+
+	tpResource := tracesdk.WithResource(resource.NewWithAttributes(
+		semconv.SchemaURL,
+		semconv.ServiceNameKey.String(c.ServiceName),
+		semconv.ServiceNamespaceKey.String(c.ServiceNamespace),
+		semconv.ServiceVersionKey.String(os.Getenv("VERSION")),
+		semconv.TelemetrySDKLanguageGo,
+		semconv.TelemetrySDKNameKey.String("opentelemetry"),
+		semconv.TelemetrySDKVersionKey.String("1.11.0"),
+		semconv.K8SPodNameKey.String(os.Getenv("HOSTNAME")),
+		semconv.K8SNamespaceNameKey.String(os.Getenv("POD_NAMESPACE")),
+		attribute.String("ip", os.Getenv("POD_IP")),
+		attribute.String("hostname", os.Getenv("HOSTNAME")),
+	))
+
+	tracerProvider := tracesdk.NewTracerProvider(
+		tracesdk.WithBatcher(exp,
+			tracesdk.WithMaxQueueSize(c.ReporterMaxQueueSize)),
+		tracesdk.WithSampler(sampler),
+		tpResource,
+	)
+	otel.SetTracerProvider(tracerProvider)
+
+	// set global propagator to tracecontext (the default is no-op).
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
+	return tracerProvider.Shutdown, nil
 }
 
 // EmbedCorrelationID embeds the current Trace ID as the correlation ID in the context logger
+// Continuing this function for backward compatability.
 func EmbedCorrelationID(ctx context.Context) context.Context {
-	// While this removes the veneer of OpenTracing abstraction, the current specification does not
-	// provide a method of accessing Trace ID directly. Until OpenTracing 2.0 is released with
-	// support for abstract access for Trace ID we will coerce the type to the underlying tracer.
-	// See: https://github.com/opentracing/specification/issues/123
-	if span := opentracing.SpanFromContext(ctx); span != nil {
-		if sc, ok := span.Context().(jaeger.SpanContext); ok {
-			// Embed the Trace ID in the logging context for all future requests
-			correlationID := sc.TraceID().String()
-			ctx = log.NewContext(ctx, log.Get(ctx).With(zap.String("correlation_id", correlationID)))
-			ctx = context.WithValue(ctx, CorrelationIDCtxKey, correlationID)
-		}
+	// While this removes the veneer of OpenTelemetry abstraction, the current specification does not
+	// provide a method of accessing Trace ID directly.
+	if span := trace.SpanFromContext(ctx); span != nil {
+		sc := span.SpanContext()
+		// Embed the Trace ID in the logging context for all future requests
+		correlationID := sc.TraceID().String()
+		ctx = log.NewContext(ctx, log.Get(ctx).With(zap.String("correlation_id", correlationID)))
+		ctx = context.WithValue(ctx, CorrelationIDCtxKey, correlationID)
 	}
 	return ctx
+}
+
+// StartSpanFromContext Start the span from the provided context with provided options
+func StartSpanFromContext(ctx context.Context, operationName string, opts ...trace.SpanStartOption) (trace.Span, context.Context) {
+	tracer := otel.GetTracerProvider().Tracer(operationName)
+	returnCtx, span := tracer.Start(ctx, operationName, opts...)
+	return span, returnCtx
 }

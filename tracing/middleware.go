@@ -18,32 +18,33 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"net/http"
 	"strconv"
 
 	"github.com/cep21/circuit/v3"
-	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
 	"github.com/spothero/tools/http/writer"
-	"github.com/spothero/tools/log"
 	sql "github.com/spothero/tools/sql/middleware"
 )
 
 // setSpanTags sets default HTTP span tags
-func setSpanTags(r *http.Request, span opentracing.Span) opentracing.Span {
-	span = span.SetTag("http.method", r.Method)
-	span = span.SetTag("http.url", r.URL.String())
-	span = span.SetTag("http.path", writer.FetchRoutePathTemplate(r))
-	span = span.SetTag("http.user_agent", r.UserAgent())
+func setSpanTags(r *http.Request, span trace.Span) trace.Span {
+	var attrs []attribute.KeyValue
+	attrs = append(attrs, attribute.String("http.method", r.Method))
+	attrs = append(attrs, attribute.String("http.url", r.URL.String()))
+	attrs = append(attrs, attribute.String("http.path", writer.FetchRoutePathTemplate(r)))
+	attrs = append(attrs, attribute.String("http.user_agent", r.UserAgent()))
 	if contentLengthStr := r.Header.Get("Content-Length"); len(contentLengthStr) > 0 {
 		if contentLength, err := strconv.Atoi(contentLengthStr); err == nil {
-			span = span.SetTag("http.content_length", contentLength)
+			attrs = append(attrs, attribute.Int("http.content_length", contentLength))
 		}
 	}
+	span.SetAttributes(attrs...)
 	return span
 }
 
-// HTTPServerMiddleware extracts the OpenTracing context on all incoming HTTP requests, if present. if
+// HTTPServerMiddleware extracts the OpenTelemetry context on all incoming HTTP requests, if present. if
 // no trace ID is present in the headers, a trace is initiated.
 //
 // The following tags are placed on all incoming HTTP requests:
@@ -54,29 +55,24 @@ func setSpanTags(r *http.Request, span opentracing.Span) opentracing.Span {
 // * http.status_code
 // * error (if the status code is >= 500)
 //
-// The returned HTTP Request includes the wrapped OpenTracing Span Context.
+// The returned HTTP Request includes the wrapped OpenTelemetry Span Context.
 // Note that this middleware must be attached after writer.StatusRecorderMiddleware
 // for HTTP response span tagging to function.
 func HTTPServerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logger := log.Get(r.Context())
-		wireContext, err := opentracing.GlobalTracer().Extract(
-			opentracing.HTTPHeaders,
-			opentracing.HTTPHeadersCarrier(r.Header))
-		if err != nil {
-			logger.Debug("failed to extract opentracing context on an incoming http request")
-		}
-		span, spanCtx := opentracing.StartSpanFromContext(r.Context(), writer.FetchRoutePathTemplate(r), ext.RPCServerOption(wireContext))
+		links := []trace.Link{{SpanContext: trace.SpanFromContext(r.Context()).SpanContext()}}
+		trace.WithLinks(links...)
+		span, spanCtx := StartSpanFromContext(r.Context(), writer.FetchRoutePathTemplate(r), trace.WithLinks(links...))
 		span = setSpanTags(r, span)
 		defer func() {
 			if statusRecorder, ok := w.(*writer.StatusRecorder); ok {
-				span = span.SetTag("http.status_code", strconv.Itoa(statusRecorder.StatusCode))
+				span.SetAttributes(attribute.String("http.status_code", strconv.Itoa(statusRecorder.StatusCode)))
 				// 5XX Errors are our fault -- note that this span belongs to an errored request
 				if statusRecorder.StatusCode >= http.StatusInternalServerError {
-					span = span.SetTag("error", true)
+					span.SetAttributes(attribute.Bool("error", true))
 				}
 			}
-			span.Finish()
+			span.End()
 		}()
 		next.ServeHTTP(w, r.WithContext(EmbedCorrelationID(spanCtx)))
 	})
@@ -95,24 +91,25 @@ func (rt RoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	}
 
 	operationName := fmt.Sprintf("%s %s", r.Method, r.URL.String())
-	span, spanCtx := opentracing.StartSpanFromContext(r.Context(), operationName)
+	span, spanCtx := StartSpanFromContext(r.Context(), operationName)
 	span = setSpanTags(r, span)
 
 	resp, err := rt.RoundTripper.RoundTrip(r.WithContext(EmbedCorrelationID(spanCtx)))
 	if err != nil {
 		var circuitError circuit.Error
 		if errors.As(err, &circuitError) {
-			span = span.SetTag("circuit-breaker", circuitError.Error())
+			span.SetAttributes(attribute.String("circuit-breaker", circuitError.Error()))
 		}
-		span.SetTag("error", true).Finish()
+		span.SetAttributes(attribute.Bool("error", true))
+		span.End()
 		return nil, fmt.Errorf("http client request failed: %w", err)
 	}
 
-	span = span.SetTag("http.status_code", resp.Status)
+	span.SetAttributes(attribute.String("http.status_code", resp.Status))
 	if resp.StatusCode >= http.StatusBadRequest {
-		span = span.SetTag("error", true)
+		span.SetAttributes(attribute.Bool("error", true))
 	}
-	span.Finish()
+	span.End()
 	return resp, err
 }
 
@@ -143,16 +140,17 @@ func SQLMiddleware(ctx context.Context, queryName, query string, args ...interfa
 	if queryName != "" {
 		spanName = fmt.Sprintf("%s_%s", spanName, queryName)
 	}
-	span, spanCtx := opentracing.StartSpanFromContext(ctx, spanName)
-	span = span.
-		SetTag("component", "tracing").
-		SetTag("db.type", "sql").
-		SetTag("db.statement", query).
-		SetTag("db.statement.arguments", args)
+	span, spanCtx := StartSpanFromContext(ctx, spanName)
+	var attrs []attribute.KeyValue
+	attrs = append(attrs, attribute.String("component", "tracing"))
+	attrs = append(attrs, attribute.String("db.type", "sql"))
+	attrs = append(attrs, attribute.String("db.statement", query))
+	//attrs = append(attrs, attribute.StringSlice("db.statement.arguments", args))
+	span.SetAttributes(attrs...)
 	mwEnd := func(ctx context.Context, queryName, query string, queryErr error, args ...interface{}) (context.Context, error) {
-		defer span.Finish()
+		defer span.End()
 		if queryErr != nil {
-			span = span.SetTag("error", true)
+			span.SetAttributes(attribute.Bool("error", true))
 		}
 		return ctx, nil
 	}

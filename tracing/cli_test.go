@@ -64,4 +64,8 @@ func TestRegisterFlags(t *testing.T) {
 	tsn, err := flags.GetString("tracer-service-name")
 	assert.NoError(t, err)
 	assert.Equal(t, "", tsn)
+
+	tsns, err := flags.GetString("tracer-service-namespace")
+	assert.NoError(t, err)
+	assert.Equal(t, "", tsns)
 }

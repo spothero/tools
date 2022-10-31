@@ -22,8 +22,8 @@ import (
 )
 
 // UnaryServerInterceptor returns a new unary server interceptor that adds the correlation_id to
-// the logger context. Note that this interceptor should *always* be placed after the opentracing
-// interceptor to ensure that an opentracing context is present on the context. Additionally, this
+// the logger context. Note that this interceptor should *always* be placed after the opentelemetry
+// interceptor to ensure that an opentelemetry context is present on the context. Additionally, this
 // interceptor should always appear *before* the logging interceptor to ensure that the
 // correlation_id is properly logged.
 func UnaryServerInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
@@ -31,8 +31,8 @@ func UnaryServerInterceptor(ctx context.Context, req interface{}, info *grpc.Una
 }
 
 // StreamServerInterceptor returns a new unary server interceptor that adds the correlation_id to
-// the logger context. Note that this interceptor should *always* be placed after the opentracing
-// interceptor to ensure that an opentracing context is present on the context. Additionally, this
+// the logger context. Note that this interceptor should *always* be placed after the opentelemetry
+// interceptor to ensure that an opentelemetry context is present on the context. Additionally, this
 // interceptor should always appear *before* the logging interceptor to ensure that the
 // correlation_id is properly logged.
 func StreamServerInterceptor(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
@@ -42,8 +42,8 @@ func StreamServerInterceptor(srv interface{}, stream grpc.ServerStream, info *gr
 }
 
 // UnaryClientInterceptor returns a new unary client interceptor that adds the correlation_id to
-// the logger context. Note that this interceptor should *always* be placed after the opentracing
-// interceptor to ensure that an opentracing context is present on the context. Additionally, this
+// the logger context. Note that this interceptor should *always* be placed after the opentelemetry
+// interceptor to ensure that an opentelemetry context is present on the context. Additionally, this
 // interceptor should always appear *before* the logging interceptor to ensure that the
 // correlation_id is properly logged.
 func UnaryClientInterceptor(
@@ -58,8 +58,8 @@ func UnaryClientInterceptor(
 }
 
 // StreamClientInterceptor returns a new unary client interceptor that adds the correlation_id to
-// the logger context. Note that this interceptor should *always* be placed after the opentracing
-// interceptor to ensure that an opentracing context is present on the context. Additionally, this
+// the logger context. Note that this interceptor should *always* be placed after the opentelemetry
+// interceptor to ensure that an opentelemetry context is present on the context. Additionally, this
 // interceptor should always appear *before* the logging interceptor to ensure that the
 // correlation_id is properly logged.
 func StreamClientInterceptor(
