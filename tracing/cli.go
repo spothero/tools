@@ -27,4 +27,5 @@ func (c *Config) RegisterFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&c.AgentHost, "tracer-agent-host", "127.0.0.1", "Tracer Agent Host")
 	flags.IntVar(&c.AgentPort, "tracer-agent-port", 5775, "Tracer Agent Port")
 	flags.StringVar(&c.ServiceName, "tracer-service-name", c.ServiceName, "Determines the service name for the Tracer UI")
+	flags.StringVar(&c.ServiceNamespace, "tracer-service-namespace", c.ServiceNamespace, "Determines the service group for the Tracer UI")
 }

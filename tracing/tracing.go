@@ -53,6 +53,7 @@ type Config struct {
 	AgentHost             string
 	AgentPort             int
 	ServiceName           string
+	ServiceNamespace      string
 }
 
 // TracerProvider returns an OpenTelemetry TracerProvider configured to use
@@ -93,7 +94,7 @@ func (c Config) TracerProvider() (func(context.Context) error, error) {
 	tpResource := tracesdk.WithResource(resource.NewWithAttributes(
 		semconv.SchemaURL,
 		semconv.ServiceNameKey.String(c.ServiceName),
-		semconv.ServiceNamespaceKey.String(os.Getenv("POD_NAMESPACE")),
+		semconv.ServiceNamespaceKey.String(c.ServiceNamespace),
 		semconv.ServiceVersionKey.String(os.Getenv("VERSION")),
 		semconv.TelemetrySDKLanguageGo,
 		semconv.TelemetrySDKNameKey.String("opentelemetry"),
