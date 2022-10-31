@@ -16,12 +16,11 @@ package sentry
 
 import (
 	"context"
+	"go.opentelemetry.io/otel/trace"
 	"path"
 
 	"github.com/getsentry/sentry-go"
 	"github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/opentracing/opentracing-go"
-	"github.com/uber/jaeger-client-go"
 	"google.golang.org/grpc"
 )
 
@@ -45,10 +44,9 @@ func configureHub(ctx context.Context, fullMethodName string) context.Context {
 		"grpc.service": path.Dir(fullMethodName)[1:],
 		"grpc.method":  path.Base(fullMethodName),
 	})
-	if span := opentracing.SpanFromContext(ctx); span != nil {
-		if sc, ok := span.Context().(jaeger.SpanContext); ok {
-			hub.Scope().SetTag("correlation_id", sc.TraceID().String())
-		}
+	if span := trace.SpanFromContext(ctx); span != nil {
+		sc := span.SpanContext()
+		hub.Scope().SetTag("correlation_id", sc.TraceID().String())
 	}
 	return sentry.SetHubOnContext(ctx, hub)
 }

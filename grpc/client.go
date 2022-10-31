@@ -23,11 +23,11 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware"
 	grpczap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	grpcretry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
-	grpcot "github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing"
 	grpcprom "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/spothero/tools/jose"
 	"github.com/spothero/tools/log"
 	"github.com/spothero/tools/tracing"
+	otelgrpc "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -69,13 +69,13 @@ func defaultClientConfig(ctx context.Context) ClientConfig {
 		PropagateAuthHeaders: false,
 		RetryServerErrors:    false,
 		UnaryInterceptors: []grpc.UnaryClientInterceptor{
-			grpcot.UnaryClientInterceptor(),
+			otelgrpc.UnaryClientInterceptor(),
 			tracing.UnaryClientInterceptor,
 			grpczap.UnaryClientInterceptor(log.Get(ctx)),
 			grpcprom.UnaryClientInterceptor,
 		},
 		StreamInterceptors: []grpc.StreamClientInterceptor{
-			grpcot.StreamClientInterceptor(),
+			otelgrpc.StreamClientInterceptor(),
 			tracing.StreamClientInterceptor,
 			grpczap.StreamClientInterceptor(log.Get(ctx)),
 			grpcprom.StreamClientInterceptor,

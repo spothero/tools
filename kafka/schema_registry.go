@@ -26,7 +26,6 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/linkedin/goavro/v2"
-	"github.com/opentracing/opentracing-go"
 	"github.com/spf13/pflag"
 	shHTTP "github.com/spothero/tools/http"
 	"github.com/spothero/tools/log"
@@ -116,8 +115,8 @@ const schemaRegistryAcceptFormat = "application/vnd.schemaregistry.v1+json"
 
 // GetSchema retrieves a textual JSON Avro schema from the Kafka schema registry
 func (c *SchemaRegistryClient) GetSchema(ctx context.Context, id uint) (string, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "get-avro-schema")
-	defer span.Finish()
+	span, ctx := tracing.StartSpanFromContext(ctx, "get-avro-schema")
+	defer span.End()
 
 	endpoint := fmt.Sprintf("%s/schemas/ids/%d", c.URL, id)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
@@ -146,8 +145,8 @@ func (c *SchemaRegistryClient) GetSchema(ctx context.Context, id uint) (string, 
 
 // CheckSchema will check if the schema exists for the given subject
 func (c *SchemaRegistryClient) CheckSchema(ctx context.Context, subject string, schema string, isKey bool) (*schemaResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "check-avro-schema")
-	defer span.Finish()
+	span, ctx := tracing.StartSpanFromContext(ctx, "check-avro-schema")
+	defer span.End()
 
 	concreteSubject := getConcreteSubject(subject, isKey)
 	endpoint := fmt.Sprintf("%s/subjects/%s", c.URL, concreteSubject)
@@ -194,8 +193,8 @@ func (c *SchemaRegistryClient) CheckSchema(ctx context.Context, subject string, 
 // schema will not be created and instead the existing ID will be returned.  This applies even if the schema is assgined
 // only to another subject.
 func (c *SchemaRegistryClient) CreateSchema(ctx context.Context, subject string, schema string, isKey bool) (*schemaResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "create-avro-schema")
-	defer span.Finish()
+	span, ctx := tracing.StartSpanFromContext(ctx, "create-avro-schema")
+	defer span.End()
 
 	concreteSubject := getConcreteSubject(subject, isKey)
 	schemaReq := schemaRequest{Schema: schema}
