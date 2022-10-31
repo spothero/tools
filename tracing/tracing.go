@@ -93,12 +93,15 @@ func (c Config) TracerProvider() (func(context.Context) error, error) {
 	tpResource := tracesdk.WithResource(resource.NewWithAttributes(
 		semconv.SchemaURL,
 		semconv.ServiceNameKey.String(c.ServiceName),
-		attribute.String("process.pid", "1"),
-		attribute.String("ip", os.Getenv("podIP")),
+		semconv.ServiceNamespaceKey.String(os.Getenv("POD_NAMESPACE")),
+		semconv.ServiceVersionKey.String(os.Getenv("VERSION")),
+		semconv.TelemetrySDKLanguageGo,
+		semconv.TelemetrySDKNameKey.String("opentelemetry"),
+		semconv.TelemetrySDKVersionKey.String("1.11.0"),
+		semconv.K8SPodNameKey.String(os.Getenv("HOSTNAME")),
+		semconv.K8SNamespaceNameKey.String(os.Getenv("POD_NAMESPACE")),
+		attribute.String("ip", os.Getenv("POD_IP")),
 		attribute.String("hostname", os.Getenv("HOSTNAME")),
-		attribute.String("telemetry.sdk.language", "go-telemetry"),
-		attribute.String("telemetry.sdk.name", "opentelemetry"),
-		attribute.String("telemetry.sdk.version", "1.11.0"),
 	))
 
 	tracerProvider := tracesdk.NewTracerProvider(
