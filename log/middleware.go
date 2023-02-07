@@ -60,7 +60,7 @@ func HTTPServerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
 		logger := Get(r.Context()).Named("http").With(getFields(r)...)
-		logger.Debug("http request received")
+		logger.Info("http request received")
 		defer func() {
 			var responseCodeField zap.Field
 			if statusRecorder, ok := w.(*writer.StatusRecorder); ok {
