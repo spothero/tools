@@ -296,6 +296,7 @@ func TestMetricsRoundTrip(t *testing.T) {
 			prometheus.Unregister(metricsRT.Metrics.contentLength)
 			prometheus.Unregister(metricsRT.Metrics.clientContentLength)
 			prometheus.Unregister(metricsRT.Metrics.counter)
+			prometheus.Unregister(metricsRT.Metrics.requestReturned)
 			prometheus.Unregister(metricsRT.Metrics.clientCounter)
 			prometheus.Unregister(metricsRT.Metrics.circuitBreakerOpen)
 		})
