@@ -163,6 +163,7 @@ func TestMiddleware(t *testing.T) {
 
 	// Check request returned counter
 	requestsReturned, err := metrics.requestReturned.GetMetricWith(labels)
+	assert.NoError(t, err)
 	pb = &dto.Metric{}
 	assert.NoError(t, requestsReturned.Write(pb))
 	assert.Equal(t, 1, int(pb.Counter.GetValue()))
