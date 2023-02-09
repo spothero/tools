@@ -175,26 +175,6 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 // Note that this middleware must be attached after writer.StatusRecorderMiddleware
 // for HTTP response code tagging to function.
 func (m Metrics) Middleware(next http.Handler) http.Handler {
-	//return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	//	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(durationSec float64) {
-	//		labels := prometheus.Labels{
-	//			"path":                 writer.FetchRoutePathTemplate(r),
-	//			"authenticated_client": retrieveAuthenticatedClient(r),
-	//		}
-	//		if statusRecorder, ok := w.(*writer.StatusRecorder); ok {
-	//			labels["status_code"] = strconv.Itoa(statusRecorder.StatusCode)
-	//		}
-	//		m.counter.With(labels).Inc()
-	//		if contentLengthStr := r.Header.Get("Content-Length"); len(contentLengthStr) > 0 {
-	//			if contentLength, err := strconv.Atoi(contentLengthStr); err == nil {
-	//				m.contentLength.With(labels).Observe(float64(contentLength))
-	//			}
-	//		}
-	//		m.duration.With(labels).Observe(durationSec)
-	//	}))
-	//	defer timer.ObserveDuration()
-	//	next.ServeHTTP(w, r)
-	//})
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		labels := prometheus.Labels{
 			"path":                 writer.FetchRoutePathTemplate(r),
