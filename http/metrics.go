@@ -31,6 +31,7 @@ const UNAUTHENTICATED = "unauthenticated"
 // Metrics is a bundle of prometheus HTTP metrics recorders
 type Metrics struct {
 	counter             *prometheus.CounterVec
+	requestReturned     *prometheus.CounterVec
 	duration            *prometheus.HistogramVec
 	contentLength       *prometheus.HistogramVec
 	clientCounter       *prometheus.CounterVec
@@ -68,12 +69,24 @@ func registerCollector(registry prometheus.Registerer, collector prometheus.Coll
 // then the existing collector will be returned.  But if registration failed for any other reason then
 // the application will panic.
 func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
-	labels := []string{"path", "status_code", "authenticated_client"}
+	labels := []string{"path", "authenticated_client"}
 
 	// If the user has not provided a Prometheus Registry, use the global Registry
 	if registry == nil {
 		registry = prometheus.DefaultRegisterer
 	}
+
+	counter := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "http_requests_total",
+			Help: "Total number of HTTP Requests received",
+		},
+		labels,
+	)
+	counter = registerCollector(registry, counter, mustRegister).(*prometheus.CounterVec)
+
+	// add status code label for metrics tracked on request return
+	labels = append(labels, "status_code")
 
 	histogram := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
@@ -97,14 +110,14 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 	)
 	clientHistogram = registerCollector(registry, clientHistogram, mustRegister).(*prometheus.HistogramVec)
 
-	counter := prometheus.NewCounterVec(
+	requestReturnedCounter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "http_requests_total",
-			Help: "Total number of HTTP Requests received",
+			Name: "http_requests_returned_total",
+			Help: "Total number of HTTP Requests returned",
 		},
 		labels,
 	)
-	counter = registerCollector(registry, counter, mustRegister).(*prometheus.CounterVec)
+	requestReturnedCounter = registerCollector(registry, requestReturnedCounter, mustRegister).(*prometheus.CounterVec)
 
 	clientCounter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -148,6 +161,7 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 
 	return Metrics{
 		counter:             counter,
+		requestReturned:     requestReturnedCounter,
 		clientCounter:       clientCounter,
 		duration:            histogram,
 		clientDuration:      clientHistogram,
@@ -161,16 +175,38 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 // Note that this middleware must be attached after writer.StatusRecorderMiddleware
 // for HTTP response code tagging to function.
 func (m Metrics) Middleware(next http.Handler) http.Handler {
+	//return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	//	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(durationSec float64) {
+	//		labels := prometheus.Labels{
+	//			"path":                 writer.FetchRoutePathTemplate(r),
+	//			"authenticated_client": retrieveAuthenticatedClient(r),
+	//		}
+	//		if statusRecorder, ok := w.(*writer.StatusRecorder); ok {
+	//			labels["status_code"] = strconv.Itoa(statusRecorder.StatusCode)
+	//		}
+	//		m.counter.With(labels).Inc()
+	//		if contentLengthStr := r.Header.Get("Content-Length"); len(contentLengthStr) > 0 {
+	//			if contentLength, err := strconv.Atoi(contentLengthStr); err == nil {
+	//				m.contentLength.With(labels).Observe(float64(contentLength))
+	//			}
+	//		}
+	//		m.duration.With(labels).Observe(durationSec)
+	//	}))
+	//	defer timer.ObserveDuration()
+	//	next.ServeHTTP(w, r)
+	//})
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		labels := prometheus.Labels{
+			"path":                 writer.FetchRoutePathTemplate(r),
+			"authenticated_client": retrieveAuthenticatedClient(r),
+		}
+		m.counter.With(labels).Inc()
+
 		timer := prometheus.NewTimer(prometheus.ObserverFunc(func(durationSec float64) {
-			labels := prometheus.Labels{
-				"path":                 writer.FetchRoutePathTemplate(r),
-				"authenticated_client": retrieveAuthenticatedClient(r),
-			}
 			if statusRecorder, ok := w.(*writer.StatusRecorder); ok {
 				labels["status_code"] = strconv.Itoa(statusRecorder.StatusCode)
 			}
-			m.counter.With(labels).Inc()
+			m.requestReturned.With(labels).Inc()
 			if contentLengthStr := r.Header.Get("Content-Length"); len(contentLengthStr) > 0 {
 				if contentLength, err := strconv.Atoi(contentLengthStr); err == nil {
 					m.contentLength.With(labels).Observe(float64(contentLength))

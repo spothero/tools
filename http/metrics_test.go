@@ -113,6 +113,17 @@ func TestMiddleware(t *testing.T) {
 	require.NotNil(t, res)
 	defer res.Body.Close()
 
+	// Check request counter
+	counterLables := prometheus.Labels{
+		"path":                 "/",
+		"authenticated_client": UNAUTHENTICATED,
+	}
+	counter, err := metrics.counter.GetMetricWith(counterLables)
+	assert.NoError(t, err)
+	pb := &dto.Metric{}
+	assert.NoError(t, counter.Write(pb))
+	assert.Equal(t, 1, int(pb.Counter.GetValue()))
+
 	// Expected prometheus labels after this request
 	labels := prometheus.Labels{
 		"path":                 "/",
@@ -123,7 +134,7 @@ func TestMiddleware(t *testing.T) {
 	// Check duration histogram
 	histogram, err := metrics.duration.GetMetricWith(labels)
 	assert.NoError(t, err)
-	pb := &dto.Metric{}
+	pb = &dto.Metric{}
 	assert.NoError(t, histogram.(prometheus.Histogram).Write(pb))
 	buckets := pb.Histogram.GetBucket()
 	assert.NotEmpty(t, buckets)
@@ -150,13 +161,14 @@ func TestMiddleware(t *testing.T) {
 	prometheus.Unregister(metrics.contentLength)
 	prometheus.Unregister(metrics.clientContentLength)
 
-	// Check request counter
-	counter, err := metrics.counter.GetMetricWith(labels)
-	assert.NoError(t, err)
+	// Check request returned counter
+	requestsReturned, err := metrics.requestReturned.GetMetricWith(labels)
 	pb = &dto.Metric{}
-	assert.NoError(t, counter.Write(pb))
+	assert.NoError(t, requestsReturned.Write(pb))
 	assert.Equal(t, 1, int(pb.Counter.GetValue()))
+
 	prometheus.Unregister(metrics.counter)
+	prometheus.Unregister(metrics.requestReturned)
 	prometheus.Unregister(metrics.clientCounter)
 	prometheus.Unregister(metrics.circuitBreakerOpen)
 }
