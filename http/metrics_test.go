@@ -162,14 +162,14 @@ func TestMiddleware(t *testing.T) {
 	prometheus.Unregister(metrics.clientContentLength)
 
 	// Check request returned counter
-	requestsReturned, err := metrics.requestReturned.GetMetricWith(labels)
+	responseCounter, err := metrics.responseCounter.GetMetricWith(labels)
 	assert.NoError(t, err)
 	pb = &dto.Metric{}
-	assert.NoError(t, requestsReturned.Write(pb))
+	assert.NoError(t, responseCounter.Write(pb))
 	assert.Equal(t, 1, int(pb.Counter.GetValue()))
 
 	prometheus.Unregister(metrics.counter)
-	prometheus.Unregister(metrics.requestReturned)
+	prometheus.Unregister(metrics.responseCounter)
 	prometheus.Unregister(metrics.clientCounter)
 	prometheus.Unregister(metrics.circuitBreakerOpen)
 }
@@ -297,7 +297,7 @@ func TestMetricsRoundTrip(t *testing.T) {
 			prometheus.Unregister(metricsRT.Metrics.contentLength)
 			prometheus.Unregister(metricsRT.Metrics.clientContentLength)
 			prometheus.Unregister(metricsRT.Metrics.counter)
-			prometheus.Unregister(metricsRT.Metrics.requestReturned)
+			prometheus.Unregister(metricsRT.Metrics.responseCounter)
 			prometheus.Unregister(metricsRT.Metrics.clientCounter)
 			prometheus.Unregister(metricsRT.Metrics.circuitBreakerOpen)
 		})

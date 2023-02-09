@@ -31,7 +31,7 @@ const UNAUTHENTICATED = "unauthenticated"
 // Metrics is a bundle of prometheus HTTP metrics recorders
 type Metrics struct {
 	counter             *prometheus.CounterVec
-	requestReturned     *prometheus.CounterVec
+	responseCounter     *prometheus.CounterVec
 	duration            *prometheus.HistogramVec
 	contentLength       *prometheus.HistogramVec
 	clientCounter       *prometheus.CounterVec
@@ -110,14 +110,14 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 	)
 	clientHistogram = registerCollector(registry, clientHistogram, mustRegister).(*prometheus.HistogramVec)
 
-	requestReturnedCounter := prometheus.NewCounterVec(
+	responseCounter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "http_requests_returned_total",
-			Help: "Total number of HTTP Requests returned",
+			Name: "http_responses_total",
+			Help: "Total number of HTTP responses",
 		},
 		labels,
 	)
-	requestReturnedCounter = registerCollector(registry, requestReturnedCounter, mustRegister).(*prometheus.CounterVec)
+	responseCounter = registerCollector(registry, responseCounter, mustRegister).(*prometheus.CounterVec)
 
 	clientCounter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -161,7 +161,7 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 
 	return Metrics{
 		counter:             counter,
-		requestReturned:     requestReturnedCounter,
+		responseCounter:     responseCounter,
 		clientCounter:       clientCounter,
 		duration:            histogram,
 		clientDuration:      clientHistogram,
@@ -186,7 +186,7 @@ func (m Metrics) Middleware(next http.Handler) http.Handler {
 			if statusRecorder, ok := w.(*writer.StatusRecorder); ok {
 				labels["status_code"] = strconv.Itoa(statusRecorder.StatusCode)
 			}
-			m.requestReturned.With(labels).Inc()
+			m.responseCounter.With(labels).Inc()
 			if contentLengthStr := r.Header.Get("Content-Length"); len(contentLengthStr) > 0 {
 				if contentLength, err := strconv.Atoi(contentLengthStr); err == nil {
 					m.contentLength.With(labels).Observe(float64(contentLength))
