@@ -83,7 +83,7 @@ func TestNewMetrics(t *testing.T) {
 					assert.NotPanics(t, func() { _ = NewMetrics(registry, test.mustRegister) })
 				}
 			}
-			assert.NotNil(t, metrics.counter)
+			assert.NotNil(t, metrics.requestCounter)
 			assert.NotNil(t, metrics.clientCounter)
 			assert.NotNil(t, metrics.duration)
 			assert.NotNil(t, metrics.clientDuration)
@@ -114,22 +114,18 @@ func TestMiddleware(t *testing.T) {
 	defer res.Body.Close()
 
 	// Check request counter
-	counterLables := prometheus.Labels{
-		"path":                 "/",
-		"authenticated_client": UNAUTHENTICATED,
-	}
-	counter, err := metrics.counter.GetMetricWith(counterLables)
-	assert.NoError(t, err)
-	pb := &dto.Metric{}
-	assert.NoError(t, counter.Write(pb))
-	assert.Equal(t, 1, int(pb.Counter.GetValue()))
-
-	// Expected prometheus labels after this request
 	labels := prometheus.Labels{
 		"path":                 "/",
-		"status_code":          "666",
 		"authenticated_client": UNAUTHENTICATED,
 	}
+	requestCounter, err := metrics.requestCounter.GetMetricWith(labels)
+	assert.NoError(t, err)
+	pb := &dto.Metric{}
+	assert.NoError(t, requestCounter.Write(pb))
+	assert.Equal(t, 1, int(pb.Counter.GetValue()))
+
+	// add status code label for returning counters
+	labels["status_code"] = "666"
 
 	// Check duration histogram
 	histogram, err := metrics.duration.GetMetricWith(labels)
@@ -168,7 +164,7 @@ func TestMiddleware(t *testing.T) {
 	assert.NoError(t, responseCounter.Write(pb))
 	assert.Equal(t, 1, int(pb.Counter.GetValue()))
 
-	prometheus.Unregister(metrics.counter)
+	prometheus.Unregister(metrics.requestCounter)
 	prometheus.Unregister(metrics.responseCounter)
 	prometheus.Unregister(metrics.clientCounter)
 	prometheus.Unregister(metrics.circuitBreakerOpen)
@@ -296,7 +292,7 @@ func TestMetricsRoundTrip(t *testing.T) {
 			prometheus.Unregister(metricsRT.Metrics.clientDuration)
 			prometheus.Unregister(metricsRT.Metrics.contentLength)
 			prometheus.Unregister(metricsRT.Metrics.clientContentLength)
-			prometheus.Unregister(metricsRT.Metrics.counter)
+			prometheus.Unregister(metricsRT.Metrics.requestCounter)
 			prometheus.Unregister(metricsRT.Metrics.responseCounter)
 			prometheus.Unregister(metricsRT.Metrics.clientCounter)
 			prometheus.Unregister(metricsRT.Metrics.circuitBreakerOpen)

@@ -30,7 +30,7 @@ const UNAUTHENTICATED = "unauthenticated"
 
 // Metrics is a bundle of prometheus HTTP metrics recorders
 type Metrics struct {
-	counter             *prometheus.CounterVec
+	requestCounter      *prometheus.CounterVec
 	responseCounter     *prometheus.CounterVec
 	duration            *prometheus.HistogramVec
 	contentLength       *prometheus.HistogramVec
@@ -76,14 +76,14 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 		registry = prometheus.DefaultRegisterer
 	}
 
-	counter := prometheus.NewCounterVec(
+	requestCounter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "http_requests_total",
 			Help: "Total number of HTTP Requests received",
 		},
 		labels,
 	)
-	counter = registerCollector(registry, counter, mustRegister).(*prometheus.CounterVec)
+	requestCounter = registerCollector(registry, requestCounter, mustRegister).(*prometheus.CounterVec)
 
 	// add status code label for metrics tracked on request return
 	labels = append(labels, "status_code")
@@ -160,7 +160,7 @@ func NewMetrics(registry prometheus.Registerer, mustRegister bool) Metrics {
 	circuitBreakerOpen = registerCollector(registry, circuitBreakerOpen, mustRegister).(*prometheus.CounterVec)
 
 	return Metrics{
-		counter:             counter,
+		requestCounter:      requestCounter,
 		responseCounter:     responseCounter,
 		clientCounter:       clientCounter,
 		duration:            histogram,
@@ -180,7 +180,7 @@ func (m Metrics) Middleware(next http.Handler) http.Handler {
 			"path":                 writer.FetchRoutePathTemplate(r),
 			"authenticated_client": retrieveAuthenticatedClient(r),
 		}
-		m.counter.With(labels).Inc()
+		m.requestCounter.With(labels).Inc()
 
 		timer := prometheus.NewTimer(prometheus.ObserverFunc(func(durationSec float64) {
 			if statusRecorder, ok := w.(*writer.StatusRecorder); ok {
