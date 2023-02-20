@@ -1,6 +1,6 @@
 module github.com/spothero/tools
 
-go 1.18
+go 1.20
 
 // exclude vulnerable dependency: github.com/prometheus/client_golang -> github.com/prometheus/common@v0.4.1 -> vulnerable
 // the dependency is unused according to the prometheus maintainers - https://github.com/prometheus/client_golang/issues/836#issuecomment-776831141
