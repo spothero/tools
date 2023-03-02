@@ -6,7 +6,7 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/gchaincl/sqlhooks"
 	"github.com/go-sql-driver/mysql"
@@ -72,7 +72,7 @@ func (c MySQLConfig) Connect(ctx context.Context, options ...WrappedSQLOption) (
 // Read a CA cert file and registers a TLS config with the cert under the constant tlsConfigName name
 func (c *MySQLConfig) loadCACert() error {
 	rootPool := x509.NewCertPool()
-	pem, err := ioutil.ReadFile(c.CACertPath)
+	pem, err := os.ReadFile(c.CACertPath)
 	if err != nil {
 		return err
 	}
