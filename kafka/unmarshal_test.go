@@ -17,7 +17,7 @@ package kafka
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"reflect"
 	"strings"
@@ -275,7 +275,7 @@ func TestConnectAvroUnmarshaller_Unmarshal(t *testing.T) {
 			} else {
 				getSchema.Return(&http.Response{
 					StatusCode: http.StatusOK,
-					Body: ioutil.NopCloser(
+					Body: io.NopCloser(
 						strings.NewReader(
 							fmt.Sprintf("{\"schema\": \"%s\"}", strings.Replace(avroSchema, "\"", "\\\"", -1)))),
 				}, nil)

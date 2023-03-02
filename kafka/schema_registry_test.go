@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -519,7 +518,7 @@ func TestSchemaRegistryClient_DecodeKafkaAvroMessage(t *testing.T) {
 				if test.schema != "" {
 					getSchema.Return(&http.Response{
 						StatusCode: http.StatusOK,
-						Body: ioutil.NopCloser(
+						Body: io.NopCloser(
 							strings.NewReader(
 								fmt.Sprintf("{\"schema\": \"%s\"}", strings.Replace(test.schema, "\"", "\\\"", -1)))),
 					}, nil)

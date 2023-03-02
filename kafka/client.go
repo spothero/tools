@@ -19,7 +19,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -69,7 +69,7 @@ func (c *Config) populateSaramaConfig(ctx context.Context) error {
 		}
 		c.Net.TLS.Enable = true
 		if c.TLSCaCrtPath != "" {
-			caCert, err := ioutil.ReadFile(c.TLSCaCrtPath)
+			caCert, err := os.ReadFile(c.TLSCaCrtPath)
 			if err != nil {
 				return fmt.Errorf("failed to load Kafka CA certificate: %w", err)
 			}
