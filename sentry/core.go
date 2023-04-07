@@ -40,11 +40,11 @@ func (c *Core) With(fields []zapcore.Field) zapcore.Core {
 		return c
 	}
 	clonedLogger := *c
-	clonedLogger.withFields = fields
+	clonedLogger.withFields = append(clonedLogger.withFields, fields...)
 	return &clonedLogger
 }
 
-// Check must be called before calling Write. This determines whether or not logs are sent to
+// Check must be called before calling Write. This determines whether logs are sent to
 // Sentry
 func (c *Core) Check(ent zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.CheckedEntry {
 	// send error logs and above to Sentry
@@ -63,7 +63,7 @@ var stacktraceModulesToIgnore = []*regexp.Regexp{
 }
 
 // Write logs the entry and fields supplied at the log site and writes them to their destination. If a
-// Sentry Hub field is present in the fields, that Hub will be used for reporting to Sentry, otherrwise
+// Sentry Hub field is present in the fields, that Hub will be used for reporting to Sentry, otherwise
 // the default Sentry Hub will be used.
 func (c *Core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 	var severity sentry.Level
@@ -85,6 +85,7 @@ func (c *Core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 	// This block was adapted from the way zap encodes messages internally
 	// See https://github.com/uber-go/zap/blob/v1.7.1/zapcore/field.go#L107
 	sentryExtra := make(map[string]interface{})
+	tags := make(map[string]string)
 	mergedFields := fields
 	if len(c.withFields) > 0 {
 		mergedFields = append(mergedFields, c.withFields...)
@@ -153,6 +154,9 @@ func (c *Core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 					hub = h.Hub
 				}
 			}
+			if field.Interface == TagType {
+				tags[field.Key] = field.String
+			}
 		default:
 			sentryExtra[field.Key] = fmt.Sprintf("Unknown field type %v", field.Type)
 		}
@@ -170,6 +174,7 @@ func (c *Core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 	event.Logger = ent.LoggerName
 	event.Timestamp = ent.Time
 	event.Extra = sentryExtra
+	event.Tags = tags
 	event.Fingerprint = []string{fingerprint}
 	stackTrace := sentry.NewStacktrace()
 	filteredFrames := make([]sentry.Frame, 0, len(stackTrace.Frames))
@@ -236,4 +241,11 @@ func Hub(hub *sentry.Hub) zapcore.Field {
 // since we don't actually want to add anything from the Sentry Hub to the log.
 func (f hubZapField) MarshalLogObject(_ zapcore.ObjectEncoder) error {
 	return nil
+}
+
+const TagType = "sentry-tag"
+
+// Tag attaches a tag which will be indexed by Sentry and searchable.
+func Tag(key, value string) zap.Field {
+	return zap.Field{Key: key, Type: zapcore.SkipType, String: value, Interface: TagType}
 }
