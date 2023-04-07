@@ -48,7 +48,7 @@ func TestWith(t *testing.T) {
 	}{
 		{
 			"nil fields returns an unmodified core",
-			[]zapcore.Field{},
+			nil,
 			true,
 		},
 		{
@@ -78,6 +78,41 @@ func TestWith(t *testing.T) {
 			} else {
 				assert.NotEqual(t, c, newCore)
 			}
+		})
+	}
+}
+
+func TestWithMultipleTimes(t *testing.T) {
+	tests := []struct {
+		name                 string
+		fields, appendFields []zapcore.Field
+		expectEqual          bool
+	}{
+		{
+			"append fields if with is called multiple times",
+			[]zapcore.Field{
+				{
+					Key:    "test",
+					Type:   zapcore.StringType,
+					String: "test",
+				},
+			},
+			[]zapcore.Field{
+				{
+					Key:    "test1",
+					Type:   zapcore.StringType,
+					String: "test",
+				},
+			},
+			true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			c := Core{}
+			newCorePtr := c.With(test.fields).With(test.fields)
+			totalFields := len(test.fields) + len(test.appendFields)
+			assert.Equal(t, totalFields, len(newCorePtr.(*Core).withFields))
 		})
 	}
 }
@@ -178,6 +213,7 @@ func TestWrite(t *testing.T) {
 						Key:       loggerFieldKey,
 						Interface: hubZapField{Hub: originalHub},
 					},
+					Tag("test", "123"),
 				},
 			},
 			nil,
@@ -206,4 +242,16 @@ func TestHub(t *testing.T) {
 
 func TestMarshalLogObject(t *testing.T) {
 	assert.Nil(t, hubZapField{}.MarshalLogObject(zapcore.NewMapObjectEncoder()))
+}
+
+func TestTag(t *testing.T) {
+	assert.Equal(t,
+		zap.Field{
+			Key:       "tag",
+			String:    "value",
+			Type:      zapcore.SkipType,
+			Interface: TagType,
+		},
+		Tag("tag", "value"),
+	)
 }
