@@ -74,7 +74,7 @@ func NewDefaultConfig(name string) Config {
 		Address:         "127.0.0.1",
 		Port:            8080,
 		ReadTimeout:     5,
-		WriteTimeout:    30,
+		WriteTimeout:    60,
 		HealthHandler:   true,
 		MetricsHandler:  true,
 		PprofHandler:    true,
