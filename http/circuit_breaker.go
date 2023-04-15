@@ -41,7 +41,8 @@ type CircuitBreakerRoundTripper struct {
 // for a particular host.
 //
 // **IMPORTANT**: If you decide to set the hostConfiguration, the key in the map **must be the host
-//                name of the server you intend to call (eg req.URL.Host)**
+//
+//	name of the server you intend to call (eg req.URL.Host)**
 //
 // Additional Default:
 // * Requests will timeout after 30 seconds
