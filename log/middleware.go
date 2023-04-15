@@ -47,7 +47,8 @@ func getFields(r *http.Request) []zap.Field {
 // HTTPServerMiddleware logs a series of standard attributes for every HTTP request and attaches
 // a logger onto the request context.
 //
-//  On inbound request received these attributes include:
+//	On inbound request received these attributes include:
+//
 // * The remote address of the client
 // * The HTTP Method utilized
 //
