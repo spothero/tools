@@ -20,16 +20,10 @@ import (
 	"strings"
 )
 
-// SPOTHERO_USER is the string used when the user is a public authenticated spothero client
-const SPOTHERO_USER = "spothero_user"
-
-// PARTNER_MACHINE is the string used when the client is partner authenticated machine
-const PARTNER_MACHINE = "partner_machine"
-
-// Auth0CtxKey is the type used to uniquely place the cognito claim in the context
+// Auth0CtxKey is the type used to uniquely place the Auth0 claim in the context
 type Auth0CtxKey int
 
-// Auth0ClaimKey is the value used to uniquely place the cognito claim within the context
+// Auth0ClaimKey is the value used to uniquely place the Auth0 claim within the context
 const Auth0ClaimKey Auth0CtxKey = iota
 
 // Auth0Generator satisfies the ClaimGenerator interface, allowing middleware to create
