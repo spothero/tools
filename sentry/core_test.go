@@ -214,6 +214,7 @@ func TestWrite(t *testing.T) {
 						Interface: hubZapField{Hub: originalHub},
 					},
 					Tag("test", "123"),
+					Fingerprint("test", "123"),
 				},
 			},
 			nil,
@@ -253,5 +254,17 @@ func TestTag(t *testing.T) {
 			Interface: TagType,
 		},
 		Tag("tag", "value"),
+	)
+}
+
+func TestFingerprint(t *testing.T) {
+	assert.Equal(t,
+		zap.Field{
+			Key:       "tag",
+			String:    "value",
+			Type:      zapcore.SkipType,
+			Interface: FingerprintType,
+		},
+		Fingerprint("tag", "value"),
 	)
 }
