@@ -85,6 +85,7 @@ func (c *Core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 	// This block was adapted from the way zap encodes messages internally
 	// See https://github.com/uber-go/zap/blob/v1.7.1/zapcore/field.go#L107
 	sentryExtra := make(map[string]interface{})
+	fingerprints := make([]string, 0)
 	tags := make(map[string]string)
 	mergedFields := fields
 	if len(c.withFields) > 0 {
@@ -156,6 +157,8 @@ func (c *Core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 			}
 			if field.Interface == TagType {
 				tags[field.Key] = field.String
+			} else if field.Interface == FingerprintType {
+				fingerprints = append(fingerprints, field.String)
 			}
 		default:
 			sentryExtra[field.Key] = fmt.Sprintf("Unknown field type %v", field.Type)
@@ -175,7 +178,7 @@ func (c *Core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 	event.Timestamp = ent.Time
 	event.Extra = sentryExtra
 	event.Tags = tags
-	event.Fingerprint = []string{fingerprint}
+	event.Fingerprint = append(fingerprints, fingerprint)
 	stackTrace := sentry.NewStacktrace()
 	filteredFrames := make([]sentry.Frame, 0, len(stackTrace.Frames))
 	for _, frame := range stackTrace.Frames {
@@ -248,4 +251,11 @@ const TagType = "sentry-tag"
 // Tag attaches a tag which will be indexed by Sentry and searchable.
 func Tag(key, value string) zap.Field {
 	return zap.Field{Key: key, Type: zapcore.SkipType, String: value, Interface: TagType}
+}
+
+const FingerprintType = "sentry-fingerprint"
+
+// Fingerprint are used to group events into issues
+func Fingerprint(key, value string) zap.Field {
+	return zap.Field{Key: key, Type: zapcore.SkipType, String: value, Interface: FingerprintType}
 }
