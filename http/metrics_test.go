@@ -172,43 +172,34 @@ func TestMiddleware(t *testing.T) {
 
 func TestMetricsRoundTrip(t *testing.T) {
 	tests := []struct {
-		name                  string
 		roundTripper          http.RoundTripper
+		name                  string
 		expectErr             bool
 		expectCircuitBreakErr bool
 		expectPanic           bool
 	}{
 		{
-			"no roundtripper results in a panic",
-			nil,
-			false,
-			false,
-			true,
+			name:        "no roundtripper results in a panic",
+			expectPanic: true,
 		},
 		{
-			"an error on roundtrip is reported to the caller",
-			&mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: true},
-			true,
-			false,
-			false,
+			name:         "an error on roundtrip is reported to the caller",
+			roundTripper: &mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: true},
+			expectErr:    true,
 		},
 		{
-			"http requests are measured and status code is recorded on request",
-			&mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
-			false,
-			false,
-			false,
+			name:         "http requests are measured and status code is recorded on request",
+			roundTripper: &mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
 		},
 		{
-			"circuit-breaking errors are recorded correctly in the metrics",
-			&mock.RoundTripper{
+			name: "circuit-breaking errors are recorded correctly in the metrics",
+			roundTripper: &mock.RoundTripper{
 				ResponseStatusCodes: []int{http.StatusOK},
 				CreateErr:           true,
 				DesiredErr:          mock.CircuitError{CircuitOpened: true},
 			},
-			true,
-			true,
-			false,
+			expectErr:             true,
+			expectCircuitBreakErr: true,
 		},
 	}
 	for _, test := range tests {

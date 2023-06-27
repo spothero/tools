@@ -49,10 +49,9 @@ func registerCollector(registry prometheus.Registerer, collector prometheus.Coll
 			if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
 				// metric has been registered before so use existing metric
 				return are.ExistingCollector
-			} else {
-				// Something else went wrong so panic
-				panic(err)
 			}
+			// Something else went wrong so panic
+			panic(err)
 		}
 	}
 	return collector
@@ -225,7 +224,7 @@ func (metricsRT MetricsRoundTripper) RoundTrip(r *http.Request) (*http.Response,
 			}
 			metricsRT.Metrics.clientCounter.With(labels).Inc()
 			if contentLengthStr := r.Header.Get("Content-Length"); len(contentLengthStr) > 0 {
-				if contentLength, err := strconv.Atoi(contentLengthStr); err == nil {
+				if contentLength, contentLengthErr := strconv.Atoi(contentLengthStr); contentLengthErr == nil {
 					metricsRT.Metrics.clientContentLength.With(labels).Observe(float64(contentLength))
 				}
 			}

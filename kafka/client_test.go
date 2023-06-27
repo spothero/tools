@@ -28,29 +28,28 @@ import (
 
 func TestConfig_populateSaramaConfig(t *testing.T) {
 	tests := []struct {
+		check     func(t *testing.T, cfg *sarama.Config)
 		name      string
 		input     Config
-		check     func(t *testing.T, cfg *sarama.Config)
 		expectErr bool
 	}{
 		{
-			"base configuration is populated",
-			Config{
+			name: "base configuration is populated",
+			input: Config{
 				Config:       *sarama.NewConfig(),
 				Verbose:      true,
 				KafkaVersion: "2.3.0",
 			},
-			func(t *testing.T, cfg *sarama.Config) {
+			check: func(t *testing.T, cfg *sarama.Config) {
 				assert.Equal(t, sarama.V2_3_0_0, cfg.Version)
 				assert.True(t, cfg.Producer.Return.Successes)
 				assert.True(t, cfg.Producer.Return.Errors)
 				assert.True(t, cfg.Consumer.Return.Errors)
 			},
-			false,
 		}, {
-			"no registered flags returns the default configuration",
-			Config{Config: *sarama.NewConfig()},
-			func(t *testing.T, cfg *sarama.Config) {
+			name:  "no registered flags returns the default configuration",
+			input: Config{Config: *sarama.NewConfig()},
+			check: func(t *testing.T, cfg *sarama.Config) {
 				expected := sarama.NewConfig()
 				expected.Producer.Partitioner = nil
 
@@ -66,89 +65,82 @@ func TestConfig_populateSaramaConfig(t *testing.T) {
 
 				assert.Equal(t, expected, cfg)
 			},
-			false,
 		}, {
-			"bad version returns an error",
-			Config{KafkaVersion: "not.a.real.version"},
-			func(t *testing.T, cfg *sarama.Config) {},
-			true,
+			name:      "bad version returns an error",
+			input:     Config{KafkaVersion: "not.a.real.version"},
+			check:     func(t *testing.T, cfg *sarama.Config) {},
+			expectErr: true,
 		}, {
-			"zstd compression is properly set",
-			Config{ProducerCompressionCodec: "zstd"},
-			func(t *testing.T, cfg *sarama.Config) {
+			name:  "zstd compression is properly set",
+			input: Config{ProducerCompressionCodec: "zstd"},
+			check: func(t *testing.T, cfg *sarama.Config) {
 				assert.Equal(t, sarama.CompressionZSTD, cfg.Producer.Compression)
 			},
-			false,
 		}, {
-			"snappy compression is properly set",
-			Config{ProducerCompressionCodec: "snappy"},
-			func(t *testing.T, cfg *sarama.Config) {
+			name:  "snappy compression is properly set",
+			input: Config{ProducerCompressionCodec: "snappy"},
+			check: func(t *testing.T, cfg *sarama.Config) {
 				assert.Equal(t, sarama.CompressionSnappy, cfg.Producer.Compression)
 			},
-			false,
 		}, {
-			"lz4 compression is properly set",
-			Config{ProducerCompressionCodec: "lz4"},
-			func(t *testing.T, cfg *sarama.Config) {
+			name:  "lz4 compression is properly set",
+			input: Config{ProducerCompressionCodec: "lz4"},
+			check: func(t *testing.T, cfg *sarama.Config) {
 				assert.Equal(t, sarama.CompressionLZ4, cfg.Producer.Compression)
 			},
-			false,
 		}, {
-			"gzip compression is properly set",
-			Config{ProducerCompressionCodec: "gzip"},
-			func(t *testing.T, cfg *sarama.Config) {
+			name:  "gzip compression is properly set",
+			input: Config{ProducerCompressionCodec: "gzip"},
+			check: func(t *testing.T, cfg *sarama.Config) {
 				assert.Equal(t, sarama.CompressionGZIP, cfg.Producer.Compression)
 			},
-			false,
 		}, {
-			"unknown compression returns an error",
-			Config{ProducerCompressionCodec: "beepboop"},
-			func(*testing.T, *sarama.Config) {},
-			true,
+			name:      "unknown compression returns an error",
+			input:     Config{ProducerCompressionCodec: "beepboop"},
+			check:     func(*testing.T, *sarama.Config) {},
+			expectErr: true,
 		}, {
-			"TLS configuration is loaded",
-			Config{
+			name: "TLS configuration is loaded",
+			input: Config{
 				ProducerCompressionCodec: "none",
 				TLSCrtPath:               "../testdata/fake-crt.pem",
 				TLSKeyPath:               "../testdata/fake-key.pem",
 			},
-			func(t *testing.T, cfg *sarama.Config) {
+			check: func(t *testing.T, cfg *sarama.Config) {
 				assert.True(t, cfg.Net.TLS.Enable)
 				assert.NotNil(t, cfg.Net.TLS.Config)
 			},
-			false,
 		}, {
-			"TLS CA cert is loaded",
-			Config{
+			name: "TLS CA cert is loaded",
+			input: Config{
 				ProducerCompressionCodec: "none",
 				TLSCrtPath:               "../testdata/fake-crt.pem",
 				TLSKeyPath:               "../testdata/fake-key.pem",
 				TLSCaCrtPath:             "../testdata/fake-ca.pem",
 			},
-			func(t *testing.T, cfg *sarama.Config) {
+			check: func(t *testing.T, cfg *sarama.Config) {
 				assert.NotNil(t, cfg.Net.TLS.Config.RootCAs)
 				assert.False(t, cfg.Net.TLS.Config.InsecureSkipVerify)
 			},
-			false,
 		}, {
-			"error loading TLS certs returns an error",
-			Config{
+			name: "error loading TLS certs returns an error",
+			input: Config{
 				ProducerCompressionCodec: "none",
 				TLSCrtPath:               "../testdata/bad-path.pem",
 				TLSKeyPath:               "../testdata/bad-path.pem",
 			},
-			func(*testing.T, *sarama.Config) {},
-			true,
+			check:     func(*testing.T, *sarama.Config) {},
+			expectErr: true,
 		}, {
-			"error loading TLS CA cert returns an error",
-			Config{
+			name: "error loading TLS CA cert returns an error",
+			input: Config{
 				ProducerCompressionCodec: "none",
 				TLSCrtPath:               "../testdata/fake-crt.pem",
 				TLSKeyPath:               "../testdata/fake-key.pem",
 				TLSCaCrtPath:             "../testdata/bad-path",
 			},
-			func(*testing.T, *sarama.Config) {},
-			true,
+			check:     func(*testing.T, *sarama.Config) {},
+			expectErr: true,
 		},
 	}
 	for _, test := range tests {
@@ -179,31 +171,31 @@ func TestClientMetrics_updateOnce(t *testing.T) {
 		require.NotNil(t, gauge)
 	}
 	tests := []struct {
-		name   string
 		setup  func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer)
 		verify func(t *testing.T, registry *prometheus.Registry)
+		name   string
 	}{
 		{
-			"meter is converted to a prometheus gauge",
-			func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer) {
+			name: "meter is converted to a prometheus gauge",
+			setup: func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer) {
 				metrics.GetOrRegisterMeter("meter-name", registry)
 			},
-			ensureRegistered,
+			verify: ensureRegistered,
 		}, {
-			"histogram is converted to a prometheus gauge",
-			func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer) {
+			name: "histogram is converted to a prometheus gauge",
+			setup: func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer) {
 				metrics.GetOrRegisterHistogram("histogram-name", registry, metrics.NewUniformSample(1))
 			},
-			ensureRegistered,
+			verify: ensureRegistered,
 		}, {
-			"counter is converted to a prometheus gauge",
-			func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer) {
+			name: "counter is converted to a prometheus gauge",
+			setup: func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer) {
 				metrics.GetOrRegisterCounter("counter-name", registry)
 			},
-			ensureRegistered,
+			verify: ensureRegistered,
 		}, {
-			"error registering metric doesn't cause crash",
-			func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer) {
+			name: "error registering metric doesn't cause crash",
+			setup: func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer) {
 				// register the matching prometheus gauge to cause a failure to register later
 				registerer.MustRegister(
 					prometheus.NewGaugeVec(
@@ -217,13 +209,13 @@ func TestClientMetrics_updateOnce(t *testing.T) {
 				)
 				metrics.GetOrRegisterHistogram("histogram-name", registry, metrics.NewUniformSample(1))
 			},
-			func(t *testing.T, registry *prometheus.Registry) {},
+			verify: func(t *testing.T, registry *prometheus.Registry) {},
 		}, {
-			"type other than meter or histogram does nothing",
-			func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer) {
+			name: "type other than meter or histogram does nothing",
+			setup: func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer) {
 				metrics.GetOrRegisterTimer("", registry)
 			},
-			func(t *testing.T, registry *prometheus.Registry) {},
+			verify: func(t *testing.T, registry *prometheus.Registry) {},
 		},
 	}
 	for _, test := range tests {

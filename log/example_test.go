@@ -16,8 +16,8 @@ func ExampleConfig() {
 
 // Create logger
 func ExampleGet() {
-	logger := Get(context.Background())
-	fmt.Printf("%T", logger)
+	testLogger := Get(context.Background())
+	fmt.Printf("%T", testLogger)
 	// Output: *zap.Logger
 }
 

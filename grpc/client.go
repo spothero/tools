@@ -36,12 +36,12 @@ import (
 // ClientConfig contains the configuration necessary for connecting to a gRPC Server.
 type ClientConfig struct {
 	Address              string                         // Address on which the server is accessible
-	Port                 uint16                         // Port on which the server is accessible
-	PropagateAuthHeaders bool                           // If true propagate any authorization header to the server
-	RetryServerErrors    bool                           // If true, the client will automatically retry on server errors
 	UnaryInterceptors    []grpc.UnaryClientInterceptor  // Client unary interceptors to apply
 	StreamInterceptors   []grpc.StreamClientInterceptor // Client stream interceptors to apply
 	Options              []grpc.DialOption              // Additional server options
+	Port                 uint16                         // Port on which the server is accessible
+	PropagateAuthHeaders bool                           // If true propagate any authorization header to the server
+	RetryServerErrors    bool                           // If true, the client will automatically retry on server errors
 }
 
 // NewDefaultClientConfig returns the default SpotHero gRPC plaintext Client Configuration

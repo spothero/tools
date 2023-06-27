@@ -47,7 +47,7 @@ func TestHTTPServerMiddleware(t *testing.T) {
 	const statusCode = 666
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(statusCode)
-		verifyLogContext(t, r.Context())
+		verifyLogContext(r.Context(), t)
 	})
 	testServer := httptest.NewServer(writer.StatusRecorderMiddleware(HTTPServerMiddleware(testHandler)))
 	defer testServer.Close()
@@ -76,38 +76,32 @@ func TestHTTPServerMiddleware(t *testing.T) {
 
 func TestRoundTripper(t *testing.T) {
 	tests := []struct {
-		name         string
 		roundTripper http.RoundTripper
+		name         string
 		expectErr    bool
 		expectPanic  bool
 	}{
 		{
-			"no round tripper results in a panic",
-			nil,
-			false,
-			true,
+			name:        "no round tripper results in a panic",
+			expectPanic: true,
 		},
 		{
-			"roundtripper errors are returned to the caller",
-			&mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: true},
-			true,
-			false,
+			name:         "roundtripper errors are returned to the caller",
+			roundTripper: &mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: true},
+			expectErr:    true,
 		},
 		{
-			"requests are logged appropriately in client calls",
-			&mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
-			false,
-			false,
+			name:         "requests are logged appropriately in client calls",
+			roundTripper: &mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
 		},
 		{
-			"circuit-breaking errors are logged",
-			&mock.RoundTripper{
+			name: "circuit-breaking errors are logged",
+			roundTripper: &mock.RoundTripper{
 				ResponseStatusCodes: []int{http.StatusOK},
 				CreateErr:           true,
 				DesiredErr:          mock.CircuitError{CircuitOpened: true},
 			},
-			true,
-			false,
+			expectErr: true,
 		},
 	}
 	for _, test := range tests {
@@ -154,63 +148,51 @@ func TestRoundTripper(t *testing.T) {
 func TestSQLMiddleware(t *testing.T) {
 	tests := []struct {
 		name                string
-		logLevel            zapcore.Level
 		queryName           string
 		query               string
 		numLogsStartExpect  int
 		numLogsEndExpect    int
 		numErrLogsEndExpect int
+		logLevel            zapcore.Level
 		expectErr           bool
 	}{
 		{
-			"nothing is logged without an error at info level",
-			zapcore.InfoLevel,
-			"test-query-name",
-			"test-query",
-			0,
-			0,
-			0,
-			false,
+			name:      "nothing is logged without an error at info level",
+			logLevel:  zapcore.InfoLevel,
+			queryName: "test-query-name",
+			query:     "test-query",
 		},
 		{
-			"errors are logged at info level",
-			zapcore.InfoLevel,
-			"test-query-name",
-			"test-query",
-			0,
-			0,
-			1,
-			true,
+			name:                "errors are logged at info level",
+			logLevel:            zapcore.InfoLevel,
+			queryName:           "test-query-name",
+			query:               "test-query",
+			numErrLogsEndExpect: 1,
+			expectErr:           true,
 		},
 		{
-			"debug logs are captured",
-			zapcore.DebugLevel,
-			"test-query-name",
-			"test-query",
-			1,
-			1,
-			0,
-			false,
+			name:               "debug logs are captured",
+			logLevel:           zapcore.DebugLevel,
+			queryName:          "test-query-name",
+			query:              "test-query",
+			numLogsStartExpect: 1,
+			numLogsEndExpect:   1,
 		},
 		{
-			"error logs are captured in the end middleware",
-			zapcore.DebugLevel,
-			"test-query-name",
-			"test-query",
-			1,
-			0,
-			1,
-			true,
+			name:                "error logs are captured in the end middleware",
+			logLevel:            zapcore.DebugLevel,
+			queryName:           "test-query-name",
+			query:               "test-query",
+			numLogsStartExpect:  1,
+			numErrLogsEndExpect: 1,
+			expectErr:           true,
 		},
 		{
-			"unnamed queries are still logged in the end middleware",
-			zapcore.DebugLevel,
-			"",
-			"test-query",
-			1,
-			1,
-			0,
-			false,
+			name:               "unnamed queries are still logged in the end middleware",
+			logLevel:           zapcore.DebugLevel,
+			query:              "test-query",
+			numLogsStartExpect: 1,
+			numLogsEndExpect:   1,
 		},
 	}
 	for _, test := range tests {

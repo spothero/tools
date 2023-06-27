@@ -22,9 +22,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func generateStartMiddleware(callCount *int, returnErr bool) MiddlewareStart {
-	return func(ctx context.Context, queryName, query string, args ...interface{}) (context.Context, MiddlewareEnd, error) {
-		*callCount += 1
+func generateStartMiddleware(callCount *int, returnErr bool) Start {
+	return func(ctx context.Context, queryName, query string, args ...interface{}) (context.Context, End, error) {
+		*callCount++
 		var err error
 		if returnErr {
 			err = fmt.Errorf("fake error")
@@ -33,13 +33,13 @@ func generateStartMiddleware(callCount *int, returnErr bool) MiddlewareStart {
 	}
 }
 
-func generateEndMiddleware(callCount *int, returnErr bool) MiddlewareEnd {
+func generateEndMiddleware(callCount *int, returnErr bool) End {
 	return func(ctx context.Context, queryName, query string, queryErr error, args ...interface{}) (context.Context, error) {
 		var err error
 		if returnErr {
 			err = fmt.Errorf("fake error")
 		}
-		*callCount += 1
+		*callCount++
 		return ctx, err
 	}
 }
@@ -94,7 +94,7 @@ func TestBefore(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				deferables, ok := ctx.Value(ctxCallbackValue).([]MiddlewareEnd)
+				deferables, ok := ctx.Value(ctxCallbackValue).([]End)
 				assert.True(t, ok)
 				assert.Len(t, deferables, 2)
 				for _, count := range callCounters {
@@ -148,7 +148,7 @@ func TestEnd(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			mw := make([]MiddlewareEnd, 0)
+			mw := make([]End, 0)
 			callCounters := make([]int, test.numMW)
 			for idx := 0; idx < test.numMW; idx++ {
 				mw = append(mw, generateEndMiddleware(&callCounters[idx], test.expectErr))
@@ -163,7 +163,7 @@ func TestEnd(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				deferables, ok := ctx.Value(ctxCallbackValue).([]MiddlewareEnd)
+				deferables, ok := ctx.Value(ctxCallbackValue).([]End)
 				assert.True(t, ok)
 				assert.Len(t, deferables, 2)
 				for _, count := range callCounters {

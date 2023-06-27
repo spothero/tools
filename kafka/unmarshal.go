@@ -183,7 +183,7 @@ func (u ConnectAvroUnmarshaller) Unmarshal(ctx context.Context, msg *sarama.Cons
 	}
 	messageMap, ok := messageData.(map[string]interface{})
 	if !ok {
-		return []error{fmt.Errorf("failed to unmarshal Kafka message becasue the data is not a map")}
+		return []error{fmt.Errorf("failed to unmarshal Kafka message because the data is not a map")}
 	}
 	return unmarshalConnectMessageMap(messageMap, target)
 }

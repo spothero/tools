@@ -48,19 +48,17 @@ func TestCheckFlags(t *testing.T) {
 		expectError bool
 	}{
 		{
-			"a blank config leads to an error",
-			Config{},
-			true,
+			name:        "a blank config leads to an error",
+			expectError: true,
 		},
 		{
-			"a populated config does not lead to an error",
-			Config{
+			name: "a populated config does not lead to an error",
+			c: Config{
 				Name:        "test",
 				Version:     "0.1.0",
 				GitSHA:      "abc123",
 				Environment: "test",
 			},
-			false,
 		},
 	}
 	for _, test := range tests {

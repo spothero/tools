@@ -28,56 +28,41 @@ import (
 
 func TestGetHTTPServerMiddleware(t *testing.T) {
 	tests := []struct {
+		expectedHeaders         map[string]string
 		name                    string
-		authHeaderPresent       bool
 		authHeader              string
 		jwt                     string
+		expectedStatusCode      int
+		authHeaderPresent       bool
 		parseJWTError           bool
 		expectClaim             bool
-		expectedStatusCode      int
-		expectedHeaders         map[string]string
 		expectNextHandlerCalled bool
 	}{
 		{
-			"no auth header results in no claim, next handler called",
-			false,
-			"",
-			"",
-			false,
-			false,
-			http.StatusOK,
-			nil,
-			true,
+			name:                    "no auth header results in no claim, next handler called",
+			expectedStatusCode:      http.StatusOK,
+			expectNextHandlerCalled: true,
 		}, {
-			"malformed auth headers are rejected",
-			true,
-			"bearer fake.jwt.header",
-			"",
-			false,
-			false,
-			401,
-			map[string]string{"WWW-Authenticate": "Bearer"},
-			false,
+			name:               "malformed auth headers are rejected",
+			authHeaderPresent:  true,
+			authHeader:         "bearer fake.jwt.header",
+			expectedStatusCode: 401,
+			expectedHeaders:    map[string]string{"WWW-Authenticate": "Bearer"},
 		}, {
-			"failed jwt parsings are rejected",
-			true,
-			"Bearer fake.jwt.header",
-			"fake.jwt.header",
-			true,
-			false,
-			403,
-			nil,
-			false,
+			name:               "failed jwt parsings are rejected",
+			authHeaderPresent:  true,
+			authHeader:         "Bearer fake.jwt.header",
+			jwt:                "fake.jwt.header",
+			parseJWTError:      true,
+			expectedStatusCode: 403,
 		}, {
-			"jwt tokens are parsed and placed in context when present",
-			true,
-			"Bearer fake.jwt.header",
-			"fake.jwt.header",
-			false,
-			true,
-			http.StatusOK,
-			nil,
-			true,
+			name:                    "jwt tokens are parsed and placed in context when present",
+			authHeaderPresent:       true,
+			authHeader:              "Bearer fake.jwt.header",
+			jwt:                     "fake.jwt.header",
+			expectClaim:             true,
+			expectedStatusCode:      http.StatusOK,
+			expectNextHandlerCalled: true,
 		},
 	}
 	for _, test := range tests {
@@ -136,19 +121,17 @@ func TestGetHTTPServerMiddleware(t *testing.T) {
 
 func TestRoundTrip(t *testing.T) {
 	tests := []struct {
-		name         string
 		roundTripper http.RoundTripper
+		name         string
 		expectPanic  bool
 	}{
 		{
-			"no round tripper results in a panic",
-			nil,
-			true,
+			name:        "no round tripper results in a panic",
+			expectPanic: true,
 		},
 		{
-			"if auth data is present in the context it is set on outbound requests",
-			&mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
-			false,
+			name:         "if auth data is present in the context it is set on outbound requests",
+			roundTripper: &mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
 		},
 	}
 	for _, test := range tests {
@@ -219,12 +202,12 @@ func TestEnforceAuthentication(t *testing.T) {
 
 func TestEnforceAuthenticationWithAuthorization(t *testing.T) {
 	tests := []struct {
+		authClaim              Auth0Claim
 		name                   string
+		authParams             AuthParams
 		requestIsAuthenticated bool
 		requestHasClaim        bool
 		expectedAuthSuccess    bool
-		authParams             AuthParams
-		authClaim              Auth0Claim
 	}{
 		{
 			name:                   "no authorization needed",
@@ -319,10 +302,10 @@ func TestValidateRequiredScope(t *testing.T) {
 	authenticatedRequest := blankRequest.WithContext(authenticatedContext)
 
 	tests := []struct {
-		name     string
 		request  http.Request
-		params   AuthParams
 		expected error
+		name     string
+		params   AuthParams
 	}{
 		{
 			name:     "no required scopes - nil",

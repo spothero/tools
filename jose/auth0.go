@@ -57,7 +57,7 @@ func (cc Auth0Claim) NewContext(ctx context.Context) context.Context {
 // otherwise the empty string
 func (cc Auth0Claim) GetClientID() string {
 	if cc.GrantType == "client-credentials" {
-		// because Auth0 adds the undesireable suffix of "@clients"
+		// because Auth0 adds the undesirable suffix of "@clients"
 		return strings.TrimSuffix(cc.ID, "@clients")
 	}
 

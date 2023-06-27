@@ -49,7 +49,7 @@ func (h handler) helloWorld(w http.ResponseWriter, r *http.Request) {
 
 // This is the main entrypoint of the program. Here we create our root command and then execute it.
 func Example() {
-	// Configure the service with default settings. These settings may be overriden via CLI flags
+	// Configure the service with default settings. These settings may be overridden via CLI flags
 	// or environment variables from the cobra command
 	config := service.Config{
 		Name:        "<your-application-name>",

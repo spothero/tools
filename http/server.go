@@ -35,23 +35,23 @@ import (
 
 // Config contains the configuration necessary for running an HTTP/HTTPS Server.
 type Config struct {
-	Name             string                                                             // Name of the HTTP Server
-	Address          string                                                             // Address on which the server will be accessible
-	Port             uint16                                                             // Port on which the server will be accessible
-	TLSEnabled       bool                                                               // Whether or not traffic should be served via HTTPS
-	TLSCrtPath       string                                                             // Location of TLS Certificate
-	TLSKeyPath       string                                                             // Location of TLS Key
-	ReadTimeout      int                                                                // The Read Timeout for Server Requests
-	WriteTimeout     int                                                                // The Write Timeout for Server Requests
-	HealthHandler    bool                                                               // If true, register a healthcheck endpoint at /health
-	MetricsHandler   bool                                                               // If true, register a Prometheus metrics endpoint at /metrics
-	PprofHandler     bool                                                               // If true, register pprof endpoints under /debug/pprof
-	DynamicLogLevel  bool                                                               // If true, register /loglevel to modify the global log level
-	PreStart         func(ctx context.Context, router *mux.Router, server *http.Server) // A function to be called before starting the web server
-	PostShutdown     func(ctx context.Context)                                          // A function to be called before stopping the web server
-	RegisterHandlers func(*mux.Router)                                                  // Handler registration callback function. Register your routes in this function.
-	Middleware       []mux.MiddlewareFunc                                               // A list of global middleware functions to be called. Order is honored.
-	CancelSignals    []os.Signal                                                        // OS Signals to be used to cancel running servers. Defaults to SIGINT/`os.Interrupt`.
+	PreStart         func(ctx context.Context, router *mux.Router, server *http.Server)
+	RegisterHandlers func(*mux.Router)
+	PostShutdown     func(ctx context.Context)
+	TLSCrtPath       string
+	Name             string
+	TLSKeyPath       string
+	Address          string
+	CancelSignals    []os.Signal
+	Middleware       []mux.MiddlewareFunc
+	ReadTimeout      int
+	WriteTimeout     int
+	Port             uint16
+	TLSEnabled       bool
+	DynamicLogLevel  bool
+	PprofHandler     bool
+	MetricsHandler   bool
+	HealthHandler    bool
 }
 
 // Server contains unexported fields and is used to start and manage the Server.
@@ -60,10 +60,10 @@ type Server struct {
 	router        *mux.Router
 	preStart      func(ctx context.Context, router *mux.Router, server *http.Server)
 	postShutdown  func(ctx context.Context)
-	cancelSignals []os.Signal
-	tlsEnabled    bool
 	tlsCrtPath    string
 	tlsKeyPath    string
+	cancelSignals []os.Signal
+	tlsEnabled    bool
 }
 
 // NewDefaultConfig returns a standard configuration given a server name. It is recommended to

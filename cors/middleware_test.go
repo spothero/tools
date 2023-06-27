@@ -26,32 +26,29 @@ import (
 
 func TestGetHTTPServerMiddleware(t *testing.T) {
 	tests := []struct {
-		name                    string
-		config                  Config
-		httpMethod              string
 		expectedHeaders         map[string]string
+		name                    string
+		httpMethod              string
+		config                  Config
 		expectNextHandlerCalled bool
 	}{
 		{
-			"GET request",
-			Config{
+			name: "GET request",
+			config: Config{
 				AllowedOrigins: "*",
 				AllowedMethods: "POST, GET, OPTIONS, PUT, DELETE",
 				AllowedHeaders: "*",
 			},
-			http.MethodGet,
-			map[string]string{
+			httpMethod: http.MethodGet,
+			expectedHeaders: map[string]string{
 				"Access-Control-Allow-Origin":  "*",
 				"Access-Control-Allow-Methods": "POST, GET, OPTIONS, PUT, DELETE",
 				"Access-Control-Allow-Headers": "*",
 			},
-			true,
+			expectNextHandlerCalled: true,
 		}, {
-			"OPTIONS request",
-			Config{},
-			http.MethodOptions,
-			nil,
-			false,
+			name:       "OPTIONS request",
+			httpMethod: http.MethodOptions,
 		},
 	}
 

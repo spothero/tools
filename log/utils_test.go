@@ -39,7 +39,7 @@ func makeLoggerObservable(t *testing.T, level zapcore.Level) *observer.ObservedL
 }
 
 // verifyLogContext verifies that the zap logger is set on the given context
-func verifyLogContext(t *testing.T, ctx context.Context) {
+func verifyLogContext(ctx context.Context, t *testing.T) {
 	_, ok := ctx.Value(logKey).(*zap.Logger)
 	assert.True(t, ok)
 }

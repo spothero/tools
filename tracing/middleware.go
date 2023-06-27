@@ -18,10 +18,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 	"net/http"
 	"strconv"
+
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/cep21/circuit/v3"
 	"github.com/spothero/tools/http/writer"
@@ -120,9 +121,8 @@ func (rt RoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 func GetCorrelationID(ctx context.Context) string {
 	if maybeCorrelationID, ok := ctx.Value(CorrelationIDCtxKey).(string); ok {
 		return maybeCorrelationID
-	} else {
-		return ""
 	}
+	return ""
 }
 
 // SQLMiddleware traces requests made against SQL databases.
@@ -135,7 +135,7 @@ func GetCorrelationID(ctx context.Context) string {
 // * db.type - Always set to "sql"
 // * db.statement - Always set to the query statement
 // * error - Set to true only if an error was encountered with the query
-func SQLMiddleware(ctx context.Context, queryName, query string, args ...interface{}) (context.Context, sql.MiddlewareEnd, error) {
+func SQLMiddleware(ctx context.Context, queryName, query string, args ...interface{}) (context.Context, sql.End, error) {
 	spanName := "db"
 	if queryName != "" {
 		spanName = fmt.Sprintf("%s_%s", spanName, queryName)
@@ -145,7 +145,7 @@ func SQLMiddleware(ctx context.Context, queryName, query string, args ...interfa
 	attrs = append(attrs, attribute.String("component", "tracing"))
 	attrs = append(attrs, attribute.String("db.type", "sql"))
 	attrs = append(attrs, attribute.String("db.statement", query))
-	//attrs = append(attrs, attribute.StringSlice("db.statement.arguments", args))
+	// attrs = append(attrs, attribute.StringSlice("db.statement.arguments", args))
 	span.SetAttributes(attrs...)
 	mwEnd := func(ctx context.Context, queryName, query string, queryErr error, args ...interface{}) (context.Context, error) {
 		defer span.End()

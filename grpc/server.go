@@ -32,26 +32,26 @@ const maxMessageSizeBytes = 20000000 // This is 20mb
 
 // Config contains the configuration necessary for running a GRPC Server.
 type Config struct {
+	ServerRegistration func(*grpc.Server)             // Callback for registering GRPC API Servers
 	Name               string                         // Name of the GRPC Server
 	Address            string                         // Address on which the server will be accessible
-	Port               uint16                         // Port on which the server will be accessible
-	TLSEnabled         bool                           // Whether or not traffic should be served via HTTPS
 	TLSCrtPath         string                         // Location of TLS Certificate
 	TLSKeyPath         string                         // Location of TLS Key
-	ServerRegistration func(*grpc.Server)             // Callback for registering GRPC API Servers
 	StreamInterceptors []grpc.StreamServerInterceptor // A list of global GRPC stream interceptor functions to be called. Order is honored left to right.
 	UnaryInterceptors  []grpc.UnaryServerInterceptor  // A list of global GRPC unary interceptor functions to be called. Order is honored left to right.
 	CancelSignals      []os.Signal                    // OS Signals to be used to cancel running servers. Defaults to SIGINT/`os.Interrupt`.
+	Port               uint16                         // Port on which the server will be accessible
+	TLSEnabled         bool                           // Whether or not traffic should be served via HTTPS
 }
 
 // Server contains the configured GRPC server and related components
 type Server struct {
-	server        *grpc.Server // The the GRPC Server
+	server        *grpc.Server // The GRPC Server
 	listenAddress string       // The address the server should bind to
-	cancelSignals []os.Signal  // OS Signals to be used to cancel running servers. Defaults to SIGINT/`os.Interrupt`.
-	tlsEnabled    bool         // Whether or not traffic should be served via HTTPS
 	tlsCrtPath    string       // Location of TLS Certificate
 	tlsKeyPath    string       // Location of TLS Key
+	cancelSignals []os.Signal  // OS Signals to be used to cancel running servers. Defaults to SIGINT/`os.Interrupt`.
+	tlsEnabled    bool         // Whether or not traffic should be served via HTTPS
 }
 
 // NewDefaultConfig returns a default GRPC server config object. The caller must still supply the
@@ -107,9 +107,9 @@ func (s Server) Run() (chan bool, error) {
 	var listener net.Listener
 	var err error
 	if s.tlsEnabled {
-		cert, err := tls.LoadX509KeyPair(s.tlsCrtPath, s.tlsKeyPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load tls x509 key pair: %w", err)
+		cert, certErr := tls.LoadX509KeyPair(s.tlsCrtPath, s.tlsKeyPath)
+		if certErr != nil {
+			return nil, fmt.Errorf("failed to load tls x509 key pair: %w", certErr)
 		}
 		listener, err = tls.Listen(
 			"tcp",

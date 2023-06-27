@@ -16,10 +16,11 @@ package tracing
 
 import (
 	"context"
+	"testing"
+
 	grpcmock "github.com/spothero/tools/grpc/mock"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
-	"testing"
 )
 
 func TestUnaryServerInterceptor(t *testing.T) {
@@ -34,10 +35,10 @@ func TestUnaryServerInterceptor(t *testing.T) {
 	_, spanCtx := StartSpanFromContext(ctx, "test")
 	info := &grpc.UnaryServerInfo{}
 	mockHandler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		correlationId, ok := ctx.Value(CorrelationIDCtxKey).(string)
+		correlationID, ok := ctx.Value(CorrelationIDCtxKey).(string)
 		assert.Equal(t, true, ok)
-		assert.NotNil(t, correlationId)
-		assert.NotEqual(t, "", correlationId)
+		assert.NotNil(t, correlationID)
+		assert.NotEqual(t, "", correlationID)
 		return struct{}{}, nil
 	}
 	resp, err := UnaryServerInterceptor(spanCtx, nil, info, mockHandler)
@@ -57,13 +58,13 @@ func TestStreamServerInterceptor(t *testing.T) {
 	_, spanCtx := StartSpanFromContext(context.Background(), "test")
 	info := &grpc.StreamServerInfo{}
 	mockHandler := func(srv interface{}, stream grpc.ServerStream) error {
-		correlationId, ok := stream.Context().Value(CorrelationIDCtxKey).(string)
+		correlationID, ok := stream.Context().Value(CorrelationIDCtxKey).(string)
 		assert.Equal(t, true, ok)
-		assert.NotNil(t, correlationId)
-		assert.NotEqual(t, "", correlationId)
+		assert.NotNil(t, correlationID)
+		assert.NotEqual(t, "", correlationID)
 		return nil
 	}
-	mockStream := &grpcmock.MockServerStream{}
+	mockStream := &grpcmock.ServerStream{}
 	mockStream.On("Context").Return(spanCtx)
 	err := StreamServerInterceptor(nil, mockStream, info, mockHandler)
 	assert.NoError(t, err)
@@ -79,10 +80,10 @@ func TestUnaryClientInterceptor(t *testing.T) {
 	}()
 
 	mockInvoker := func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, opts ...grpc.CallOption) error {
-		correlationId, ok := ctx.Value(CorrelationIDCtxKey).(string)
+		correlationID, ok := ctx.Value(CorrelationIDCtxKey).(string)
 		assert.Equal(t, true, ok)
-		assert.NotNil(t, correlationId)
-		assert.NotEqual(t, "", correlationId)
+		assert.NotNil(t, correlationID)
+		assert.NotEqual(t, "", correlationID)
 		return nil
 	}
 
@@ -110,10 +111,10 @@ func TestStreamClientInterceptor(t *testing.T) {
 	_, spanCtx := StartSpanFromContext(context.Background(), "test")
 
 	mockStreamer := func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
-		correlationId, ok := ctx.Value(CorrelationIDCtxKey).(string)
+		correlationID, ok := ctx.Value(CorrelationIDCtxKey).(string)
 		assert.Equal(t, true, ok)
-		assert.NotNil(t, correlationId)
-		assert.NotEqual(t, "", correlationId)
+		assert.NotNil(t, correlationID)
+		assert.NotEqual(t, "", correlationID)
 		return nil, nil
 	}
 

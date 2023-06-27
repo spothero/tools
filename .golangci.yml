@@ -1,0 +1,20 @@
+run:
+  deadline: 5m
+  tests: true
+
+linters:
+  enable:
+    - revive
+    - gofmt
+    - staticcheck
+    - vet
+    - misspell
+    - ineffassign
+    - errcheck
+    - unused
+  enable-all: false
+
+linters-settings:
+  govet:
+    check-shadowing: true
+    enable-all: true

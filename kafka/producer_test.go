@@ -133,19 +133,18 @@ func TestAsyncProducer_Close(t *testing.T) {
 
 func TestNewProducerMetrics(t *testing.T) {
 	tests := []struct {
-		name       string
 		registerer func(t *testing.T) prometheus.Registerer
+		name       string
 		expectErr  bool
 	}{
 		{
-			"new metrics are registered and returned",
-			func(t *testing.T) prometheus.Registerer {
+			name: "new metrics are registered and returned",
+			registerer: func(t *testing.T) prometheus.Registerer {
 				return prometheus.NewRegistry()
 			},
-			false,
 		}, {
-			"error registering messages produced returns an error",
-			func(t *testing.T) prometheus.Registerer {
+			name: "error registering messages produced returns an error",
+			registerer: func(t *testing.T) prometheus.Registerer {
 				r := prometheus.NewRegistry()
 				r.MustRegister(
 					prometheus.NewGaugeVec(
@@ -155,10 +154,10 @@ func TestNewProducerMetrics(t *testing.T) {
 				)
 				return r
 			},
-			true,
+			expectErr: true,
 		}, {
-			"error registering messages errored returns an error",
-			func(t *testing.T) prometheus.Registerer {
+			name: "error registering messages errored returns an error",
+			registerer: func(t *testing.T) prometheus.Registerer {
 				r := prometheus.NewRegistry()
 				r.MustRegister(
 					prometheus.NewGaugeVec(
@@ -168,7 +167,7 @@ func TestNewProducerMetrics(t *testing.T) {
 				)
 				return r
 			},
-			true,
+			expectErr: true,
 		},
 	}
 	for _, test := range tests {

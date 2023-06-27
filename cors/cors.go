@@ -16,9 +16,6 @@ package cors
 
 // Config contains configuration for the cors package
 type Config struct {
-	// EnableMiddleware indicates whether or not CORS middleware is enabled to
-	// enforce policies on cross origin requests
-	EnableMiddleware bool
 	// AllowedOrigins indicates which origins allow responses to be populated
 	// with headers to allow cross origin requests (e.g. "*" or
 	// "https://example.com")
@@ -30,4 +27,7 @@ type Config struct {
 	// AllowedHeaders indicates which headers are allowed for cross origin
 	// requests (e.g. "*" or "Accept, Content-Type, Content-Length")
 	AllowedHeaders string
+	// EnableMiddleware indicates whether or not CORS middleware is enabled to
+	// enforce policies on cross origin requests
+	EnableMiddleware bool
 }
