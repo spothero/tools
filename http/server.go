@@ -114,7 +114,7 @@ func (c Config) NewServer() Server {
 	return Server{
 		httpServer: &http.Server{
 			Addr:         fmt.Sprintf("%s:%d", c.Address, c.Port),
-			Handler:      h2c.NewHandler(router, &http2.Server{}),
+			Handler:      h2c.NewHandler(router, &http2.Server{MaxConcurrentStreams: 100}),
 			ReadTimeout:  time.Duration(c.ReadTimeout) * time.Second,
 			WriteTimeout: time.Duration(c.WriteTimeout) * time.Second,
 		},
