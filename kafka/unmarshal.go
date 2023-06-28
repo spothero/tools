@@ -194,7 +194,7 @@ type ConnectJSONUnmarshaller struct{}
 
 // Unmarshal takes the contents of the ConsumerMessage and unmarshals it into the target using JSON decoding, returning
 // any and all errors that occur during unmarshalling
-func (u ConnectJSONUnmarshaller) Unmarshal(ctx context.Context, msg *sarama.ConsumerMessage, target interface{}) []error {
+func (u ConnectJSONUnmarshaller) Unmarshal(_ context.Context, msg *sarama.ConsumerMessage, target interface{}) []error {
 	message := make(map[string]interface{})
 	if err := json.Unmarshal(msg.Value, &message); err != nil {
 		return []error{fmt.Errorf("failed to unmarshal Kafka message because the JSON was invalid: %w", err)}

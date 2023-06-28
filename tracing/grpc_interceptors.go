@@ -26,7 +26,7 @@ import (
 // interceptor to ensure that an opentelemetry context is present on the context. Additionally, this
 // interceptor should always appear *before* the logging interceptor to ensure that the
 // correlation_id is properly logged.
-func UnaryServerInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+func UnaryServerInterceptor(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	return handler(EmbedCorrelationID(ctx), req)
 }
 
@@ -35,7 +35,7 @@ func UnaryServerInterceptor(ctx context.Context, req interface{}, info *grpc.Una
 // interceptor to ensure that an opentelemetry context is present on the context. Additionally, this
 // interceptor should always appear *before* the logging interceptor to ensure that the
 // correlation_id is properly logged.
-func StreamServerInterceptor(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+func StreamServerInterceptor(srv interface{}, stream grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 	wrapped := grpc_middleware.WrapServerStream(stream)
 	wrapped.WrappedContext = EmbedCorrelationID(stream.Context())
 	return handler(srv, wrapped)

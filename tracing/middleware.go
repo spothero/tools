@@ -135,7 +135,7 @@ func GetCorrelationID(ctx context.Context) string {
 // * db.type - Always set to "sql"
 // * db.statement - Always set to the query statement
 // * error - Set to true only if an error was encountered with the query
-func SQLMiddleware(ctx context.Context, queryName, query string, args ...interface{}) (context.Context, sql.End, error) {
+func SQLMiddleware(ctx context.Context, queryName, query string, _ ...interface{}) (context.Context, sql.End, error) {
 	spanName := "db"
 	if queryName != "" {
 		spanName = fmt.Sprintf("%s_%s", spanName, queryName)

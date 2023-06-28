@@ -115,7 +115,7 @@ func (rt RoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 }
 
 // SQLMiddleware debug logs requests made against SQL databases.
-func SQLMiddleware(ctx context.Context, queryName, query string, args ...interface{}) (context.Context, sqlMiddleware.End, error) {
+func SQLMiddleware(ctx context.Context, queryName, query string, _ ...interface{}) (context.Context, sqlMiddleware.End, error) {
 	logger = Get(ctx).With(zap.String("query", query))
 	if queryName != "" {
 		logger = logger.With(zap.String("query_name", queryName))

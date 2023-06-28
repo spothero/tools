@@ -33,10 +33,10 @@ func (sm StringerMock) String() string {
 
 type TransportMock struct{}
 
-func (t TransportMock) Configure(options sentry.ClientOptions) {}
-func (t TransportMock) SendEvent(event *sentry.Event)          {}
-func (t TransportMock) Events() []*sentry.Event                { return nil }
-func (t TransportMock) Flush(timeout time.Duration) bool {
+func (t TransportMock) Configure(_ sentry.ClientOptions) {}
+func (t TransportMock) SendEvent(_ *sentry.Event)        {}
+func (t TransportMock) Events() []*sentry.Event          { return nil }
+func (t TransportMock) Flush(_ time.Duration) bool {
 	return true
 }
 

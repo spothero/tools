@@ -37,13 +37,13 @@ func (h handler) RegisterHandlers(router *mux.Router) {
 
 // RegisterAPIs is a callback used to register GRPC endpoints to the default server.
 // The handler is empty since we are not registering any GRPC APIs in this example.
-func (h handler) RegisterAPIs(server *grpc.Server) {
+func (h handler) RegisterAPIs(_ *grpc.Server) {
 	// Here you would register any GRPC APIs with the GRPC server. In this example we do not have
 	// any GRPC endpoints to register.
 }
 
 // helloWorld simply writes "hello world" to the caller. It is intended for use as an HTTP callback.
-func (h handler) helloWorld(w http.ResponseWriter, r *http.Request) {
+func (h handler) helloWorld(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(w, "Hello World")
 }
 

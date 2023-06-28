@@ -233,7 +233,7 @@ func TestClientMetrics_updateOnce(t *testing.T) {
 	}
 }
 
-func TestClientMetrics_startUpdating(t *testing.T) {
+func TestClientMetrics_startUpdating(_ *testing.T) {
 	m := Config{
 		Config:     sarama.Config{MetricRegistry: metrics.NewRegistry()},
 		Registerer: prometheus.NewRegistry(),

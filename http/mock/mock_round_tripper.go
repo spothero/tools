@@ -29,7 +29,7 @@ type RoundTripper struct {
 }
 
 // RoundTrip Performs a "noop" round trip. It is intended for use only within tests.
-func (mockRT *RoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+func (mockRT *RoundTripper) RoundTrip(_ *http.Request) (*http.Response, error) {
 	currCallNumber := mockRT.CallNumber
 	mockRT.CallNumber++
 	if mockRT.CreateErr {
