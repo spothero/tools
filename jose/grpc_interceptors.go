@@ -35,7 +35,7 @@ const bearerTokenType = "bearer"
 // Authorization data (if present) from incoming GRPC requests. If  Authorization data is
 // found, this function attempts to parse and validate that value as a JWT  with the
 // configured Credential types for the given JOSE provider.
-func GetContextAuth(jh JOSEHandler) func(context.Context) (context.Context, error) {
+func GetContextAuth(jh Handler) func(context.Context) (context.Context, error) {
 	return func(ctx context.Context) (context.Context, error) {
 		logger := log.Get(ctx)
 		bearerToken, err := grpc_auth.AuthFromMD(ctx, bearerTokenType)

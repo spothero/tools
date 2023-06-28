@@ -35,7 +35,7 @@ func (c *Config) RegisterFlags(flags *pflag.FlagSet) {
 
 // InitializeSentry Initializes the Sentry client. This function should be called as soon as
 // possible after the application configuration is loaded so that sentry
-// is setup.
+// is set up.
 func (c Config) InitializeSentry() error {
 	if !c.Enabled {
 		return nil
@@ -46,8 +46,6 @@ func (c Config) InitializeSentry() error {
 		Environment: c.Environment,
 		Release:     c.AppVersion,
 	}
-	if err := sentry.Init(opts); err != nil {
-		return err
-	}
-	return nil
+	err := sentry.Init(opts)
+	return err
 }

@@ -27,22 +27,21 @@ import (
 
 func TestGet(t *testing.T) {
 	tests := []struct {
-		name            string
 		ctx             context.Context
 		expectedOutcome *zap.Logger
+		name            string
 	}{
 		{
-			"nil context returns the default logger",
-			nil,
-			logger,
+			name:            "nil context returns the default logger",
+			expectedOutcome: logger,
 		}, {
-			"populated context without a logger returns the global logger",
-			context.Background(),
-			logger,
+			name:            "populated context without a logger returns the global logger",
+			ctx:             context.Background(),
+			expectedOutcome: logger,
 		}, {
-			"populated context with logger returns that logger",
-			context.WithValue(context.Background(), logKey, logger.Named("not global")),
-			logger.Named("not global"),
+			name:            "populated context with logger returns that logger",
+			ctx:             context.WithValue(context.Background(), logKey, logger.Named("not global")),
+			expectedOutcome: logger.Named("not global"),
 		},
 	}
 	for _, test := range tests {
@@ -55,21 +54,20 @@ func TestGet(t *testing.T) {
 func TestNewContext(t *testing.T) {
 	l := zap.NewNop()
 	tests := []struct {
-		name            string
 		ctx             context.Context
-		logger          *zap.Logger
 		expectedOutcome context.Context
+		logger          *zap.Logger
+		name            string
 	}{
 		{
-			"no logger leads to a default logger context",
-			context.Background(),
-			nil,
-			context.WithValue(context.Background(), logKey, logger),
+			name:            "no logger leads to a default logger context",
+			ctx:             context.Background(),
+			expectedOutcome: context.WithValue(context.Background(), logKey, logger),
 		}, {
-			"providing logger leads to a new context with provided logger",
-			context.Background(),
-			l.With(zap.Int("zero", 0), zap.Int("one", 1)),
-			context.WithValue(
+			name:   "providing logger leads to a new context with provided logger",
+			ctx:    context.Background(),
+			logger: l.With(zap.Int("zero", 0), zap.Int("one", 1)),
+			expectedOutcome: context.WithValue(
 				context.Background(),
 				logKey,
 				l.With(
@@ -113,24 +111,21 @@ func TestInitializeLogger(t *testing.T) {
 		expectError bool
 	}{
 		{
-			"debug initialization should create a development logger",
-			Config{UseDevelopmentLogger: true},
-			false,
+			name: "debug initialization should create a development logger",
+			c:    Config{UseDevelopmentLogger: true},
 		},
 		{
-			"initialization with a bad level defaults to INFO",
-			Config{Level: "DOESNOTEXIST"},
-			false,
+			name: "initialization with a bad level defaults to INFO",
+			c:    Config{Level: "DOESNOTEXIST"},
 		},
 		{
-			"non-debug initialization should create a JSON logger",
-			Config{UseDevelopmentLogger: false},
-			false,
+			name: "non-debug initialization should create a JSON logger",
+			c:    Config{UseDevelopmentLogger: false},
 		},
 		{
-			"non-debug initialization to a nonexistent path raises an error",
-			Config{UseDevelopmentLogger: false, OutputPaths: []string{"C://DNE"}},
-			true,
+			name:        "non-debug initialization to a nonexistent path raises an error",
+			c:           Config{UseDevelopmentLogger: false, OutputPaths: []string{"C://DNE"}},
+			expectError: true,
 		},
 	}
 	for _, test := range tests {

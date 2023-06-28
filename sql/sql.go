@@ -30,11 +30,11 @@ type DBConnector interface {
 }
 
 type wrappedSQLOptions struct {
-	middleware                 middleware.Middleware
 	registerer                 prometheus.Registerer
-	mustRegister               bool
-	metricsCollectionFrequency time.Duration
 	driverName                 string
+	middleware                 middleware.Middleware
+	metricsCollectionFrequency time.Duration
+	mustRegister               bool
 }
 
 func newDefaultWrappedSQLOptions(driverName string) wrappedSQLOptions {

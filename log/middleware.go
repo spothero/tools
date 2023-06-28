@@ -60,8 +60,8 @@ func getFields(r *http.Request) []zap.Field {
 func HTTPServerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
-		logger := Get(r.Context()).Named("http").With(getFields(r)...)
-		logger.Info("http request received")
+		httpLogger := Get(r.Context()).Named("http").With(getFields(r)...)
+		httpLogger.Info("http request received")
 		defer func() {
 			var responseCodeField zap.Field
 			if statusRecorder, ok := w.(*writer.StatusRecorder); ok {
@@ -69,12 +69,12 @@ func HTTPServerMiddleware(next http.Handler) http.Handler {
 			} else {
 				responseCodeField = zap.Skip()
 			}
-			logger = logger.With(responseCodeField, zap.Duration("http.duration", time.Since(startTime)))
-			logger.Info("http response returned")
-			r = r.WithContext(NewContext(r.Context(), logger))
+			httpLogger = httpLogger.With(responseCodeField, zap.Duration("http.duration", time.Since(startTime)))
+			httpLogger.Info("http response returned")
+			r = r.WithContext(NewContext(r.Context(), httpLogger))
 		}()
 		// ensure that a logger is present for downstream handlers in the request context
-		next.ServeHTTP(w, r.WithContext(NewContext(r.Context(), logger)))
+		next.ServeHTTP(w, r.WithContext(NewContext(r.Context(), httpLogger)))
 	})
 }
 
@@ -91,13 +91,13 @@ func (rt RoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	}
 
 	startTime := time.Now()
-	logger := Get(r.Context()).Named("http").With(getFields(r)...)
-	logger.Debug("http request started")
+	httpLogger := Get(r.Context()).Named("http").With(getFields(r)...)
+	httpLogger.Debug("http request started")
 	resp, err := rt.RoundTripper.RoundTrip(r)
 	if err != nil {
 		var circuitError circuit.Error
 		if errors.As(err, &circuitError) {
-			logger.Warn(
+			httpLogger.Warn(
 				"circuit breaker error on http request",
 				zap.String("host", r.URL.Host),
 				zap.Bool("circuit_opened", circuitError.CircuitOpen()),
@@ -109,13 +109,13 @@ func (rt RoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 		return nil, fmt.Errorf("http client request failed: %w", err)
 	}
 
-	logger = logger.With(zap.Int("http.status_code", resp.StatusCode), zap.Duration("http.duration", time.Since(startTime)))
-	logger.Info("http request completed")
+	httpLogger = httpLogger.With(zap.Int("http.status_code", resp.StatusCode), zap.Duration("http.duration", time.Since(startTime)))
+	httpLogger.Info("http request completed")
 	return resp, err
 }
 
 // SQLMiddleware debug logs requests made against SQL databases.
-func SQLMiddleware(ctx context.Context, queryName, query string, args ...interface{}) (context.Context, sqlMiddleware.MiddlewareEnd, error) {
+func SQLMiddleware(ctx context.Context, queryName, query string, _ ...interface{}) (context.Context, sqlMiddleware.End, error) {
 	logger = Get(ctx).With(zap.String("query", query))
 	if queryName != "" {
 		logger = logger.With(zap.String("query_name", queryName))

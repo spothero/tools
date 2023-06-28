@@ -12,20 +12,20 @@ import (
 type Config struct {
 	sarama.Config
 	// Prometheus registerer for metrics
-	Registerer prometheus.Registerer
-	// Frequency with which to collect metrics
-	MetricsFrequency time.Duration
-	BrokerAddrs      []string
-	Verbose          bool
-	TLSCaCrtPath     string
-	TLSCrtPath       string
-	TLSKeyPath       string
+	Registerer   prometheus.Registerer
+	TLSCaCrtPath string
+	TLSCrtPath   string
+	TLSKeyPath   string
 	// version to be parsed and loaded into sarama.Config.KafkaVersion
 	KafkaVersion string
-	// value to be cast to sarama.RequiredAcks and loaded into sarama.Config.Producer.RequiredAcks
-	ProducerRequiredAcks int16
 	// value to be parsed to sarama.CompressionCodec and loaded into sarama.Config.Producer.CompressionCoded
 	ProducerCompressionCodec string
+	BrokerAddrs              []string
+	// Frequency with which to collect metrics
+	MetricsFrequency time.Duration
+	// value to be cast to sarama.RequiredAcks and loaded into sarama.Config.Producer.RequiredAcks
+	ProducerRequiredAcks int16
+	Verbose              bool
 }
 
 // NewDefaultConfig creates a new default Kafka configuration

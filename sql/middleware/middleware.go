@@ -21,7 +21,7 @@ import (
 // ctxCallbackKey is the type used to place the list of middleware within context.Context
 type ctxCallbackKey int
 
-// ctxCallbackValue is the value used to place the list of MiddlewareEnd in context.Context
+// ctxCallbackValue is the value used to place the list of End in context.Context
 const ctxCallbackValue ctxCallbackKey = iota
 
 // ctxQueryNameKey is the type used to place the query name in context.Context
@@ -30,14 +30,14 @@ type ctxQueryNameKey int
 // ctxQueryNameValue is the value used to place the query name in context.Context
 const ctxQueryNameValue ctxQueryNameKey = iota
 
-// MiddlewareEnd is called after the SQL query has completed
-type MiddlewareEnd func(ctx context.Context, queryName, query string, queryErr error, args ...interface{}) (context.Context, error)
+// End is called after the SQL query has completed
+type End func(ctx context.Context, queryName, query string, queryErr error, args ...interface{}) (context.Context, error)
 
-// MiddlewareStart is called before the SQL query has started
-type MiddlewareStart func(ctx context.Context, queryName, query string, args ...interface{}) (context.Context, MiddlewareEnd, error)
+// Start is called before the SQL query has started
+type Start func(ctx context.Context, queryName, query string, args ...interface{}) (context.Context, End, error)
 
 // Middleware aliases a list of SQL Middleware
-type Middleware []MiddlewareStart
+type Middleware []Start
 
 // NewContext returns a SQL middleware context with the query name embedded in it for downstream
 // middleware. All contexts passed into the SQL middleware chain must have first called this
@@ -50,8 +50,8 @@ func NewContext(ctx context.Context, queryName string) context.Context {
 func (m Middleware) Before(ctx context.Context, query string, args ...interface{}) (context.Context, error) {
 	queryName, _ := ctx.Value(ctxQueryNameValue).(string)
 	var err error
-	var mwEnd MiddlewareEnd
-	mwEndCallbacks := make([]MiddlewareEnd, len(m))
+	var mwEnd End
+	mwEndCallbacks := make([]End, len(m))
 	for idx, mw := range m {
 		ctx, mwEnd, err = mw(ctx, queryName, query, args)
 		if err != nil {
@@ -76,7 +76,7 @@ func (m Middleware) OnError(ctx context.Context, queryErr error, query string, a
 // end provides a common function for closing out SQL query middleware
 func (m Middleware) end(ctx context.Context, queryErr error, query string, args ...interface{}) (context.Context, error) {
 	queryName, _ := ctx.Value(ctxQueryNameValue).(string)
-	mwEndCallbacks, ok := ctx.Value(ctxCallbackValue).([]MiddlewareEnd)
+	mwEndCallbacks, ok := ctx.Value(ctxCallbackValue).([]End)
 	if !ok {
 		return ctx, nil
 	}

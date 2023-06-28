@@ -42,17 +42,17 @@ var globalLogLevel = zap.NewAtomicLevel()
 
 // Config defines the necessary configuration for instantiating a Logger
 type Config struct {
-	UseDevelopmentLogger bool                   // If true, use default zap development logger settings
+	Fields               map[string]interface{} // These fields will be applied to all logs. Strongly recommend `version` at a minimum.
+	counter              *prometheus.CounterVec // Counter tracks the number of logs by level
+	Level                string                 // The level at which logs should be produced. Defaults to INFO
+	Encoding             string                 // One of "json" or "console"
 	OutputPaths          []string               // List of locations where logs should be placed. Defaults to stdout
 	ErrorOutputPaths     []string               // List of locations where error logs should be placed. Defaults to stderr
-	Level                string                 // The level at which logs should be produced. Defaults to INFO
-	SamplingInitial      int                    // Initial sampling rate for the logger for each cycle
-	SamplingThereafter   int                    // Sampling rate after that initial cap is hit, per cycle
-	Encoding             string                 // One of "json" or "console"
-	Fields               map[string]interface{} // These fields will be applied to all logs. Strongly recommend `version` at a minimum.
 	Cores                []zapcore.Core         // Provides optional functionality to allow users to Tee log output to additional Log cores
 	Options              []zap.Option           // Users may specify any additional zap logger options which override defaults
-	counter              *prometheus.CounterVec // Counter tracks the number of logs by level
+	SamplingInitial      int                    // Initial sampling rate for the logger for each cycle
+	SamplingThereafter   int                    // Sampling rate after that initial cap is hit, per cycle
+	UseDevelopmentLogger bool                   // If true, use default zap development logger settings
 }
 
 // metricsHook is a callback hook used to track logging metrics at runtime
@@ -73,7 +73,7 @@ func (c Config) InitializeLogger() error {
 	if c.Encoding == "" {
 		c.Encoding = "json"
 	}
-	if err := level.Set(c.Level); err != nil {
+	if err = level.Set(c.Level); err != nil {
 		fmt.Printf("invalid log level %s - using INFO\n", c.Level)
 		level = zapcore.InfoLevel
 	}

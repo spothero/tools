@@ -57,10 +57,10 @@ func TestGetPageByID(t *testing.T) {
 	tests := []struct {
 		name        string
 		after       string
-		pageSize    uint
+		panicString string
 		input       []testStruct
 		expected    []testStruct
-		panicString string
+		pageSize    uint
 	}{
 		{
 			name:     "paging from the beginning",

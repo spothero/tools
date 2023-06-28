@@ -33,10 +33,10 @@ func (sm StringerMock) String() string {
 
 type TransportMock struct{}
 
-func (t TransportMock) Configure(options sentry.ClientOptions) {}
-func (t TransportMock) SendEvent(event *sentry.Event)          {}
-func (t TransportMock) Events() []*sentry.Event                { return nil }
-func (t TransportMock) Flush(timeout time.Duration) bool {
+func (t TransportMock) Configure(_ sentry.ClientOptions) {}
+func (t TransportMock) SendEvent(_ *sentry.Event)        {}
+func (t TransportMock) Events() []*sentry.Event          { return nil }
+func (t TransportMock) Flush(_ time.Duration) bool {
 	return true
 }
 
@@ -143,43 +143,39 @@ func TestWrite(t *testing.T) {
 	transportMock := &TransportMock{}
 	originalHub := sentry.CurrentHub().Clone()
 	tests := []struct {
-		name   string
 		core   *Core
-		fields []zapcore.Field
 		hub    *sentry.Hub
 		entry  zapcore.Entry
+		name   string
+		fields []zapcore.Field
 	}{
 		{
-			"sentry core does not write debug logs",
-			&Core{},
-			nil,
-			originalHub,
-			zapcore.Entry{Level: zapcore.DebugLevel},
+			name:  "sentry core does not write debug logs",
+			core:  &Core{},
+			hub:   originalHub,
+			entry: zapcore.Entry{Level: zapcore.DebugLevel},
 		},
 		{
-			"sentry core does not write info logs",
-			&Core{},
-			nil,
-			originalHub,
-			zapcore.Entry{Level: zapcore.InfoLevel},
+			name:  "sentry core does not write info logs",
+			core:  &Core{},
+			hub:   originalHub,
+			entry: zapcore.Entry{Level: zapcore.InfoLevel},
 		},
 		{
-			"sentry core does not write warn logs",
-			&Core{},
-			nil,
-			originalHub,
-			zapcore.Entry{Level: zapcore.WarnLevel},
+			name:  "sentry core does not write warn logs",
+			core:  &Core{},
+			hub:   originalHub,
+			entry: zapcore.Entry{Level: zapcore.WarnLevel},
 		},
 		{
-			"sentry core does not write error logs",
-			&Core{},
-			nil,
-			originalHub,
-			zapcore.Entry{Level: zapcore.ErrorLevel},
+			name:  "sentry core does not write error logs",
+			core:  &Core{},
+			hub:   originalHub,
+			entry: zapcore.Entry{Level: zapcore.ErrorLevel},
 		},
 		{
-			"sentry core writes logs higher than error",
-			&Core{
+			name: "sentry core writes logs higher than error",
+			core: &Core{
 				withFields: []zapcore.Field{
 					{Key: "0", Type: zapcore.ArrayMarshalerType},
 					{Key: "1", Type: zapcore.ObjectMarshalerType},
@@ -217,9 +213,8 @@ func TestWrite(t *testing.T) {
 					Fingerprint("test", "123"),
 				},
 			},
-			nil,
-			sentry.NewHub(&sentry.Client{Transport: transportMock}, &sentry.Scope{}),
-			zapcore.Entry{Level: zapcore.PanicLevel},
+			hub:   sentry.NewHub(&sentry.Client{Transport: transportMock}, &sentry.Scope{}),
+			entry: zapcore.Entry{Level: zapcore.PanicLevel},
 		},
 	}
 	for _, test := range tests {

@@ -21,15 +21,15 @@ import (
 
 // This roundtripper is a noop and is intended for use only within tests.
 type RoundTripper struct {
-	ResponseStatusCodes []int
-	CreateErr           bool
-	CallNumber          int
 	// Optional, if specified raise this error type, otherwise a standard error is returned
-	DesiredErr error
+	DesiredErr          error
+	ResponseStatusCodes []int
+	CallNumber          int
+	CreateErr           bool
 }
 
 // RoundTrip Performs a "noop" round trip. It is intended for use only within tests.
-func (mockRT *RoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+func (mockRT *RoundTripper) RoundTrip(_ *http.Request) (*http.Response, error) {
 	currCallNumber := mockRT.CallNumber
 	mockRT.CallNumber++
 	if mockRT.CreateErr {

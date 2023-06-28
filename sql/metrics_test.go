@@ -56,7 +56,7 @@ func TestNewMetrics(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			registry := prometheus.NewRegistry()
-			metrics := newMetrics("test", registry, test.mustRegister)
+			testMetrics := newMetrics("test", registry, test.mustRegister)
 			if test.duplicate {
 				if test.mustRegister {
 					assert.Panics(t, func() { newMetrics("test", registry, test.mustRegister) })
@@ -64,14 +64,14 @@ func TestNewMetrics(t *testing.T) {
 					assert.NotPanics(t, func() { _ = newMetrics("test", registry, test.mustRegister) })
 				}
 			}
-			assert.NotNil(t, metrics.maxOpenConnections)
-			assert.NotNil(t, metrics.openConnections)
-			assert.NotNil(t, metrics.inUseConnections)
-			assert.NotNil(t, metrics.idleConnections)
-			assert.NotNil(t, metrics.waitCountConnections)
-			assert.NotNil(t, metrics.waitDurationConnections)
-			assert.NotNil(t, metrics.maxIdleClosedConnections)
-			assert.NotNil(t, metrics.maxLifetimeClosedConnections)
+			assert.NotNil(t, testMetrics.maxOpenConnections)
+			assert.NotNil(t, testMetrics.openConnections)
+			assert.NotNil(t, testMetrics.inUseConnections)
+			assert.NotNil(t, testMetrics.idleConnections)
+			assert.NotNil(t, testMetrics.waitCountConnections)
+			assert.NotNil(t, testMetrics.waitDurationConnections)
+			assert.NotNil(t, testMetrics.maxIdleClosedConnections)
+			assert.NotNil(t, testMetrics.maxLifetimeClosedConnections)
 		})
 	}
 }
@@ -80,8 +80,8 @@ func TestExportMetrics(t *testing.T) {
 	db, _, err := sqlmock.New()
 	assert.NoError(t, err)
 	assert.NotPanics(t, func() {
-		metrics := newMetrics("test", nil, false)
-		cancelChannel := metrics.exportMetrics(db, 5*time.Millisecond)
+		testMetrics := newMetrics("test", nil, false)
+		cancelChannel := testMetrics.exportMetrics(db, 5*time.Millisecond)
 		timer := time.NewTimer(10 * time.Millisecond)
 		<-timer.C
 		cancelChannel <- true

@@ -49,8 +49,8 @@ type Claim interface {
 	NewContext(c context.Context) context.Context
 }
 
-// JOSEHandler defines an interface for interfacing with JOSE and JWT functionality
-type JOSEHandler interface {
+// Handler defines an interface for interfacing with JOSE and JWT functionality
+type Handler interface {
 	// GetClaims returns an array containing empty claims
 	GetClaims() []Claim
 	// ParseValidateJWT accepts an input JWT string and populates any provided claims with
@@ -60,10 +60,10 @@ type JOSEHandler interface {
 
 // JOSE contains configuration for handling JWTs, JWKS, and other JOSE specifications
 type JOSE struct {
+	// Map of JSON Web Key Set (JWKS) URLs and their retrieved public keys
+	jwks            map[string]*jose.JSONWebKeySet
 	claimGenerators []ClaimGenerator
 	validIssuers    []string
-	// Map of JSON Web Key Set (JWKS) URLs and their retrieved public keys
-	jwks map[string]*jose.JSONWebKeySet
 }
 
 // JWTHeaderCtxKey is the type used to uniquely place the JWT Header in the context

@@ -41,16 +41,16 @@ type schemaRequest struct {
 	Schema string `json:"schema"`
 }
 
-type schemaResponse struct {
+type SchemaResponse struct {
 	Subject string `json:"subject"`
-	Version int    `json:"version"`
 	Schema  string `json:"schema"`
+	Version int    `json:"version"`
 	ID      int    `json:"id"`
 }
 
 type errorResponse struct {
-	ErrorCode int    `json:"error_code"`
 	Message   string `json:"message"`
+	ErrorCode int    `json:"error_code"`
 }
 
 // RegisterFlags registers schema registry flags with pflags
@@ -61,7 +61,7 @@ func (c *SchemaRegistryConfig) RegisterFlags(flags *pflag.FlagSet) {
 // SchemaRegistryProducer defines an interface that contains methods to create schemas and encode kafka messages
 // using the uploaded schemas.
 type SchemaRegistryProducer interface {
-	CreateSchema(ctx context.Context, subject string, schema string, isKey bool) (*schemaResponse, error)
+	CreateSchema(ctx context.Context, subject string, schema string, isKey bool) (*SchemaResponse, error)
 	EncodeKafkaAvroMessage(ctx context.Context, schemaID uint, message interface{}) ([]byte, error)
 }
 
@@ -69,7 +69,7 @@ type SchemaRegistryProducer interface {
 // using the retrieved schemas.
 type SchemaRegistryConsumer interface {
 	GetSchema(ctx context.Context, id uint) (string, error)
-	CheckSchema(ctx context.Context, subject string, schema string, isKey bool) (*schemaResponse, error)
+	CheckSchema(ctx context.Context, subject string, schema string, isKey bool) (*SchemaResponse, error)
 	DecodeKafkaAvroMessage(ctx context.Context, message *sarama.ConsumerMessage) (interface{}, error)
 }
 
@@ -79,9 +79,9 @@ type SchemaRegistryConsumer interface {
 // so that a network request to the registry does not have to be made for every Kafka message that needs
 // to be decoded.
 type SchemaRegistryClient struct {
-	SchemaRegistryConfig
-	client http.Client
 	cache  *sync.Map
+	client http.Client
+	SchemaRegistryConfig
 }
 
 // NewSchemaRegistryClient creates a schema registry client with the given HTTP metrics bundle.
@@ -130,11 +130,11 @@ func (c *SchemaRegistryClient) GetSchema(ctx context.Context, id uint) (string, 
 	}
 	switch response.StatusCode {
 	case http.StatusOK:
-		var schemaResponse schemaResponse
-		if err := json.NewDecoder(response.Body).Decode(&schemaResponse); err != nil {
+		var decodedResponse SchemaResponse
+		if err := json.NewDecoder(response.Body).Decode(&decodedResponse); err != nil {
 			return "", err
 		}
-		return schemaResponse.Schema, nil
+		return decodedResponse.Schema, nil
 	case http.StatusNotFound:
 		return "", fmt.Errorf("schema %d not found", id)
 	default:
@@ -144,7 +144,7 @@ func (c *SchemaRegistryClient) GetSchema(ctx context.Context, id uint) (string, 
 }
 
 // CheckSchema will check if the schema exists for the given subject
-func (c *SchemaRegistryClient) CheckSchema(ctx context.Context, subject string, schema string, isKey bool) (*schemaResponse, error) {
+func (c *SchemaRegistryClient) CheckSchema(ctx context.Context, subject string, schema string, isKey bool) (*SchemaResponse, error) {
 	span, ctx := tracing.StartSpanFromContext(ctx, "check-avro-schema")
 	defer span.End()
 
@@ -171,17 +171,17 @@ func (c *SchemaRegistryClient) CheckSchema(ctx context.Context, subject string, 
 
 	switch resp.StatusCode {
 	case http.StatusOK:
-		var schemaResponse = new(schemaResponse)
+		var schemaResponse = new(SchemaResponse)
 		if err := json.NewDecoder(resp.Body).Decode(schemaResponse); err != nil {
 			return nil, err
 		}
 		return schemaResponse, nil
 	case http.StatusNotFound:
-		var errorResponse errorResponse
-		if err := json.NewDecoder(resp.Body).Decode(&errorResponse); err != nil {
+		var decodedResponse errorResponse
+		if err := json.NewDecoder(resp.Body).Decode(&decodedResponse); err != nil {
 			return nil, err
 		}
-		return nil, fmt.Errorf("%s, error code %d", errorResponse.Message, errorResponse.ErrorCode)
+		return nil, fmt.Errorf("%s, error code %d", decodedResponse.Message, decodedResponse.ErrorCode)
 	default:
 		return nil, fmt.Errorf(
 			"error while checking schema; schema registry returned unhandled status code %d", resp.StatusCode)
@@ -192,7 +192,7 @@ func (c *SchemaRegistryClient) CheckSchema(ctx context.Context, subject string, 
 // The Schema Registry compares this against existing known schemas.  If this schema matches an existing schema, a new
 // schema will not be created and instead the existing ID will be returned.  This applies even if the schema is assgined
 // only to another subject.
-func (c *SchemaRegistryClient) CreateSchema(ctx context.Context, subject string, schema string, isKey bool) (*schemaResponse, error) {
+func (c *SchemaRegistryClient) CreateSchema(ctx context.Context, subject string, schema string, isKey bool) (*SchemaResponse, error) {
 	span, ctx := tracing.StartSpanFromContext(ctx, "create-avro-schema")
 	defer span.End()
 
@@ -218,7 +218,7 @@ func (c *SchemaRegistryClient) CreateSchema(ctx context.Context, subject string,
 
 	switch resp.StatusCode {
 	case http.StatusOK:
-		var schemaResponse = new(schemaResponse)
+		var schemaResponse = new(SchemaResponse)
 		if err := json.NewDecoder(resp.Body).Decode(schemaResponse); err != nil {
 			return nil, err
 		}
@@ -226,11 +226,11 @@ func (c *SchemaRegistryClient) CreateSchema(ctx context.Context, subject string,
 	case http.StatusConflict:
 		return nil, fmt.Errorf("incompatible schema")
 	case http.StatusUnprocessableEntity:
-		var errorResponse errorResponse
-		if err := json.NewDecoder(resp.Body).Decode(&errorResponse); err != nil {
+		var decodedResponse errorResponse
+		if err := json.NewDecoder(resp.Body).Decode(&decodedResponse); err != nil {
 			return nil, err
 		}
-		return nil, fmt.Errorf("%s, error code %d", errorResponse.Message, errorResponse.ErrorCode)
+		return nil, fmt.Errorf("%s, error code %d", decodedResponse.Message, decodedResponse.ErrorCode)
 	default:
 		return nil, fmt.Errorf(
 			"error while creating schema; schema registry returned unhandled status code %d", resp.StatusCode)

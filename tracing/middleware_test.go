@@ -17,14 +17,15 @@ package tracing
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
 	"github.com/spothero/tools/http/mock"
 	"github.com/spothero/tools/http/writer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace"
-	"net/http"
-	"net/http/httptest"
-	"testing"
 )
 
 func TestSetSpanTags(t *testing.T) {
@@ -86,10 +87,10 @@ func TestHTTPServerMiddleware(t *testing.T) {
 					rootJaegerSpanCtx := rootSpanCtx
 					assert.Equal(t, rootJaegerSpanCtx.TraceID(), spanCtx.TraceID())
 
-					correlationId, ok := r.Context().Value(CorrelationIDCtxKey).(string)
+					correlationID, ok := r.Context().Value(CorrelationIDCtxKey).(string)
 					assert.Equal(t, true, ok)
-					assert.NotNil(t, correlationId)
-					assert.NotEqual(t, "", correlationId)
+					assert.NotNil(t, correlationID)
+					assert.NotEqual(t, "", correlationID)
 				}
 			})
 			testServer := httptest.NewServer(
@@ -105,44 +106,36 @@ func TestHTTPServerMiddleware(t *testing.T) {
 
 func TestRoundTrip(t *testing.T) {
 	tests := []struct {
-		name         string
 		roundTripper http.RoundTripper
+		name         string
 		expectErr    bool
 		expectPanic  bool
 	}{
 		{
-			"no round tripper results in a panic",
-			nil,
-			false,
-			true,
+			name:        "no round tripper results in a panic",
+			expectPanic: true,
 		},
 		{
-			"roundtripper errors are returned to the caller",
-			&mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: true},
-			true,
-			false,
+			name:         "roundtripper errors are returned to the caller",
+			roundTripper: &mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: true},
+			expectErr:    true,
 		},
 		{
-			"successful requests are traced appropriately in client calls",
-			&mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
-			false,
-			false,
+			name:         "successful requests are traced appropriately in client calls",
+			roundTripper: &mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
 		},
 		{
-			"failed requests are traced appropriately in client calls",
-			&mock.RoundTripper{ResponseStatusCodes: []int{http.StatusInternalServerError}, CreateErr: false},
-			false,
-			false,
+			name:         "failed requests are traced appropriately in client calls",
+			roundTripper: &mock.RoundTripper{ResponseStatusCodes: []int{http.StatusInternalServerError}, CreateErr: false},
 		},
 		{
-			"circuit-breaking errors are logged",
-			&mock.RoundTripper{
+			name: "circuit-breaking errors are logged",
+			roundTripper: &mock.RoundTripper{
 				ResponseStatusCodes: []int{http.StatusOK},
 				CreateErr:           true,
 				DesiredErr:          mock.CircuitError{CircuitOpened: true},
 			},
-			true,
-			false,
+			expectErr: true,
 		},
 	}
 	for _, test := range tests {
@@ -186,16 +179,16 @@ func TestGetCorrelationID(t *testing.T) {
 	}()
 
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		correlationId, ok := r.Context().Value(CorrelationIDCtxKey).(string)
+		correlationID, ok := r.Context().Value(CorrelationIDCtxKey).(string)
 		assert.Equal(t, true, ok)
-		assert.NotNil(t, correlationId)
-		assert.NotEqual(t, "", correlationId)
+		assert.NotNil(t, correlationID)
+		assert.NotEqual(t, "", correlationID)
 
 		ctx := r.Context()
-		_correlationId := GetCorrelationID(ctx)
-		assert.NotNil(t, _correlationId)
-		assert.NotEqual(t, "", _correlationId)
-		assert.Equal(t, correlationId, _correlationId)
+		_correlationID := GetCorrelationID(ctx)
+		assert.NotNil(t, _correlationID)
+		assert.NotEqual(t, "", _correlationID)
+		assert.Equal(t, correlationID, _correlationID)
 	})
 
 	testServer := httptest.NewServer(writer.StatusRecorderMiddleware(HTTPServerMiddleware(testHandler)))
@@ -218,36 +211,28 @@ func TestSQLMiddleware(t *testing.T) {
 		name      string
 		queryName string
 		query     string
-		expectErr bool
 		args      []interface{}
+		expectErr bool
 	}{
 		{
-			"non-errored no queryname requests are successfully traced",
-			"",
-			"SELECT * FROM tests",
-			false,
-			nil,
+			name:  "non-errored no queryname requests are successfully traced",
+			query: "SELECT * FROM tests",
 		},
 		{
-			"non-errored with queryname requests are successfully traced",
-			"getAllTests",
-			"SELECT * FROM tests",
-			false,
-			nil,
+			name:      "non-errored with queryname requests are successfully traced",
+			queryName: "getAllTests",
+			query:     "SELECT * FROM tests",
 		},
 		{
-			"non-errored with args requests are successfully traced",
-			"getAllTests",
-			"SELECT * FROM tests",
-			false,
-			[]interface{}{1, "test"},
+			name:      "non-errored with args requests are successfully traced",
+			queryName: "getAllTests",
+			query:     "SELECT * FROM tests",
+			args:      []interface{}{1, "test"},
 		},
 		{
-			"errored requests are successfully traced and marked as errored",
-			"",
-			"SELECT * FROM tests",
-			true,
-			nil,
+			name:      "errored requests are successfully traced and marked as errored",
+			query:     "SELECT * FROM tests",
+			expectErr: true,
 		},
 	}
 	for _, test := range tests {

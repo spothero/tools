@@ -26,22 +26,21 @@ func TestLoadLocation(t *testing.T) {
 	chiTz, err := time.LoadLocation("America/Chicago")
 	require.NoError(t, err)
 	tests := []struct {
+		expectedOutcome *time.Location
 		name            string
 		locationName    string
-		expectedOutcome *time.Location
 	}{
 		{
-			"location should be loaded",
-			"America/Chicago",
-			chiTz,
+			name:            "location should be loaded",
+			locationName:    "America/Chicago",
+			expectedOutcome: chiTz,
 		}, {
-			"location should be loaded from cache",
-			"America/Chicago",
-			chiTz,
+			name:            "location should be loaded from cache",
+			locationName:    "America/Chicago",
+			expectedOutcome: chiTz,
 		}, {
-			"error loading location should be passed to caller",
-			"America/Flavortown",
-			nil,
+			name:         "error loading location should be passed to caller",
+			locationName: "America/Flavortown",
 		},
 	}
 	for _, test := range tests {

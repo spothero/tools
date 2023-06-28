@@ -21,37 +21,37 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-// MockServerStream defines a mock GRPC server stream implementation for use in stream tests
-type MockServerStream struct {
+// ServerStream defines a mock GRPC server stream implementation for use in stream tests
+type ServerStream struct {
 	mock.Mock
 }
 
 // SetHeader mocks the ServerStream SetHeader function
-func (mss *MockServerStream) SetHeader(md metadata.MD) error {
+func (mss *ServerStream) SetHeader(md metadata.MD) error {
 	return mss.Called(md).Error(0)
 }
 
 // SendHeader mocks the ServerStream SendHeader function
-func (mss *MockServerStream) SendHeader(md metadata.MD) error {
+func (mss *ServerStream) SendHeader(md metadata.MD) error {
 	return mss.Called(md).Error(0)
 }
 
 // SetTrailer mocks the ServerStream SetTrailer function
-func (mss *MockServerStream) SetTrailer(md metadata.MD) {
+func (mss *ServerStream) SetTrailer(md metadata.MD) {
 	mss.Called(md)
 }
 
 // Context mocks the ServerStream Context function
-func (mss *MockServerStream) Context() context.Context {
+func (mss *ServerStream) Context() context.Context {
 	return mss.Called().Get(0).(context.Context)
 }
 
 // SendMsg mocks the ServerStream SendMsg function
-func (mss *MockServerStream) SendMsg(m interface{}) error {
+func (mss *ServerStream) SendMsg(m interface{}) error {
 	return mss.Called(m).Error(0)
 }
 
 // RecvMsg mocks the ServerStream RecvMsg function
-func (mss *MockServerStream) RecvMsg(m interface{}) error {
+func (mss *ServerStream) RecvMsg(m interface{}) error {
 	return mss.Called(m).Error(0)
 }

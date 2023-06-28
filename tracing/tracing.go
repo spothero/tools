@@ -17,6 +17,11 @@ package tracing
 import (
 	"context"
 	"errors"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/spothero/tools/log"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -27,10 +32,6 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
-	"os"
-	"strconv"
-	"strings"
-	"time"
 )
 
 // CorrelationIDCtxKeyType is the type used to uniquely place the trace header in contexts
@@ -44,16 +45,16 @@ const CorrelationIDCtxKey CorrelationIDCtxKeyType = iota
 
 // Config defines the necessary configuration for instantiating a Tracer
 type Config struct {
-	Enabled               bool
 	SamplerType           string
-	SamplerParam          float64
-	ReporterLogSpans      bool
-	ReporterMaxQueueSize  int
-	ReporterFlushInterval time.Duration
 	AgentHost             string
-	AgentPort             int
 	ServiceName           string
 	ServiceNamespace      string
+	SamplerParam          float64
+	ReporterMaxQueueSize  int
+	ReporterFlushInterval time.Duration
+	AgentPort             int
+	Enabled               bool
+	ReporterLogSpans      bool
 }
 
 // TracerProvider returns an OpenTelemetry TracerProvider configured to use
@@ -71,7 +72,7 @@ func (c Config) TracerProvider() (func(context.Context) error, error) {
 	}
 
 	// Create the Jaeger exporter
-	agentPort := "6831" //default port for Jaeger
+	agentPort := "6831" // default port for Jaeger
 	if c.AgentPort > 0 {
 		agentPort = strconv.Itoa(c.AgentPort)
 	}
@@ -119,7 +120,7 @@ func (c Config) TracerProvider() (func(context.Context) error, error) {
 }
 
 // EmbedCorrelationID embeds the current Trace ID as the correlation ID in the context logger
-// Continuing this function for backward compatability.
+// Continuing this function for backward compatibility.
 func EmbedCorrelationID(ctx context.Context) context.Context {
 	// While this removes the veneer of OpenTelemetry abstraction, the current specification does not
 	// provide a method of accessing Trace ID directly.

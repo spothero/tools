@@ -26,19 +26,17 @@ import (
 
 func TestNewDefaultRetryRoundTripper(t *testing.T) {
 	tests := []struct {
-		name         string
 		roundTripper http.RoundTripper
+		name         string
 		expectPanic  bool
 	}{
 		{
-			"no round tripper leads to a panic",
-			nil,
-			true,
+			name:        "no round tripper leads to a panic",
+			expectPanic: true,
 		},
 		{
-			"the retry default round tripper is correctly created",
-			&mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
-			false,
+			name:         "the retry default round tripper is correctly created",
+			roundTripper: &mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
 		},
 	}
 	for _, test := range tests {
@@ -73,73 +71,62 @@ func TestNewDefaultRetryRoundTripper(t *testing.T) {
 
 func TestRetryRoundTrip(t *testing.T) {
 	tests := []struct {
-		name               string
 		roundTripper       http.RoundTripper
+		name               string
 		expectedStatusCode int
 		numRetries         uint8
 		expectErr          bool
 		expectPanic        bool
 	}{
 		{
-			"no round tripper results in a panic",
-			nil,
-			http.StatusOK, // doesn't matter
-			0,
-			false,
-			true,
+			name:               "no round tripper results in a panic",
+			expectedStatusCode: http.StatusOK, // doesn't matter
+			expectPanic:        true,
 		},
 		{
-			"round tripper with no error invokes middleware correctly",
-			&mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
-			http.StatusOK,
-			0,
-			false,
-			false,
+			name:               "round tripper with no error invokes middleware correctly",
+			roundTripper:       &mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
+			expectedStatusCode: http.StatusOK,
 		},
 		{
-			"round tripper with an unresolved error returns an error",
-			&mock.RoundTripper{
+			name: "round tripper with an unresolved error returns an error",
+			roundTripper: &mock.RoundTripper{
 				ResponseStatusCodes: []int{
 					http.StatusInternalServerError,
 					http.StatusInternalServerError,
 				},
 				CreateErr: false,
 			},
-			http.StatusInternalServerError,
-			1,
-			false,
-			false,
+			expectedStatusCode: http.StatusInternalServerError,
+			numRetries:         1,
 		},
 		{
-			"round tripper with an unretriable error returns an error",
-			&mock.RoundTripper{
+			name: "round tripper with an unretriable error returns an error",
+			roundTripper: &mock.RoundTripper{
 				ResponseStatusCodes: []int{
 					http.StatusNotImplemented,
 				},
 				CreateErr: false,
 			},
-			http.StatusNotImplemented,
-			1,
-			false,
-			false,
+			expectedStatusCode: http.StatusNotImplemented,
+			numRetries:         1,
 		},
 		{
-			"round tripper that encounters an http err is retried",
-			&mock.RoundTripper{
+			name: "round tripper that encounters an http err is retried",
+			roundTripper: &mock.RoundTripper{
 				ResponseStatusCodes: []int{
 					http.StatusBadRequest,
 					http.StatusBadRequest,
 				},
 				CreateErr: true,
 			},
-			http.StatusBadRequest,
-			1,
-			true,
-			false,
+			expectedStatusCode: http.StatusBadRequest,
+			numRetries:         1,
+			expectErr:          true,
 		},
 		{
-			"retries are stopped when a successful or non-retriable status code is given",
-			&mock.RoundTripper{
+			name: "retries are stopped when a successful or non-retriable status code is given",
+			roundTripper: &mock.RoundTripper{
 				ResponseStatusCodes: []int{
 					http.StatusInternalServerError,
 					http.StatusOK,
@@ -147,10 +134,9 @@ func TestRetryRoundTrip(t *testing.T) {
 				},
 				CreateErr: true,
 			},
-			http.StatusOK,
-			2,
-			true,
-			false,
+			expectedStatusCode: http.StatusOK,
+			numRetries:         2,
+			expectErr:          true,
 		},
 	}
 	for _, test := range tests {

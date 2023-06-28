@@ -17,12 +17,13 @@ package tracing
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
-	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -93,10 +94,10 @@ func TestEmbedCorrelationID(t *testing.T) {
 	_, spanCtx := StartSpanFromContext(octx, "test")
 
 	ctx := EmbedCorrelationID(spanCtx)
-	correlationId, ok := ctx.Value(CorrelationIDCtxKey).(string)
+	correlationID, ok := ctx.Value(CorrelationIDCtxKey).(string)
 	assert.Equal(t, true, ok)
-	assert.NotNil(t, correlationId)
-	assert.NotEqual(t, "", correlationId)
+	assert.NotNil(t, correlationID)
+	assert.NotEqual(t, "", correlationID)
 }
 
 func GetTracerProvider() (func(context.Context) error, error) {

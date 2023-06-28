@@ -45,7 +45,7 @@ const (
 // header, if present, on all incoming HTTP requests. If an Authorization header is found, this
 // middleware attempts to parse and validate that value as a JWT with the configured Credential
 // types for the given JOSE provider.
-func GetHTTPServerMiddleware(jh JOSEHandler) func(next http.Handler) http.Handler {
+func GetHTTPServerMiddleware(jh Handler) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			logger := log.Get(r.Context())
@@ -175,7 +175,7 @@ func validateRequiredScope(r *http.Request, params AuthParams) error {
 }
 
 func EnforceAuthenticationWithAuthorization(next http.HandlerFunc, params AuthParams) http.HandlerFunc {
-	var defaultRegistry prometheus.Registerer = nil
+	var defaultRegistry prometheus.Registerer
 	metrics := newAuthMetrics(defaultRegistry)
 
 	return func(w http.ResponseWriter, r *http.Request) {

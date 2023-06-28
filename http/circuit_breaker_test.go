@@ -27,30 +27,25 @@ import (
 
 func TestNewDefaultCircuitBreakerRoundTripper(t *testing.T) {
 	tests := []struct {
-		name         string
 		roundTripper http.RoundTripper
 		config       map[string]circuit.Config
+		name         string
 		expectPanic  bool
 	}{
 		{
-			"no round tripper leads to a panic",
-			nil,
-			nil,
-			true,
+			name:        "no round tripper leads to a panic",
+			expectPanic: true,
 		},
 		{
-			"the retry default round tripper is correctly created",
-			&mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
-			nil,
-			false,
+			name:         "the retry default round tripper is correctly created",
+			roundTripper: &mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
 		},
 		{
-			"host configuration is honored",
-			&mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
-			map[string]circuit.Config{
+			name:         "host configuration is honored",
+			roundTripper: &mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
+			config: map[string]circuit.Config{
 				"host": {},
 			},
-			false,
 		},
 	}
 	for _, test := range tests {
@@ -73,47 +68,37 @@ func TestNewDefaultCircuitBreakerRoundTripper(t *testing.T) {
 
 func TestCircuitBreakerRoundTrip(t *testing.T) {
 	tests := []struct {
-		name               string
 		roundTripper       http.RoundTripper
+		name               string
 		expectedStatusCode int
 		circuitOpened      bool
 		expectErr          bool
 		expectPanic        bool
 	}{
 		{
-			"no round tripper results in a panic",
-			nil,
-			http.StatusOK,
-			false,
-			false,
-			true,
+			name:               "no round tripper results in a panic",
+			expectedStatusCode: http.StatusOK,
+			expectPanic:        true,
 		},
 		{
-			"round tripper with no error invokes middleware correctly",
-			&mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
-			http.StatusOK,
-			false,
-			false,
-			false,
+			name:               "round tripper with no error invokes middleware correctly",
+			roundTripper:       &mock.RoundTripper{ResponseStatusCodes: []int{http.StatusOK}, CreateErr: false},
+			expectedStatusCode: http.StatusOK,
 		},
 		{
-			"bad requests are counted in the circuit breaker",
-			&mock.RoundTripper{ResponseStatusCodes: []int{http.StatusInternalServerError}, CreateErr: false},
-			http.StatusInternalServerError,
-			false,
-			false,
-			false,
+			name:               "bad requests are counted in the circuit breaker",
+			roundTripper:       &mock.RoundTripper{ResponseStatusCodes: []int{http.StatusInternalServerError}, CreateErr: false},
+			expectedStatusCode: http.StatusInternalServerError,
 		},
 		{
-			"round tripper opens the circuit breaker when enough errors are encountered",
-			&mock.RoundTripper{
+			name: "round tripper opens the circuit breaker when enough errors are encountered",
+			roundTripper: &mock.RoundTripper{
 				ResponseStatusCodes: []int{http.StatusInternalServerError},
 				CreateErr:           false,
 			},
-			http.StatusInternalServerError,
-			true,
-			true,
-			false,
+			expectedStatusCode: http.StatusInternalServerError,
+			circuitOpened:      true,
+			expectErr:          true,
 		},
 	}
 	for _, test := range tests {

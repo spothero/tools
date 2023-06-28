@@ -25,9 +25,9 @@ const (
 // MySQLConfig adds a path for a CA cert to mysql.Config. When CACertPath is set,
 // NewWrappedMySQL will verify the database identity with the provided CA cert.
 type MySQLConfig struct {
-	mysql.Config
 	// Path to the server CA certificate for SSL connections
 	CACertPath string
+	mysql.Config
 }
 
 // Connect uses the given Config struct to establish a connection with the database.
@@ -53,8 +53,8 @@ func (c MySQLConfig) Connect(ctx context.Context, options ...WrappedSQLOption) (
 	}
 	sql.Register(opts.driverName, sqlhooks.Wrap(mysql.MySQLDriver{}, &opts.middleware))
 	if c.CACertPath != "" && c.TLSConfig == "" {
-		if err := c.loadCACert(); err != nil {
-			return nil, nil, err
+		if certErr := c.loadCACert(); certErr != nil {
+			return nil, nil, certErr
 		}
 	}
 	db, err := sqlx.ConnectContext(ctx, opts.driverName, c.FormatDSN())
@@ -79,8 +79,8 @@ func (c *MySQLConfig) loadCACert() error {
 	if ok := rootPool.AppendCertsFromPEM(pem); !ok {
 		return fmt.Errorf("failed to MySQL CA PEM")
 	}
-	if err := mysql.RegisterTLSConfig(tlsConfigName, &tls.Config{RootCAs: rootPool}); err != nil {
-		return err
+	if registrationErr := mysql.RegisterTLSConfig(tlsConfigName, &tls.Config{RootCAs: rootPool}); registrationErr != nil {
+		return registrationErr
 	}
 	c.TLSConfig = tlsConfigName
 	return nil

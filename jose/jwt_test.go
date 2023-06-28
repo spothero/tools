@@ -15,43 +15,37 @@ import (
 
 func TestNewJOSE(t *testing.T) {
 	tests := []struct {
+		expectedJWKS *jose.JSONWebKeySet
 		name         string
+		urlOverride  string
 		keyData      []byte
 		statusCode   int
 		provideURL   bool
-		urlOverride  string
-		expectedJWKS *jose.JSONWebKeySet
 	}{
 		{
-			"empty keys array is parsed correctly",
-			[]byte("{\"keys\": []}"),
-			http.StatusOK,
-			true,
-			"",
-			&jose.JSONWebKeySet{
+			name:       "empty keys array is parsed correctly",
+			keyData:    []byte("{\"keys\": []}"),
+			statusCode: http.StatusOK,
+			provideURL: true,
+			expectedJWKS: &jose.JSONWebKeySet{
 				Keys: []jose.JSONWebKey{},
 			},
 		}, {
-			"non-200 responses return an error",
-			[]byte("{\"keys\": []}"),
-			http.StatusNotFound,
-			true,
-			"",
-			nil,
+			name:       "non-200 responses return an error",
+			keyData:    []byte("{\"keys\": []}"),
+			statusCode: http.StatusNotFound,
+			provideURL: true,
 		}, {
-			"bad JSON data causes an error",
-			[]byte("not json data"),
-			http.StatusOK,
-			true,
-			"",
-			nil,
+			name:       "bad JSON data causes an error",
+			keyData:    []byte("not json data"),
+			statusCode: http.StatusOK,
+			provideURL: true,
 		}, {
-			"bad jwks url results in an error",
-			[]byte("{\"keys\": []}"),
-			http.StatusOK,
-			true,
-			"badurl",
-			nil,
+			name:        "bad jwks url results in an error",
+			keyData:     []byte("{\"keys\": []}"),
+			statusCode:  http.StatusOK,
+			provideURL:  true,
+			urlOverride: "badurl",
 		},
 	}
 	for _, test := range tests {
@@ -130,42 +124,38 @@ b9Ym/nxaqyTu0PxajXkKm5Q=
 	}
 
 	tests := []struct {
+		jwks         map[string]*jose.JSONWebKeySet
+		returnedKeys *jose.JSONWebKeySet
 		name         string
 		jwt          string
 		issuer       string
-		jwks         map[string]*jose.JSONWebKeySet
-		returnedKeys *jose.JSONWebKeySet
 		expectError  bool
 	}{
 		{
-			"valid jwks and token does not produce an error",
-			`eyJhbGciOiJSUzI1NiIsImtpZCI6ImZvb2JhciJ9.eyJpc3MiOiJpc3N1ZXIiLCJzY29wZXMiOlsiczEiLCJzMiJdLCJzdWIiOiJzdWJqZWN0In0.RxZhTRfPDb6UJ58FwvC89GgJGC8lAO04tz5iLlBpIJsyPZB0X_UgXSj0SGVFm2jbP_i-ZVH4HFC2fMB1n-so9CnCOpunWwhYNdgF6ewQJ0ADTWwfDGsK12UOmyT2naaZN8ZUBF8cgPtOgdWqQjk2Ng9QFRJxlUuKYczBp7vjWvgX8WMwQcaA-eK7HtguR4e9c4FMbeFK8Soc4jCsVTjIKdSn9SErc42gFu65NI1hZ3OPe_T7AZqdDjCkJpoiJ65GdD_qvGkVndJSEcMp3riXQpAy0JbctVkYecdFaGidbxHRrdcQYHtKn-XGMCh2uoBKleUr1fTMiyCGPQQesy3xHw`,
-			"issuer",
-			jwks,
-			nil,
-			false,
+			name:   "valid jwks and token does not produce an error",
+			jwt:    `eyJhbGciOiJSUzI1NiIsImtpZCI6ImZvb2JhciJ9.eyJpc3MiOiJpc3N1ZXIiLCJzY29wZXMiOlsiczEiLCJzMiJdLCJzdWIiOiJzdWJqZWN0In0.RxZhTRfPDb6UJ58FwvC89GgJGC8lAO04tz5iLlBpIJsyPZB0X_UgXSj0SGVFm2jbP_i-ZVH4HFC2fMB1n-so9CnCOpunWwhYNdgF6ewQJ0ADTWwfDGsK12UOmyT2naaZN8ZUBF8cgPtOgdWqQjk2Ng9QFRJxlUuKYczBp7vjWvgX8WMwQcaA-eK7HtguR4e9c4FMbeFK8Soc4jCsVTjIKdSn9SErc42gFu65NI1hZ3OPe_T7AZqdDjCkJpoiJ65GdD_qvGkVndJSEcMp3riXQpAy0JbctVkYecdFaGidbxHRrdcQYHtKn-XGMCh2uoBKleUr1fTMiyCGPQQesy3xHw`,
+			issuer: "issuer",
+			jwks:   jwks,
 		}, {
-			"valid token that is not correctly signed produces an error",
-			`eyJhbGciOiJSUzI1NiIsImtpZCI6ImZvb2JhcmFiYyJ9.eyJpc3MiOiJpc3N1ZXIiLCJzY29wZXMiOlsiczEiLCJzMiJdLCJzdWIiOiJzdWJqZWN0In0.RxZhTRfPDb6UJ58FwvC89GgJGC8lAO04tz5iLlBpIJsyPZB0X_UgXSj0SGVFm2jbP_i-ZVH4HFC2fMB1n-so9CnCOpunWwhYNdgF6ewQJ0ADTWwfDGsK12UOmyT2naaZN8ZUBF8cgPtOgdWqQjk2Ng9QFRJxlUuKYczBp7vjWvgX8WMwQcaA-eK7HtguR4e9c4FMbeFK8Soc4jCsVTjIKdSn9SErc42gFu65NI1hZ3OPe_T7AZqdDjCkJpoiJ65GdD_qvGkVndJSEcMp3riXQpAy0JbctVkYecdFaGidbxHRrdcQYHtKn-XGMCh2uoBKleUr1fTMiyCGPQQesy3xHw`,
-			"issuer",
-			jwks,
-			nil,
-			true,
+			name:        "valid token that is not correctly signed produces an error",
+			jwt:         `eyJhbGciOiJSUzI1NiIsImtpZCI6ImZvb2JhcmFiYyJ9.eyJpc3MiOiJpc3N1ZXIiLCJzY29wZXMiOlsiczEiLCJzMiJdLCJzdWIiOiJzdWJqZWN0In0.RxZhTRfPDb6UJ58FwvC89GgJGC8lAO04tz5iLlBpIJsyPZB0X_UgXSj0SGVFm2jbP_i-ZVH4HFC2fMB1n-so9CnCOpunWwhYNdgF6ewQJ0ADTWwfDGsK12UOmyT2naaZN8ZUBF8cgPtOgdWqQjk2Ng9QFRJxlUuKYczBp7vjWvgX8WMwQcaA-eK7HtguR4e9c4FMbeFK8Soc4jCsVTjIKdSn9SErc42gFu65NI1hZ3OPe_T7AZqdDjCkJpoiJ65GdD_qvGkVndJSEcMp3riXQpAy0JbctVkYecdFaGidbxHRrdcQYHtKn-XGMCh2uoBKleUr1fTMiyCGPQQesy3xHw`,
+			issuer:      "issuer",
+			jwks:        jwks,
+			expectError: true,
 		}, {
-			"invalid jwt produces an error",
-			"invalid jwt",
-			"issuer",
-			jwks,
-			nil,
-			true,
+			name:        "invalid jwt produces an error",
+			jwt:         "invalid jwt",
+			issuer:      "issuer",
+			jwks:        jwks,
+			expectError: true,
 		}, {
-			"lazy load missing keys",
-			`eyJhbGciOiJSUzI1NiIsImtpZCI6ImZvb2JhciJ9.eyJpc3MiOiJpc3N1ZXIiLCJzY29wZXMiOlsiczEiLCJzMiJdLCJzdWIiOiJzdWJqZWN0In0.RxZhTRfPDb6UJ58FwvC89GgJGC8lAO04tz5iLlBpIJsyPZB0X_UgXSj0SGVFm2jbP_i-ZVH4HFC2fMB1n-so9CnCOpunWwhYNdgF6ewQJ0ADTWwfDGsK12UOmyT2naaZN8ZUBF8cgPtOgdWqQjk2Ng9QFRJxlUuKYczBp7vjWvgX8WMwQcaA-eK7HtguR4e9c4FMbeFK8Soc4jCsVTjIKdSn9SErc42gFu65NI1hZ3OPe_T7AZqdDjCkJpoiJ65GdD_qvGkVndJSEcMp3riXQpAy0JbctVkYecdFaGidbxHRrdcQYHtKn-XGMCh2uoBKleUr1fTMiyCGPQQesy3xHw`,
-			"issuer",
-			map[string]*jose.JSONWebKeySet{
+			name:   "lazy load missing keys",
+			jwt:    `eyJhbGciOiJSUzI1NiIsImtpZCI6ImZvb2JhciJ9.eyJpc3MiOiJpc3N1ZXIiLCJzY29wZXMiOlsiczEiLCJzMiJdLCJzdWIiOiJzdWJqZWN0In0.RxZhTRfPDb6UJ58FwvC89GgJGC8lAO04tz5iLlBpIJsyPZB0X_UgXSj0SGVFm2jbP_i-ZVH4HFC2fMB1n-so9CnCOpunWwhYNdgF6ewQJ0ADTWwfDGsK12UOmyT2naaZN8ZUBF8cgPtOgdWqQjk2Ng9QFRJxlUuKYczBp7vjWvgX8WMwQcaA-eK7HtguR4e9c4FMbeFK8Soc4jCsVTjIKdSn9SErc42gFu65NI1hZ3OPe_T7AZqdDjCkJpoiJ65GdD_qvGkVndJSEcMp3riXQpAy0JbctVkYecdFaGidbxHRrdcQYHtKn-XGMCh2uoBKleUr1fTMiyCGPQQesy3xHw`,
+			issuer: "issuer",
+			jwks: map[string]*jose.JSONWebKeySet{
 				jwksURL: nil,
 			},
-			&jose.JSONWebKeySet{
+			returnedKeys: &jose.JSONWebKeySet{
 				Keys: []jose.JSONWebKey{
 					{
 						KeyID: "foobar",
@@ -173,16 +163,14 @@ b9Ym/nxaqyTu0PxajXkKm5Q=
 					},
 				},
 			},
-			false,
 		}, {
-			"lazy load missing keys unsuccessfully",
-			`eyJhbGciOiJSUzI1NiIsImtpZCI6ImZvb2JhciJ9.eyJpc3MiOiJpc3N1ZXIiLCJzY29wZXMiOlsiczEiLCJzMiJdLCJzdWIiOiJzdWJqZWN0In0.RxZhTRfPDb6UJ58FwvC89GgJGC8lAO04tz5iLlBpIJsyPZB0X_UgXSj0SGVFm2jbP_i-ZVH4HFC2fMB1n-so9CnCOpunWwhYNdgF6ewQJ0ADTWwfDGsK12UOmyT2naaZN8ZUBF8cgPtOgdWqQjk2Ng9QFRJxlUuKYczBp7vjWvgX8WMwQcaA-eK7HtguR4e9c4FMbeFK8Soc4jCsVTjIKdSn9SErc42gFu65NI1hZ3OPe_T7AZqdDjCkJpoiJ65GdD_qvGkVndJSEcMp3riXQpAy0JbctVkYecdFaGidbxHRrdcQYHtKn-XGMCh2uoBKleUr1fTMiyCGPQQesy3xHw`,
-			"issuer",
-			map[string]*jose.JSONWebKeySet{
+			name:   "lazy load missing keys unsuccessfully",
+			jwt:    `eyJhbGciOiJSUzI1NiIsImtpZCI6ImZvb2JhciJ9.eyJpc3MiOiJpc3N1ZXIiLCJzY29wZXMiOlsiczEiLCJzMiJdLCJzdWIiOiJzdWJqZWN0In0.RxZhTRfPDb6UJ58FwvC89GgJGC8lAO04tz5iLlBpIJsyPZB0X_UgXSj0SGVFm2jbP_i-ZVH4HFC2fMB1n-so9CnCOpunWwhYNdgF6ewQJ0ADTWwfDGsK12UOmyT2naaZN8ZUBF8cgPtOgdWqQjk2Ng9QFRJxlUuKYczBp7vjWvgX8WMwQcaA-eK7HtguR4e9c4FMbeFK8Soc4jCsVTjIKdSn9SErc42gFu65NI1hZ3OPe_T7AZqdDjCkJpoiJ65GdD_qvGkVndJSEcMp3riXQpAy0JbctVkYecdFaGidbxHRrdcQYHtKn-XGMCh2uoBKleUr1fTMiyCGPQQesy3xHw`,
+			issuer: "issuer",
+			jwks: map[string]*jose.JSONWebKeySet{
 				jwksURL: nil,
 			},
-			nil,
-			true,
+			expectError: true,
 		},
 	}
 	for _, test := range tests {

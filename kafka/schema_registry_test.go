@@ -60,7 +60,7 @@ func readerToString(reader io.Reader) string {
 
 func buildSchemaRegistryServer(t *testing.T) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		responsePayload := schemaResponse{
+		responsePayload := SchemaResponse{
 			Subject: "test-subject",
 			Version: 1,
 			Schema:  "test schema",
@@ -70,15 +70,15 @@ func buildSchemaRegistryServer(t *testing.T) *httptest.Server {
 
 		switch req.URL.String() {
 		case "/schemas/ids/1":
-			response, _ := json.Marshal(
-				schemaResponse{
+			marshalledResponse, _ := json.Marshal(
+				SchemaResponse{
 					Subject: "test-subject",
 					Version: 1,
 					Schema:  avroSchema,
 					ID:      1,
 				})
 			assert.Equal(t, http.NoBody, req.Body)
-			_, _ = rw.Write(response)
+			_, _ = rw.Write(marshalledResponse)
 		case "/schemas/ids/77":
 			assert.Equal(t, http.NoBody, req.Body)
 			_, _ = rw.Write(response)
@@ -158,10 +158,10 @@ func TestSchemaRegistryClient_GetSchema(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		schemaID uint
 		schema   string
 		error    string
 		url      string
+		schemaID uint
 	}{
 		{
 			name:     "schema is retrieved from schema registry",
@@ -222,22 +222,22 @@ func TestSchemaRegistryClient_GetSchema(t *testing.T) {
 func TestSchemaRegistryClient_CheckSchema(t *testing.T) {
 
 	tests := []struct {
+		schemaResponse *SchemaResponse
 		name           string
 		subject        string
 		schema         string
 		error          string
 		url            string
-		schemaResponse *schemaResponse
 	}{
 		{
 			name:    "schema is found in the schema registry",
 			subject: "test-subject",
 			schema:  "test schema",
-			schemaResponse: &schemaResponse{
-				"test-subject",
-				1,
-				"test schema",
-				77,
+			schemaResponse: &SchemaResponse{
+				Subject: "test-subject",
+				Version: 1,
+				Schema:  "test schema",
+				ID:      77,
 			},
 		},
 		{
@@ -305,23 +305,23 @@ func TestSchemaRegistryClient_CheckSchema(t *testing.T) {
 func TestSchemaRegistryClient_CreateSchema(t *testing.T) {
 
 	tests := []struct {
+		schemaResponse *SchemaResponse
 		name           string
 		subject        string
 		schema         string
 		error          string
 		url            string
 		isKey          bool
-		schemaResponse *schemaResponse
 	}{
 		{
 			name:    "schema is created in the schema registry",
 			subject: "test-subject",
 			schema:  "test schema",
-			schemaResponse: &schemaResponse{
-				"test-subject",
-				1,
-				"test schema",
-				77,
+			schemaResponse: &SchemaResponse{
+				Subject: "test-subject",
+				Version: 1,
+				Schema:  "test schema",
+				ID:      77,
 			},
 		},
 		{
@@ -365,11 +365,11 @@ func TestSchemaRegistryClient_CreateSchema(t *testing.T) {
 			name:    "schema is created in the schema registry for key",
 			subject: "test-subject",
 			schema:  "test schema",
-			schemaResponse: &schemaResponse{
-				"test-subject",
-				1,
-				"test schema",
-				77,
+			schemaResponse: &SchemaResponse{
+				Subject: "test-subject",
+				Version: 1,
+				Schema:  "test schema",
+				ID:      77,
 			},
 			isKey: true,
 		},
@@ -451,55 +451,42 @@ func newAvroMessage(t *testing.T) *sarama.ConsumerMessage {
 
 func TestSchemaRegistryClient_DecodeKafkaAvroMessage(t *testing.T) {
 	tests := []struct {
-		name             string
-		msg              *sarama.ConsumerMessage
-		prePopulateCache bool
-		schema           string
 		expected         interface{}
+		msg              *sarama.ConsumerMessage
+		name             string
+		schema           string
+		prePopulateCache bool
 		expectErr        bool
 	}{
 		{
-			"avro message is decoded",
-			newAvroMessage(t),
-			false,
-			avroSchema,
-			map[string]interface{}{"name": "Guy Fieri"},
-			false,
+			name:     "avro message is decoded",
+			msg:      newAvroMessage(t),
+			schema:   avroSchema,
+			expected: map[string]interface{}{"name": "Guy Fieri"},
 		}, {
-			"too short of a message returns error",
-			&sarama.ConsumerMessage{Value: []byte{1, 2}},
-			false,
-			"",
-			nil,
-			true,
+			name:      "too short of a message returns error",
+			msg:       &sarama.ConsumerMessage{Value: []byte{1, 2}},
+			expectErr: true,
 		}, {
-			"error getting schema returns error",
-			newAvroMessage(t),
-			false,
-			"",
-			nil,
-			true,
+			name:      "error getting schema returns error",
+			msg:       newAvroMessage(t),
+			expectErr: true,
 		}, {
-			"error creating avro codec returns error",
-			newAvroMessage(t),
-			false,
-			"bad schema",
-			nil,
-			true,
+			name:      "error creating avro codec returns error",
+			msg:       newAvroMessage(t),
+			schema:    "bad schema",
+			expectErr: true,
 		}, {
-			"error decoding message returns error",
-			&sarama.ConsumerMessage{Value: []byte{0, 0, 0, 0, 77, 78, 79}}, // junk message data with correct schema id
-			false,
-			avroSchema,
-			nil,
-			true,
+			name:      "error decoding message returns error",
+			msg:       &sarama.ConsumerMessage{Value: []byte{0, 0, 0, 0, 77, 78, 79}}, // junk message data with correct schema id
+			schema:    avroSchema,
+			expectErr: true,
 		}, {
-			"codec already in cache uses it",
-			newAvroMessage(t),
-			true,
-			avroSchema,
-			map[string]interface{}{"name": "Guy Fieri"},
-			false,
+			name:             "codec already in cache uses it",
+			msg:              newAvroMessage(t),
+			prePopulateCache: true,
+			schema:           avroSchema,
+			expected:         map[string]interface{}{"name": "Guy Fieri"},
 		},
 	}
 	for _, test := range tests {
@@ -545,10 +532,10 @@ func TestSchemaRegistryClient_NewSchemaRegistryClient(t *testing.T) {
 
 func TestSchemaRegistryClient_EncodeKafkaAvroMessage(t *testing.T) {
 	tests := []struct {
-		name     string
 		msg      map[string]interface{}
-		schemaID uint
+		name     string
 		errorMsg string
+		schemaID uint
 	}{
 		{
 			name: "decode avro message",

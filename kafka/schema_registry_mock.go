@@ -27,9 +27,9 @@ type MockSchemaRegistryClient struct {
 }
 
 // CreateSchema implements the SchemaRegistryProducer interface.
-func (mc *MockSchemaRegistryClient) CreateSchema(ctx context.Context, subject string, schema string, isKey bool) (*schemaResponse, error) {
+func (mc *MockSchemaRegistryClient) CreateSchema(ctx context.Context, subject string, schema string, isKey bool) (*SchemaResponse, error) {
 	args := mc.Called(ctx, subject, schema, isKey)
-	return args.Get(0).(*schemaResponse), args.Error(1)
+	return args.Get(0).(*SchemaResponse), args.Error(1)
 }
 
 // EncodeKafkaAvroMessage implements the SchemaRegistryProducer interface.
@@ -45,9 +45,9 @@ func (mc *MockSchemaRegistryClient) GetSchema(ctx context.Context, id uint) (str
 }
 
 // CheckSchema implements the SchemaRegistryConsumer interface.
-func (mc *MockSchemaRegistryClient) CheckSchema(ctx context.Context, subject string, schema string, isKey bool) (*schemaResponse, error) {
+func (mc *MockSchemaRegistryClient) CheckSchema(ctx context.Context, subject string, schema string, isKey bool) (*SchemaResponse, error) {
 	args := mc.Called(ctx, subject, schema, isKey)
-	return args.Get(0).(*schemaResponse), args.Error(1)
+	return args.Get(0).(*SchemaResponse), args.Error(1)
 }
 
 // DecodeKafkaAvroMessage implements the SchemaRegistryConsumer interface.

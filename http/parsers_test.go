@@ -178,68 +178,60 @@ func TestParseTime(t *testing.T) {
 	}
 
 	tests := []struct {
+		result    time.Time
 		name      string
 		url       string
 		fieldName string
 		layouts   []string
-		result    time.Time
 		err       bool
 	}{
 		{
-			"Basic success",
-			"https://example.com/?time=2019-10-07T15:07:39-05:00",
-			"time",
-			[]string{time.RFC3339},
-			buildTime("2019-10-07T15:07:39-05:00"),
-			false,
+			name:      "Basic success",
+			url:       "https://example.com/?time=2019-10-07T15:07:39-05:00",
+			fieldName: "time",
+			layouts:   []string{time.RFC3339},
+			result:    buildTime("2019-10-07T15:07:39-05:00"),
 		},
 		{
-			"Basic success with multiple layouts",
-			"https://example.com/?time=2019-10-07T15:07:39-05:00",
-			"time",
-			[]string{"2006-01-02T15:04:05", "invalid", time.RFC3339},
-			buildTime("2019-10-07T15:07:39-05:00"),
-			false,
+			name:      "Basic success with multiple layouts",
+			url:       "https://example.com/?time=2019-10-07T15:07:39-05:00",
+			fieldName: "time",
+			layouts:   []string{"2006-01-02T15:04:05", "invalid", time.RFC3339},
+			result:    buildTime("2019-10-07T15:07:39-05:00"),
 		},
 		{
-			"Differently named field",
-			"https://example.com/?foobar=2019-10-07T15:07:39-05:00",
-			"foobar",
-			[]string{time.RFC3339},
-			buildTime("2019-10-07T15:07:39-05:00"),
-			false,
+			name:      "Differently named field",
+			url:       "https://example.com/?foobar=2019-10-07T15:07:39-05:00",
+			fieldName: "foobar",
+			layouts:   []string{time.RFC3339},
+			result:    buildTime("2019-10-07T15:07:39-05:00"),
 		},
 		{
-			"Unparseable time",
-			"https://example.com/?time=bogus",
-			"time",
-			[]string{time.RFC3339},
-			time.Time{},
-			true,
+			name:      "Unparseable time",
+			url:       "https://example.com/?time=bogus",
+			fieldName: "time",
+			layouts:   []string{time.RFC3339},
+			err:       true,
 		},
 		{
-			"Field missing from query",
-			"https://example.com/",
-			"time",
-			[]string{time.RFC3339},
-			time.Time{},
-			false,
+			name:      "Field missing from query",
+			url:       "https://example.com/",
+			fieldName: "time",
+			layouts:   []string{time.RFC3339},
 		},
 		{
-			"Mismatched layout",
-			"https://example.com/?time=2019-10-07T15:07:39-05:00",
-			"time",
-			[]string{"2006-01-02T15:04:05"},
-			time.Time{},
-			true,
+			name:      "Mismatched layout",
+			url:       "https://example.com/?time=2019-10-07T15:07:39-05:00",
+			fieldName: "time",
+			layouts:   []string{"2006-01-02T15:04:05"},
+			err:       true,
 		},
 		{
-			"Invalid layout",
-			"https://example.com/?time=2019-10-07T15:07:39-05:00",
-			"time",
-			[]string{"invalid"},
-			time.Time{},
-			true,
+			name:      "Invalid layout",
+			url:       "https://example.com/?time=2019-10-07T15:07:39-05:00",
+			fieldName: "time",
+			layouts:   []string{"invalid"},
+			err:       true,
 		},
 	}
 

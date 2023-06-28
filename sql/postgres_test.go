@@ -39,33 +39,30 @@ func TestNewDefaultPostgresConfig(t *testing.T) {
 func TestPostgresConfigBuildConnectionString(t *testing.T) {
 	tests := []struct {
 		name        string
+		expectedURL string
 		c           PostgresConfig
 		expectError bool
-		expectedURL string
 	}{
 		{
-			"empty database name results in an error",
-			PostgresConfig{Database: ""},
-			true,
-			"",
+			name:        "empty database name results in an error",
+			c:           PostgresConfig{Database: ""},
+			expectError: true,
 		}, {
-			"empty application name results in an error",
-			PostgresConfig{Database: "testdb", ApplicationName: ""},
-			true,
-			"",
+			name:        "empty application name results in an error",
+			c:           PostgresConfig{Database: "testdb", ApplicationName: ""},
+			expectError: true,
 		}, {
-			"no options returns a basic postgres url",
-			PostgresConfig{
+			name: "no options returns a basic postgres url",
+			c: PostgresConfig{
 				ApplicationName: "test",
 				Database:        "test",
 				Host:            "127.0.0.1",
 				Port:            5432,
 			},
-			false,
-			"postgres://127.0.0.1:5432/test?application_name=test&sslmode=disable",
+			expectedURL: "postgres://127.0.0.1:5432/test?application_name=test&sslmode=disable",
 		}, {
-			"username and password are encoded into the URL",
-			PostgresConfig{
+			name: "username and password are encoded into the URL",
+			c: PostgresConfig{
 				ApplicationName: "test",
 				Database:        "test",
 				Host:            "127.0.0.1",
@@ -73,11 +70,10 @@ func TestPostgresConfigBuildConnectionString(t *testing.T) {
 				Username:        "user",
 				Password:        "pass",
 			},
-			false,
-			"postgres://user:pass@127.0.0.1:5432/test?application_name=test&sslmode=disable",
+			expectedURL: "postgres://user:pass@127.0.0.1:5432/test?application_name=test&sslmode=disable",
 		}, {
-			"ssl options are encoded",
-			PostgresConfig{
+			name: "ssl options are encoded",
+			c: PostgresConfig{
 				ApplicationName: "test",
 				Database:        "test",
 				Host:            "127.0.0.1",
@@ -87,19 +83,17 @@ func TestPostgresConfigBuildConnectionString(t *testing.T) {
 				SSLKey:          "/ssl/key/path",
 				SSLRootCert:     "/ssl/root/cert/path",
 			},
-			false,
-			"postgres://127.0.0.1:5432/test?application_name=test&sslmode=verify-full&sslcert=/ssl/cert/path&sslkey=/ssl/key/path&sslrootcert=/ssl/root/cert/path",
+			expectedURL: "postgres://127.0.0.1:5432/test?application_name=test&sslmode=verify-full&sslcert=/ssl/cert/path&sslkey=/ssl/key/path&sslrootcert=/ssl/root/cert/path",
 		}, {
-			"connect timeout is properly encoded when specified",
-			PostgresConfig{
+			name: "connect timeout is properly encoded when specified",
+			c: PostgresConfig{
 				ApplicationName: "test",
 				Database:        "test",
 				Host:            "127.0.0.1",
 				Port:            5432,
 				ConnectTimeout:  3 * time.Second,
 			},
-			false,
-			"postgres://127.0.0.1:5432/test?application_name=test&sslmode=disable&connect_timeout=3",
+			expectedURL: "postgres://127.0.0.1:5432/test?application_name=test&sslmode=disable&connect_timeout=3",
 		},
 	}
 	for _, test := range tests {

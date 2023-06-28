@@ -29,41 +29,32 @@ import (
 func TestGetContextAuth(t *testing.T) {
 	tests := []struct {
 		name                string
-		authMetadataPresent bool
 		authMetadata        string
 		jwt                 string
+		errorCode           codes.Code
+		authMetadataPresent bool
 		parseJWTError       bool
 		expectClaim         bool
 		expectErr           bool
-		errorCode           codes.Code
 	}{
 		{
-			"no auth metadata results in no claim, no error returned",
-			false,
-			"",
-			"",
-			false,
-			false,
-			false,
-			codes.OK,
+			name:      "no auth metadata results in no claim, no error returned",
+			errorCode: codes.OK,
 		}, {
-			"failed jwt parsings are rejected",
-			true,
-			"Bearer fake.jwt.header",
-			"fake.jwt.header",
-			true,
-			false,
-			true,
-			codes.Unauthenticated,
+			name:                "failed jwt parsings are rejected",
+			authMetadataPresent: true,
+			authMetadata:        "Bearer fake.jwt.header",
+			jwt:                 "fake.jwt.header",
+			parseJWTError:       true,
+			expectErr:           true,
+			errorCode:           codes.Unauthenticated,
 		}, {
-			"jwt tokens are parsed and placed in context when present",
-			true,
-			"Bearer fake.jwt.header",
-			"fake.jwt.header",
-			false,
-			true,
-			false,
-			codes.OK,
+			name:                "jwt tokens are parsed and placed in context when present",
+			authMetadataPresent: true,
+			authMetadata:        "Bearer fake.jwt.header",
+			jwt:                 "fake.jwt.header",
+			expectClaim:         true,
+			errorCode:           codes.OK,
 		},
 	}
 	for _, test := range tests {

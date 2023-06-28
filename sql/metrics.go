@@ -210,7 +210,7 @@ func (m metrics) exportMetrics(db *sql.DB, frequency time.Duration) chan<- bool 
 // middleware will ensure that prometheus exports on a per-queryName basis a histogram of
 // duration, as well as a lifetime call counter. Query outcome is captured as a label on both
 // metrics.
-func (m metrics) Middleware(ctx context.Context, queryName, query string, args ...interface{}) (context.Context, middleware.MiddlewareEnd, error) {
+func (m metrics) Middleware(ctx context.Context, _, _ string, _ ...interface{}) (context.Context, middleware.End, error) {
 	startTime := time.Now()
 	mwEnd := func(ctx context.Context, queryName, query string, queryErr error, args ...interface{}) (context.Context, error) {
 		outcome := "success"

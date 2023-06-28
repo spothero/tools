@@ -33,13 +33,13 @@ import (
 
 func TestUnmarshalConnectMessageMap(t *testing.T) {
 	tests := []struct {
-		name   string
 		setup  func() map[string]interface{}
 		verify func(t *testing.T, msg map[string]interface{})
+		name   string
 	}{
 		{
-			"all supported types are correctly handled",
-			func() map[string]interface{} {
+			name: "all supported types are correctly handled",
+			setup: func() map[string]interface{} {
 				// Build a dummy decoded Kafka message
 				kafkaConnectMessage := make(map[string]interface{})
 				kafkaConnectMessage["a"] = int32(1)
@@ -61,26 +61,26 @@ func TestUnmarshalConnectMessageMap(t *testing.T) {
 				kafkaConnectMessage["q"] = "2018-08-23T15:56:00-05:00"
 				return kafkaConnectMessage
 			},
-			func(t *testing.T, msg map[string]interface{}) {
+			verify: func(t *testing.T, msg map[string]interface{}) {
 				// Define a struct containing every supported type
 				type unmarshalTarget struct {
-					A int       `kafka:"a"`
-					B int8      `kafka:"b"`
-					C int16     `kafka:"c"`
-					D int32     `kafka:"d"`
+					Q time.Time `kafka:"q"`
+					M time.Time `kafka:"m"`
+					L string    `kafka:"l"`
 					E int64     `kafka:"e"`
 					F uint      `kafka:"f"`
-					G uint8     `kafka:"g"`
-					H uint16    `kafka:"h"`
-					I uint32    `kafka:"i"`
-					J uint64    `kafka:"j"`
-					K bool      `kafka:"k"`
-					L string    `kafka:"l"`
-					M time.Time `kafka:"m"`
-					N float32   `kafka:"n"`
 					O float64   `kafka:"o"`
+					A int       `kafka:"a"`
+					J uint64    `kafka:"j"`
+					D int32     `kafka:"d"`
+					I uint32    `kafka:"i"`
+					N float32   `kafka:"n"`
+					H uint16    `kafka:"h"`
+					C int16     `kafka:"c"`
+					K bool      `kafka:"k"`
+					G uint8     `kafka:"g"`
 					P bool      `kafka:"p"`
-					Q time.Time `kafka:"q"`
+					B int8      `kafka:"b"`
 				}
 				target := &unmarshalTarget{}
 				errs := unmarshalConnectMessageMap(msg, target)
@@ -106,15 +106,15 @@ func TestUnmarshalConnectMessageMap(t *testing.T) {
 				assert.Equal(t, time.Date(2018, 8, 23, 15, 56, 0, 0, central).UTC(), target.Q.UTC())
 			},
 		}, {
-			"nullable fields are handled correctly",
-			func() map[string]interface{} {
+			name: "nullable fields are handled correctly",
+			setup: func() map[string]interface{} {
 				message := make(map[string]interface{})
 				nullable := make(map[string]interface{})
 				nullable["int"] = int32(123)
 				message["a"] = nullable
 				return message
 			},
-			func(t *testing.T, msg map[string]interface{}) {
+			verify: func(t *testing.T, msg map[string]interface{}) {
 				type unmarshalTarget struct {
 					A int `kafka:"a"`
 				}
@@ -124,11 +124,11 @@ func TestUnmarshalConnectMessageMap(t *testing.T) {
 				assert.Equal(t, 123, target.A)
 			},
 		}, {
-			"unset fields are ummarshalled correctly",
-			func() map[string]interface{} {
+			name: "unset fields are ummarshalled correctly",
+			setup: func() map[string]interface{} {
 				return make(map[string]interface{})
 			},
-			func(t *testing.T, msg map[string]interface{}) {
+			verify: func(t *testing.T, msg map[string]interface{}) {
 				type unmarshalTarget struct {
 					A int `kafka:"a"`
 				}
@@ -138,13 +138,13 @@ func TestUnmarshalConnectMessageMap(t *testing.T) {
 				assert.Equal(t, 0, target.A)
 			},
 		}, {
-			"unsupported types return errors",
-			func() map[string]interface{} {
+			name: "unsupported types return errors",
+			setup: func() map[string]interface{} {
 				message := make(map[string]interface{})
 				message["a"] = []byte{'T', 'H', 'A', 'N', 'K'}
 				return message
 			},
-			func(t *testing.T, msg map[string]interface{}) {
+			verify: func(t *testing.T, msg map[string]interface{}) {
 				type unmarshalTarget struct {
 					A []byte `kafka:"a"`
 				}
@@ -155,13 +155,13 @@ func TestUnmarshalConnectMessageMap(t *testing.T) {
 				assert.Equal(t, expectedErr, errs[0])
 			},
 		}, {
-			"unexported fields return errors",
-			func() map[string]interface{} {
+			name: "unexported fields return errors",
+			setup: func() map[string]interface{} {
 				message := make(map[string]interface{})
 				message["a"] = 1
 				return message
 			},
-			func(t *testing.T, msg map[string]interface{}) {
+			verify: func(t *testing.T, msg map[string]interface{}) {
 				type unmarshalTarget struct {
 					_ int `kafka:"a"`
 				}
@@ -172,8 +172,8 @@ func TestUnmarshalConnectMessageMap(t *testing.T) {
 				assert.Equal(t, expectedErr, errs[0])
 			},
 		}, {
-			"embedded structs are unmarshalled correctly",
-			func() map[string]interface{} {
+			name: "embedded structs are unmarshalled correctly",
+			setup: func() map[string]interface{} {
 				message := make(map[string]interface{})
 				message["a"] = int32(1)
 				message["b"] = int32(2)
@@ -181,18 +181,18 @@ func TestUnmarshalConnectMessageMap(t *testing.T) {
 				message["d"] = time.Unix(1522083600, 0).UTC().Unix() * 1000
 				return message
 			},
-			func(t *testing.T, msg map[string]interface{}) {
+			verify: func(t *testing.T, msg map[string]interface{}) {
 				type DoubleNestedTarget struct {
-					C string    `kafka:"c"`
 					D time.Time `kafka:"d"`
+					C string    `kafka:"c"`
 				}
 				type NestedTarget struct {
-					B int `kafka:"b"`
 					DoubleNestedTarget
+					B int `kafka:"b"`
 				}
 				type unmarshalTarget struct {
-					A int `kafka:"a"`
 					NestedTarget
+					A int `kafka:"a"`
 				}
 				target := &unmarshalTarget{}
 				errs := unmarshalConnectMessageMap(msg, target)
@@ -213,16 +213,16 @@ func TestUnmarshalConnectMessageMap(t *testing.T) {
 
 func TestExtractFieldsTags(t *testing.T) {
 	type DoubleNestedTarget struct {
-		C string    `kafka:"c"`
-		D time.Time `kafka:"d"`
+		A time.Time `kafka:"a"`
+		B string    `kafka:"b"`
 	}
 	type NestedTarget struct {
-		B int `kafka:"b"`
 		DoubleNestedTarget
+		C int `kafka:"c"`
 	}
 	type unmarshalTarget struct {
-		A int `kafka:"a"`
 		NestedTarget
+		D int `kafka:"d"`
 	}
 	target := &unmarshalTarget{}
 	reflected := reflect.ValueOf(target).Elem()
@@ -242,24 +242,21 @@ type dummyMsg struct {
 
 func TestConnectAvroUnmarshaller_Unmarshal(t *testing.T) {
 	tests := []struct {
-		name            string
 		msg             *sarama.ConsumerMessage
-		avroDecodeErr   bool
+		name            string
 		expectedOutcome dummyMsg
+		avroDecodeErr   bool
 		expectErr       bool
 	}{
 		{
-			"connect message is unmarshalled from avro",
-			newAvroMessage(t),
-			false,
-			dummyMsg{Name: "Guy Fieri"},
-			false,
+			name:            "connect message is unmarshalled from avro",
+			msg:             newAvroMessage(t),
+			expectedOutcome: dummyMsg{Name: "Guy Fieri"},
 		}, {
-			"error decoding avro message returns error",
-			newAvroMessage(t),
-			true,
-			dummyMsg{},
-			true,
+			name:          "error decoding avro message returns error",
+			msg:           newAvroMessage(t),
+			avroDecodeErr: true,
+			expectErr:     true,
 		},
 	}
 	for _, test := range tests {

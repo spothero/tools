@@ -41,15 +41,15 @@ const (
 type PostgresConfig struct {
 	ApplicationName string        // The name of the application connecting. Useful for attributing db load.
 	Host            string        // The host where the database is located
-	Port            uint16        // The port on which the database is listening
 	Username        string        // The username for the database
 	Password        string        // The password for the database
 	Database        string        // The name of the database
-	ConnectTimeout  time.Duration // Amount of time to wait before timing out
-	SSL             bool          // If true, connect to the database with SSL
 	SSLCert         string        // Path to the SSL Certificate, if any
 	SSLKey          string        // Path to the SSL Key, if any
 	SSLRootCert     string        // Path to the SSL Root Certificate, if any
+	ConnectTimeout  time.Duration // Amount of time to wait before timing out
+	Port            uint16        // The port on which the database is listening
+	SSL             bool          // If true, connect to the database with SSL
 }
 
 // NewDefaultPostgresConfig creates and return a default postgres configuration.

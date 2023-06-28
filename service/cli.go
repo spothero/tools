@@ -25,17 +25,16 @@ import (
 
 // Config defines service level configuration for HTTP servers
 type Config struct {
-	Name          string                // Name of the application
-	Environment   string                // Environment where the server is running
-	Version       string                // Semantic Version of the application
-	GitSHA        string                // GitSHA of the application when compiled
-	Registry      prometheus.Registerer // The Prometheus Registry to use. If nil, the global registry is used by default.
-	CancelSignals []os.Signal           // OS Signals to be used to cancel running servers. Defaults to SIGINT/`os.Interrupt`.
-
+	Registry prometheus.Registerer // The Prometheus Registry to use. If nil, the global registry is used by default.
 	// A function to be called before starting the service. The context passed into the ServerCmd function will be
 	// fed all the way through PreStart and into PostShutdown, enabling communication of state through these functions.
-	PreStart     func(ctx context.Context) (context.Context, error)
-	PostShutdown func(ctx context.Context) error // A function to be called before stopping the service
+	PreStart      func(ctx context.Context) (context.Context, error)
+	PostShutdown  func(ctx context.Context) error // A function to be called before stopping the service
+	Name          string                          // Name of the application
+	Environment   string                          // Environment where the server is running
+	Version       string                          // Semantic Version of the application
+	GitSHA        string                          // GitSHA of the application when compiled
+	CancelSignals []os.Signal                     // OS Signals to be used to cancel running servers. Defaults to SIGINT/`os.Interrupt`.
 }
 
 // RegisterFlags registers Service flags with pflags

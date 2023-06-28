@@ -60,7 +60,7 @@ func TestStreamServerInterceptor(t *testing.T) {
 	mockHandler := func(srv interface{}, stream grpc.ServerStream) error {
 		return nil
 	}
-	mockStream := &grpcmock.MockServerStream{}
+	mockStream := &grpcmock.ServerStream{}
 	mockStream.On("Context").Return(context.Background())
 	assert.NotPanics(t, func() {
 		assert.NoError(t, StreamServerInterceptor(nil, mockStream, info, mockHandler))
