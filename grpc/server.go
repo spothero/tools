@@ -30,6 +30,8 @@ import (
 
 const maxMessageSizeBytes = 20000000 // This is 20mb
 
+const readWriteBufferSizeBytes = 64 * 1024 // read/write the content from the stream based on size.
+
 // Config contains the configuration necessary for running a GRPC Server.
 type Config struct {
 	ServerRegistration func(*grpc.Server)             // Callback for registering GRPC API Servers
@@ -84,6 +86,8 @@ func (c Config) NewServer() Server {
 		),
 		grpc.MaxRecvMsgSize(maxMessageSizeBytes),
 		grpc.MaxSendMsgSize(maxMessageSizeBytes),
+		grpc.ReadBufferSize(readWriteBufferSizeBytes),
+		grpc.WriteBufferSize(readWriteBufferSizeBytes),
 	)
 	if c.ServerRegistration == nil {
 		panic("no server registration function provided")
