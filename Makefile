@@ -1,6 +1,7 @@
 VERSION ?= $(shell git describe --abbrev=0 --tags | sed 's/v//g')
 GIT_SHA ?= $(shell git rev-parse HEAD)
 LINTER_INSTALLED := $(shell sh -c 'which golangci-lint')
+VULNCHECK_INSTALLED := $(shell sh -c 'which govulncheck')
 
 .PHONY: all
 all: lint test ## Lints and runs the tests
@@ -19,6 +20,14 @@ ifdef LINTER_INSTALLED
 	golangci-lint run
 else
 	$(error golangci-lint not found, skipping linting. Installation instructions: https://github.com/golangci/golangci-lint#ci-installation)
+endif
+
+.PHONY: vulncheck
+vulncheck: ## Runs the go vulnerability checker
+ifdef VULNCHECK_INSTALLED
+	govulncheck ./...
+else
+	$(error govulncheck not found, skipping vulnerability checks. Installation instructions: https://go.dev/doc/tutorial/govulncheck)
 endif
 
 .PHONY: help
