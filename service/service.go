@@ -140,13 +140,13 @@ func (c Config) ServerCmd(
 			// Ensure that gRPC Interceptors capture histograms
 			grpcprom.EnableHandlingTimeHistogram()
 			grpcConfig.UnaryInterceptors = []grpc.UnaryServerInterceptor{
-				otelgrpc.UnaryServerInterceptor(),
+				otelgrpc.UnaryServerInterceptor(), //nolint:staticcheck
 				tracing.UnaryServerInterceptor,
 				log.UnaryServerInterceptor,
 				grpcprom.UnaryServerInterceptor,
 			}
 			grpcConfig.StreamInterceptors = []grpc.StreamServerInterceptor{
-				otelgrpc.StreamServerInterceptor(),
+				otelgrpc.StreamServerInterceptor(), //nolint:staticcheck
 				tracing.StreamServerInterceptor,
 				log.StreamServerInterceptor,
 				grpcprom.StreamServerInterceptor,

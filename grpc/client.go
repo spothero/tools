@@ -69,13 +69,13 @@ func defaultClientConfig(ctx context.Context) ClientConfig {
 		PropagateAuthHeaders: false,
 		RetryServerErrors:    false,
 		UnaryInterceptors: []grpc.UnaryClientInterceptor{
-			otelgrpc.UnaryClientInterceptor(),
+			otelgrpc.UnaryClientInterceptor(), //nolint:staticcheck
 			tracing.UnaryClientInterceptor,
 			grpczap.UnaryClientInterceptor(log.Get(ctx)),
 			grpcprom.UnaryClientInterceptor,
 		},
 		StreamInterceptors: []grpc.StreamClientInterceptor{
-			otelgrpc.StreamClientInterceptor(),
+			otelgrpc.StreamClientInterceptor(), //nolint:staticcheck
 			tracing.StreamClientInterceptor,
 			grpczap.StreamClientInterceptor(log.Get(ctx)),
 			grpcprom.StreamClientInterceptor,
