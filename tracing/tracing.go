@@ -17,6 +17,7 @@ package tracing
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -25,7 +26,7 @@ import (
 	"github.com/spothero/tools/log"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/exporters/jaeger"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
@@ -77,8 +78,12 @@ func (c Config) TracerProvider() (func(context.Context) error, error) {
 		agentPort = strconv.Itoa(c.AgentPort)
 	}
 
-	exp, err := jaeger.New(
-		jaeger.WithAgentEndpoint(jaeger.WithAgentHost(c.AgentHost), jaeger.WithAgentPort(agentPort)))
+	agentHost := "localhost" // default host
+	if c.AgentHost != "" {
+		agentHost = c.AgentHost
+	}
+
+	exp, err := otlptracehttp.New(ctx, otlptracehttp.WithEndpoint(fmt.Sprintf("%s:%s", agentHost, agentPort)))
 	if err != nil {
 		logger.Error("could not initialize Jaeger OTEL exporter", zap.Error(err))
 		return nil, err
