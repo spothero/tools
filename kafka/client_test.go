@@ -209,13 +209,13 @@ func TestClientMetrics_updateOnce(t *testing.T) {
 				)
 				metrics.GetOrRegisterHistogram("histogram-name", registry, metrics.NewUniformSample(1))
 			},
-			verify: func(t *testing.T, registry *prometheus.Registry) {},
+			verify: func(_ *testing.T, _ *prometheus.Registry) {},
 		}, {
 			name: "type other than meter or histogram does nothing",
 			setup: func(_ *testing.T, registry metrics.Registry, _ prometheus.Registerer) {
 				metrics.GetOrRegisterTimer("", registry)
 			},
-			verify: func(t *testing.T, registry *prometheus.Registry) {},
+			verify: func(_ *testing.T, _ *prometheus.Registry) {},
 		},
 	}
 	for _, test := range tests {
