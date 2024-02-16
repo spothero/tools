@@ -44,7 +44,7 @@ func TestMinInt(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func(_ *testing.T) {
 			actual := minInt(test.first, test.second)
 			assert.Equal(actual, test.expected)
 		})
@@ -153,7 +153,7 @@ func TestGetPageByID(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func(_ *testing.T) {
 			elements := make([]Pageable, len(test.input))
 			for idx, item := range test.input {
 				elements[idx] = item

@@ -55,7 +55,7 @@ func TestGetHTTPServerMiddleware(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			testHandlerCalled := false
-			testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			testHandler := http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 				testHandlerCalled = true
 			})
 

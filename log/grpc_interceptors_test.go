@@ -73,7 +73,7 @@ func TestUnaryServerInterceptor(t *testing.T) {
 	recordedLogs := makeLoggerObservable(t, zapcore.DebugLevel)
 	ctx := context.Background()
 	info := &grpc.UnaryServerInfo{}
-	mockHandler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	mockHandler := func(_ context.Context, _ interface{}) (interface{}, error) {
 		return struct{}{}, nil
 	}
 	resp, err := UnaryServerInterceptor(ctx, nil, info, mockHandler)
@@ -85,7 +85,7 @@ func TestUnaryServerInterceptor(t *testing.T) {
 func TestStreamServerInterceptor(t *testing.T) {
 	recordedLogs := makeLoggerObservable(t, zapcore.DebugLevel)
 	info := &grpc.StreamServerInfo{}
-	mockHandler := func(srv interface{}, stream grpc.ServerStream) error {
+	mockHandler := func(_ interface{}, _ grpc.ServerStream) error {
 		return nil
 	}
 	mockStream := &grpcmock.ServerStream{}

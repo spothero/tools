@@ -99,7 +99,7 @@ func TestNewMetrics_RegistryErrorDoesNotPanic(t *testing.T) {
 
 func TestMiddleware(t *testing.T) {
 	const statusCode = 666
-	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(statusCode)
 	})
 

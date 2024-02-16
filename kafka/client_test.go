@@ -68,7 +68,7 @@ func TestConfig_populateSaramaConfig(t *testing.T) {
 		}, {
 			name:      "bad version returns an error",
 			input:     Config{KafkaVersion: "not.a.real.version"},
-			check:     func(t *testing.T, cfg *sarama.Config) {},
+			check:     func(_ *testing.T, _ *sarama.Config) {},
 			expectErr: true,
 		}, {
 			name:  "zstd compression is properly set",
@@ -177,25 +177,25 @@ func TestClientMetrics_updateOnce(t *testing.T) {
 	}{
 		{
 			name: "meter is converted to a prometheus gauge",
-			setup: func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer) {
+			setup: func(_ *testing.T, registry metrics.Registry, _ prometheus.Registerer) {
 				metrics.GetOrRegisterMeter("meter-name", registry)
 			},
 			verify: ensureRegistered,
 		}, {
 			name: "histogram is converted to a prometheus gauge",
-			setup: func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer) {
+			setup: func(_ *testing.T, registry metrics.Registry, _ prometheus.Registerer) {
 				metrics.GetOrRegisterHistogram("histogram-name", registry, metrics.NewUniformSample(1))
 			},
 			verify: ensureRegistered,
 		}, {
 			name: "counter is converted to a prometheus gauge",
-			setup: func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer) {
+			setup: func(_ *testing.T, registry metrics.Registry, _ prometheus.Registerer) {
 				metrics.GetOrRegisterCounter("counter-name", registry)
 			},
 			verify: ensureRegistered,
 		}, {
 			name: "error registering metric doesn't cause crash",
-			setup: func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer) {
+			setup: func(_ *testing.T, registry metrics.Registry, registerer prometheus.Registerer) {
 				// register the matching prometheus gauge to cause a failure to register later
 				registerer.MustRegister(
 					prometheus.NewGaugeVec(
@@ -209,13 +209,13 @@ func TestClientMetrics_updateOnce(t *testing.T) {
 				)
 				metrics.GetOrRegisterHistogram("histogram-name", registry, metrics.NewUniformSample(1))
 			},
-			verify: func(t *testing.T, registry *prometheus.Registry) {},
+			verify: func(_ *testing.T, _ *prometheus.Registry) {},
 		}, {
 			name: "type other than meter or histogram does nothing",
-			setup: func(t *testing.T, registry metrics.Registry, registerer prometheus.Registerer) {
+			setup: func(_ *testing.T, registry metrics.Registry, _ prometheus.Registerer) {
 				metrics.GetOrRegisterTimer("", registry)
 			},
-			verify: func(t *testing.T, registry *prometheus.Registry) {},
+			verify: func(_ *testing.T, _ *prometheus.Registry) {},
 		},
 	}
 	for _, test := range tests {

@@ -46,11 +46,11 @@ func TestNewDefaultConfig(t *testing.T) {
 
 func TestNewServer(t *testing.T) {
 	registrationCalled := false
-	mockRegistration := func(r *mux.Router) {
+	mockRegistration := func(_ *mux.Router) {
 		registrationCalled = true
 	}
-	mockPreStart := func(ctx context.Context, router *mux.Router, server *http.Server) {}
-	mockPostShutdown := func(ctx context.Context) {}
+	mockPreStart := func(_ context.Context, _ *mux.Router, _ *http.Server) {}
+	mockPostShutdown := func(_ context.Context) {}
 
 	config := Config{
 		Address:          "127.0.0.1",
@@ -81,7 +81,7 @@ func TestNewServer(t *testing.T) {
 		"/metrics":             true,
 		"/loglevel":            true,
 	}
-	err := server.router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+	err := server.router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
 		routeName, err := route.GetPathTemplate()
 		assert.NoError(t, err)
 		if _, ok := expectedRoutes[routeName]; !ok {
@@ -96,11 +96,11 @@ func TestNewServer(t *testing.T) {
 
 func TestRun(t *testing.T) {
 	preStartCalled := false
-	mockPreStart := func(ctx context.Context, router *mux.Router, server *http.Server) {
+	mockPreStart := func(_ context.Context, _ *mux.Router, _ *http.Server) {
 		preStartCalled = true
 	}
 	postShutdownCalled := false
-	mockPostShutdown := func(ctx context.Context) {
+	mockPostShutdown := func(_ context.Context) {
 		postShutdownCalled = true
 	}
 	router := mux.NewRouter()

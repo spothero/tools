@@ -79,7 +79,7 @@ func TestHTTPServerMiddleware(t *testing.T) {
 				})
 			}
 
-			testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			testHandler := http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 				requestSpan := trace.SpanFromContext(r.Context())
 				spanCtx := requestSpan.SpanContext()
 				if test.withExistingTrace {
@@ -178,7 +178,7 @@ func TestGetCorrelationID(t *testing.T) {
 		}
 	}()
 
-	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	testHandler := http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		correlationID, ok := r.Context().Value(CorrelationIDCtxKey).(string)
 		assert.Equal(t, true, ok)
 		assert.NotNil(t, correlationID)

@@ -94,7 +94,7 @@ func TestGetContextAuth(t *testing.T) {
 }
 
 func TestUnaryClientInterceptor(t *testing.T) {
-	mockInvoker := func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, opts ...grpc.CallOption) error {
+	mockInvoker := func(_ context.Context, _ string, _, _ interface{}, _ *grpc.ClientConn, _ ...grpc.CallOption) error {
 		return nil
 	}
 	assert.NoError(
@@ -110,7 +110,7 @@ func TestUnaryClientInterceptor(t *testing.T) {
 }
 
 func TestStreamClientInterceptor(t *testing.T) {
-	mockStreamer := func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+	mockStreamer := func(_ context.Context, _ *grpc.StreamDesc, _ *grpc.ClientConn, _ string, _ ...grpc.CallOption) (grpc.ClientStream, error) {
 		return nil, nil
 	}
 	stream, err := StreamClientInterceptor(

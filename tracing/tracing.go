@@ -17,7 +17,6 @@ package tracing
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -26,7 +25,7 @@ import (
 	"github.com/spothero/tools/log"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/exporters/jaeger"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
@@ -78,12 +77,8 @@ func (c Config) TracerProvider() (func(context.Context) error, error) {
 		agentPort = strconv.Itoa(c.AgentPort)
 	}
 
-	agentHost := "localhost" // default host
-	if c.AgentHost != "" {
-		agentHost = c.AgentHost
-	}
-
-	exp, err := otlptracehttp.New(ctx, otlptracehttp.WithEndpoint(fmt.Sprintf("%s:%s", agentHost, agentPort)))
+	exp, err := jaeger.New(
+		jaeger.WithAgentEndpoint(jaeger.WithAgentHost(c.AgentHost), jaeger.WithAgentPort(agentPort)))
 	if err != nil {
 		logger.Error("could not initialize Jaeger OTEL exporter", zap.Error(err))
 		return nil, err
@@ -104,7 +99,7 @@ func (c Config) TracerProvider() (func(context.Context) error, error) {
 		semconv.ServiceVersionKey.String(os.Getenv("VERSION")),
 		semconv.TelemetrySDKLanguageGo,
 		semconv.TelemetrySDKNameKey.String("opentelemetry"),
-		semconv.TelemetrySDKVersionKey.String("1.11.0"),
+		semconv.TelemetrySDKVersionKey.String("1.23.1"),
 		semconv.K8SPodNameKey.String(os.Getenv("HOSTNAME")),
 		semconv.K8SNamespaceNameKey.String(os.Getenv("POD_NAMESPACE")),
 		attribute.String("ip", os.Getenv("POD_IP")),

@@ -45,7 +45,7 @@ func TestConfigureHub(t *testing.T) {
 
 func TestUnaryServerInterceptor(t *testing.T) {
 	info := &grpc.UnaryServerInfo{}
-	mockHandler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	mockHandler := func(_ context.Context, _ interface{}) (interface{}, error) {
 		return struct{}{}, nil
 	}
 	assert.NotPanics(t, func() {
@@ -57,7 +57,7 @@ func TestUnaryServerInterceptor(t *testing.T) {
 
 func TestStreamServerInterceptor(t *testing.T) {
 	info := &grpc.StreamServerInfo{}
-	mockHandler := func(srv interface{}, stream grpc.ServerStream) error {
+	mockHandler := func(_ interface{}, _ grpc.ServerStream) error {
 		return nil
 	}
 	mockStream := &grpcmock.ServerStream{}

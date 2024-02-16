@@ -34,7 +34,7 @@ func TestUnaryServerInterceptor(t *testing.T) {
 
 	_, spanCtx := StartSpanFromContext(ctx, "test")
 	info := &grpc.UnaryServerInfo{}
-	mockHandler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	mockHandler := func(ctx context.Context, _ interface{}) (interface{}, error) {
 		correlationID, ok := ctx.Value(CorrelationIDCtxKey).(string)
 		assert.Equal(t, true, ok)
 		assert.NotNil(t, correlationID)
@@ -57,7 +57,7 @@ func TestStreamServerInterceptor(t *testing.T) {
 
 	_, spanCtx := StartSpanFromContext(context.Background(), "test")
 	info := &grpc.StreamServerInfo{}
-	mockHandler := func(srv interface{}, stream grpc.ServerStream) error {
+	mockHandler := func(_ interface{}, stream grpc.ServerStream) error {
 		correlationID, ok := stream.Context().Value(CorrelationIDCtxKey).(string)
 		assert.Equal(t, true, ok)
 		assert.NotNil(t, correlationID)
@@ -79,7 +79,7 @@ func TestUnaryClientInterceptor(t *testing.T) {
 		}
 	}()
 
-	mockInvoker := func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, opts ...grpc.CallOption) error {
+	mockInvoker := func(ctx context.Context, _ string, _, _ interface{}, _ *grpc.ClientConn, _ ...grpc.CallOption) error {
 		correlationID, ok := ctx.Value(CorrelationIDCtxKey).(string)
 		assert.Equal(t, true, ok)
 		assert.NotNil(t, correlationID)
@@ -110,7 +110,7 @@ func TestStreamClientInterceptor(t *testing.T) {
 	}()
 	_, spanCtx := StartSpanFromContext(context.Background(), "test")
 
-	mockStreamer := func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+	mockStreamer := func(ctx context.Context, _ *grpc.StreamDesc, _ *grpc.ClientConn, _ string, _ ...grpc.CallOption) (grpc.ClientStream, error) {
 		correlationID, ok := ctx.Value(CorrelationIDCtxKey).(string)
 		assert.Equal(t, true, ok)
 		assert.NotNil(t, correlationID)
