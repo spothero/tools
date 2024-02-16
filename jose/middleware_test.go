@@ -82,7 +82,7 @@ func TestGetHTTPServerMiddleware(t *testing.T) {
 			).Return(parseErr)
 
 			testHandlerCalled := false
-			testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			testHandler := http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 				testHandlerCalled = true
 				value, ok := r.Context().Value(MockClaimKey).(*MockClaim)
 				if test.expectClaim {
@@ -252,7 +252,7 @@ func TestEnforceAuthenticationWithAuthorization(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		handler := func(w http.ResponseWriter, r *http.Request) {
+		handler := func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		}
 

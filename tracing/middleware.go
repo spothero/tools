@@ -147,7 +147,7 @@ func SQLMiddleware(ctx context.Context, queryName, query string, _ ...interface{
 	attrs = append(attrs, attribute.String("db.statement", query))
 	// attrs = append(attrs, attribute.StringSlice("db.statement.arguments", args))
 	span.SetAttributes(attrs...)
-	mwEnd := func(ctx context.Context, queryName, query string, queryErr error, args ...interface{}) (context.Context, error) {
+	mwEnd := func(ctx context.Context, _, _ string, queryErr error, _ ...interface{}) (context.Context, error) {
 		defer span.End()
 		if queryErr != nil {
 			span.SetAttributes(attribute.Bool("error", true))

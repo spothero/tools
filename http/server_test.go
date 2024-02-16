@@ -49,8 +49,8 @@ func TestNewServer(t *testing.T) {
 	mockRegistration := func(_ *mux.Router) {
 		registrationCalled = true
 	}
-	mockPreStart := func(ctx context.Context, router *mux.Router, server *http.Server) {}
-	mockPostShutdown := func(ctx context.Context) {}
+	mockPreStart := func(_ context.Context, _ *mux.Router, _ *http.Server) {}
+	mockPostShutdown := func(_ context.Context) {}
 
 	config := Config{
 		Address:          "127.0.0.1",
