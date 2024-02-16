@@ -59,7 +59,7 @@ func TestFetchRoutePathTemplate(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func(_ *testing.T) {
 			pathTemplate := ""
 			mockHandler := func(w http.ResponseWriter, r *http.Request) {
 				pathTemplate = FetchRoutePathTemplate(r)

@@ -23,7 +23,7 @@ import (
 )
 
 func generateStartMiddleware(callCount *int, returnErr bool) Start {
-	return func(ctx context.Context, queryName, query string, args ...interface{}) (context.Context, End, error) {
+	return func(ctx context.Context, _, query string, args ...interface{}) (context.Context, End, error) {
 		*callCount++
 		var err error
 		if returnErr {
@@ -34,7 +34,7 @@ func generateStartMiddleware(callCount *int, returnErr bool) Start {
 }
 
 func generateEndMiddleware(callCount *int, returnErr bool) End {
-	return func(ctx context.Context, queryName, query string, queryErr error, args ...interface{}) (context.Context, error) {
+	return func(ctx context.Context, _, query string, queryErr error, args ...interface{}) (context.Context, error) {
 		var err error
 		if returnErr {
 			err = fmt.Errorf("fake error")

@@ -46,7 +46,7 @@ func TestNewDefaultConfig(t *testing.T) {
 
 func TestNewServer(t *testing.T) {
 	registrationCalled := false
-	mockRegistration := func(r *mux.Router) {
+	mockRegistration := func(_ *mux.Router) {
 		registrationCalled = true
 	}
 	mockPreStart := func(ctx context.Context, router *mux.Router, server *http.Server) {}
@@ -81,7 +81,7 @@ func TestNewServer(t *testing.T) {
 		"/metrics":             true,
 		"/loglevel":            true,
 	}
-	err := server.router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+	err := server.router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
 		routeName, err := route.GetPathTemplate()
 		assert.NoError(t, err)
 		if _, ok := expectedRoutes[routeName]; !ok {

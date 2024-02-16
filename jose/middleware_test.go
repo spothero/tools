@@ -171,7 +171,7 @@ func TestEnforceAuthentication(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		handler := func(w http.ResponseWriter, r *http.Request) {
+		handler := func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		}
 

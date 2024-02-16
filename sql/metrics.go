@@ -212,7 +212,7 @@ func (m metrics) exportMetrics(db *sql.DB, frequency time.Duration) chan<- bool 
 // metrics.
 func (m metrics) Middleware(ctx context.Context, _, _ string, _ ...interface{}) (context.Context, middleware.End, error) {
 	startTime := time.Now()
-	mwEnd := func(ctx context.Context, queryName, query string, queryErr error, args ...interface{}) (context.Context, error) {
+	mwEnd := func(ctx context.Context, queryName, _ string, queryErr error, _ ...interface{}) (context.Context, error) {
 		outcome := "success"
 		if queryErr != nil {
 			outcome = "error"

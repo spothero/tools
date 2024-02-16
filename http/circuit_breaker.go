@@ -78,7 +78,7 @@ func (cbrt *CircuitBreakerRoundTripper) RoundTrip(req *http.Request) (*http.Resp
 
 	var resp *http.Response
 	var requestErr error
-	makeRequestFunc := func(ctx context.Context) error {
+	makeRequestFunc := func(_ context.Context) error {
 		resp, requestErr = cbrt.RoundTripper.RoundTrip(req)
 		if requestErr != nil || resp.StatusCode >= http.StatusInternalServerError {
 			return fmt.Errorf("failed request, invoking circuit-breaker")

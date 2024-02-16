@@ -121,7 +121,7 @@ func SQLMiddleware(ctx context.Context, queryName, query string, _ ...interface{
 		logger = logger.With(zap.String("query_name", queryName))
 	}
 	logger.Debug("attempting sql query")
-	mwEnd := func(ctx context.Context, queryName, query string, queryErr error, args ...interface{}) (context.Context, error) {
+	mwEnd := func(ctx context.Context, _, query string, queryErr error, args ...interface{}) (context.Context, error) {
 		if queryErr != nil {
 			logger.With(zap.Error(queryErr)).Error("failed sql query")
 		} else {

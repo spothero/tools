@@ -113,7 +113,7 @@ func (c Config) ServerCmd(
 		Long:             longDescription,
 		Version:          fmt.Sprintf("%s (%s)", c.Version, c.GitSHA),
 		PersistentPreRun: cli.CobraBindEnvironmentVariables(strings.Replace(c.Name, "-", "_", -1)),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			sc.Environment = c.Environment
 
 			if err := c.CheckFlags(); err != nil {
