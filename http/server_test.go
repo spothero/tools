@@ -96,11 +96,11 @@ func TestNewServer(t *testing.T) {
 
 func TestRun(t *testing.T) {
 	preStartCalled := false
-	mockPreStart := func(ctx context.Context, router *mux.Router, server *http.Server) {
+	mockPreStart := func(_ context.Context, _ *mux.Router, _ *http.Server) {
 		preStartCalled = true
 	}
 	postShutdownCalled := false
-	mockPostShutdown := func(ctx context.Context) {
+	mockPostShutdown := func(_ context.Context) {
 		postShutdownCalled = true
 	}
 	router := mux.NewRouter()

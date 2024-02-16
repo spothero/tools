@@ -139,12 +139,12 @@ func TestNewProducerMetrics(t *testing.T) {
 	}{
 		{
 			name: "new metrics are registered and returned",
-			registerer: func(t *testing.T) prometheus.Registerer {
+			registerer: func(_ *testing.T) prometheus.Registerer {
 				return prometheus.NewRegistry()
 			},
 		}, {
 			name: "error registering messages produced returns an error",
-			registerer: func(t *testing.T) prometheus.Registerer {
+			registerer: func(_ *testing.T) prometheus.Registerer {
 				r := prometheus.NewRegistry()
 				r.MustRegister(
 					prometheus.NewGaugeVec(
@@ -157,7 +157,7 @@ func TestNewProducerMetrics(t *testing.T) {
 			expectErr: true,
 		}, {
 			name: "error registering messages errored returns an error",
-			registerer: func(t *testing.T) prometheus.Registerer {
+			registerer: func(_ *testing.T) prometheus.Registerer {
 				r := prometheus.NewRegistry()
 				r.MustRegister(
 					prometheus.NewGaugeVec(
