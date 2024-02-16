@@ -45,6 +45,11 @@ func TestConfigureTracer(t *testing.T) {
 			true,
 		},
 		{
+			"no valid agentHost provided leads to an error",
+			Config{Enabled: true, ServiceName: "service-name", AgentHost: "[:]:", AgentPort: 6831},
+			true,
+		},
+		{
 			"numeric agent port leads to no error",
 			Config{Enabled: true, ServiceName: "service-name", AgentPort: 6831},
 			false,
