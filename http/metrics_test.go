@@ -117,7 +117,7 @@ func TestMiddleware(t *testing.T) {
 	labels := prometheus.Labels{
 		"path":                 "/",
 		"authenticated_client": UNAUTHENTICATED,
-		"method": 				"GET",
+		"method":               "GET",
 	}
 	requestCounter, err := metrics.requestCounter.GetMetricWith(labels)
 	assert.NoError(t, err)
@@ -238,7 +238,7 @@ func TestMetricsRoundTrip(t *testing.T) {
 					"path":                 "/path",
 					"status_code":          "200",
 					"authenticated_client": UNAUTHENTICATED,
-					"method": 				"GET",
+					"method":               "GET",
 				}
 
 				// Check duration histogram

@@ -178,7 +178,7 @@ func (m Metrics) Middleware(next http.Handler) http.Handler {
 		labels := prometheus.Labels{
 			"path":                 writer.FetchRoutePathTemplate(r),
 			"authenticated_client": retrieveAuthenticatedClient(r),
-			"method": 				r.Method,
+			"method":               r.Method,
 		}
 		m.requestCounter.With(labels).Inc()
 
@@ -222,7 +222,7 @@ func (metricsRT MetricsRoundTripper) RoundTrip(r *http.Request) (*http.Response,
 				"path":                 r.URL.Path,
 				"status_code":          strconv.Itoa(resp.StatusCode),
 				"authenticated_client": retrieveAuthenticatedClient(r),
-				"method":				r.Method,
+				"method":               r.Method,
 			}
 			metricsRT.Metrics.clientCounter.With(labels).Inc()
 			if contentLengthStr := r.Header.Get("Content-Length"); len(contentLengthStr) > 0 {
