@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/spothero/tools/log"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -23,7 +24,7 @@ var (
 		if !ok {
 			return nil, errDefault
 		}
-
+		log.Get(ctx).Debug(fmt.Sprintf("executing function with arg %d ", argVal))
 		return argVal * 2, nil
 	}
 )

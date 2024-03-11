@@ -155,7 +155,7 @@ func TestWorkerPool_TimeOut(t *testing.T) {
 
 // Test_WorkerPool_Cancel, this is the test to verify the cancel option for the worker set at the context level
 func Test_WorkerPool_Cancel(t *testing.T) {
-	wp := New(workerCount, tasksCount, "Test_WorkerPool_Cancel")
+	wp := New(DefaultWorkerCount, tasksCount, "Test_WorkerPool_Cancel")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
