@@ -10,7 +10,8 @@ import (
 	"time"
 )
 
-const loopTimeout = time.Second * 20
+const LoopTimeout = time.Second * 20
+const SleepTime = time.Microsecond * 20
 
 // DefaultWorkerCount default workers count, depend on runtime cpu value
 var DefaultWorkerCount = runtime.NumCPU() / 2
@@ -30,7 +31,7 @@ func workerReadLoop(
 			if time.Since(initialTime) > timeOut {
 				return nil, true, fmt.Errorf("%s, worker %d: chan read loop timeout", workerName, workerID)
 			}
-			time.Sleep(time.Microsecond * 10)
+			time.Sleep(SleepTime)
 			continue
 		}
 
@@ -61,7 +62,7 @@ func workerWriteLoop(
 			if time.Since(initialTime) > timeOut {
 				return true, fmt.Errorf("%s, worker %d: chan write loop timeout", workerName, workerID)
 			}
-			time.Sleep(time.Microsecond * 10)
+			time.Sleep(SleepTime)
 			continue
 		}
 		outputChan <- result
@@ -134,7 +135,7 @@ func NewWithLoopTimeOut(workerCount, tasksCount int, workerPoolName string, loop
 }
 
 func New(workerCount, tasksCount int, workerPoolName string) WorkerPool {
-	return NewWithLoopTimeOut(workerCount, tasksCount, workerPoolName, loopTimeout)
+	return NewWithLoopTimeOut(workerCount, tasksCount, workerPoolName, LoopTimeout)
 }
 
 func (wp WorkerPool) Run(ctx context.Context) {
