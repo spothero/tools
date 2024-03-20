@@ -165,12 +165,9 @@ func (c *Core) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 		}
 	}
 
-	// Group logs with the same stack trace together unless there is no
-	// stack trace, then group by message
-	fingerprint := ent.Stack
-	if ent.Stack == "" {
-		fingerprint = ent.Message
-	}
+	// Group logs with the same message
+	fingerprint := ent.Message
+
 	event := sentry.NewEvent()
 	event.Message = ent.Message
 	event.Level = severity
