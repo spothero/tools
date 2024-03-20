@@ -17,8 +17,8 @@ const SleepTime = time.Microsecond * 5
 var DefaultWorkerCount = runtime.NumCPU()
 
 func workerReadLoop(
-	workerID int, workerName string,                        // worker metadata for tracking/debugging purpose
-	tasks chan Task,                                        // input args
+	workerID int, workerName string, // worker metadata for tracking/debugging purpose
+	tasks chan Task, // input args
 	stopChan, inputReadyChan, nextInputReadyChan chan bool, // synchronization channels args
 	initialTime time.Time, timeOut time.Duration) (task *Task, stop bool, err error) {
 	for {
@@ -48,8 +48,8 @@ func workerReadLoop(
 }
 
 func workerWriteLoop(
-	workerID int, workerName string,                          // worker metadata for tracking/debugging purpose
-	result Result, outputChan chan Result,                    // results args
+	workerID int, workerName string, // worker metadata for tracking/debugging purpose
+	result Result, outputChan chan Result, // results args
 	stopChan, outputReadyChan, nextOutputReadyChan chan bool, // synchronization channels args
 	initialTime time.Time, timeOut time.Duration) (stop bool, err error) {
 	for {
@@ -71,11 +71,11 @@ func workerWriteLoop(
 	}
 }
 
-func worker(ctx context.Context, wg *sync.WaitGroup,     // context and wait group args
-	workerID int, workerName string,                     // worker metadata for tracking/debugging purpose
-	tasks chan Task, results chan Result,                // input task and output result channel args
+func worker(ctx context.Context, wg *sync.WaitGroup, // context and wait group args
+	workerID int, workerName string, // worker metadata for tracking/debugging purpose
+	tasks chan Task, results chan Result, // input task and output result channel args
 	stopChan, inputReadyChan, outputReadyChan chan bool, // current worker synchronization channels args
-	nextInputReadyChan, nextOutputReadyChan chan bool,   // next worker synchronization channels args
+	nextInputReadyChan, nextOutputReadyChan chan bool, // next worker synchronization channels args
 	timeOut time.Duration) {
 	defer wg.Done()
 
