@@ -11,10 +11,10 @@ import (
 )
 
 const LoopTimeout = time.Second * 20
-const SleepTime = time.Microsecond * 20
+const SleepTime = time.Microsecond * 5
 
 // DefaultWorkerCount default workers count, depend on runtime cpu value
-var DefaultWorkerCount = runtime.NumCPU() / 2
+var DefaultWorkerCount = runtime.NumCPU()
 
 func workerReadLoop(
 	workerID int, workerName string, // worker metadata for tracking/debugging purpose
