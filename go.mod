@@ -1,6 +1,6 @@
 module github.com/spothero/tools
 
-go 1.22.1
+go 1.22.2
 
 // exclude vulnerable dependency: github.com/prometheus/client_golang -> github.com/prometheus/common@v0.4.1 -> vulnerable
 // the dependency is unused according to the prometheus maintainers - https://github.com/prometheus/client_golang/issues/836#issuecomment-776831141
@@ -32,7 +32,7 @@ require (
 	go.opentelemetry.io/otel v1.23.1
 	go.opentelemetry.io/otel/sdk v1.23.1
 	go.uber.org/zap v1.26.0
-	golang.org/x/net v0.20.0
+	golang.org/x/net v0.23.0
 	google.golang.org/grpc v1.60.1
 )
 
@@ -76,6 +76,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/common v0.46.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
+	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
@@ -85,9 +86,10 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	go.opentelemetry.io/otel/metric v1.23.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.19.0 // indirect
+	golang.org/x/crypto v0.21.0 // indirect
 	golang.org/x/exp v0.0.0-20240119083558-1b970713d09a // indirect
-	golang.org/x/sys v0.17.0 // indirect
+	golang.org/x/sync v0.6.0 // indirect
+	golang.org/x/sys v0.18.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240123012728-ef4313101c80 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
