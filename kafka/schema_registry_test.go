@@ -29,7 +29,7 @@ import (
 
 	shHTTP "github.com/spothero/tools/http"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/linkedin/goavro/v2"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"

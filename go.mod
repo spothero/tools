@@ -8,7 +8,7 @@ exclude github.com/gogo/protobuf v1.1.1
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
-	github.com/Shopify/sarama v1.38.1
+	github.com/IBM/sarama v1.40.0
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/gchaincl/sqlhooks v1.3.0
 	github.com/getsentry/sentry-go v0.26.0
@@ -88,7 +88,6 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.21.0 // indirect
 	golang.org/x/exp v0.0.0-20240119083558-1b970713d09a // indirect
-	golang.org/x/sync v0.6.0 // indirect
 	golang.org/x/sys v0.18.0 // indirect
 	golang.org/x/sync v0.6.0 // indirect
 	golang.org/x/sys v0.18.0 // indirect
