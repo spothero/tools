@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rcrowley/go-metrics"
 	"github.com/stretchr/testify/assert"
@@ -62,6 +62,7 @@ func TestConfig_populateSaramaConfig(t *testing.T) {
 				expected.Producer.Return.Errors = true
 				expected.Producer.Return.Successes = true
 				expected.Producer.RequiredAcks = 0
+				expected.Consumer.Group.Rebalance = cfg.Consumer.Group.Rebalance // added default Rebalance Strategy
 
 				assert.Equal(t, expected, cfg)
 			},

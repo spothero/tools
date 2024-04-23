@@ -21,7 +21,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 )
 
 // MessageUnmarshaller are helpers for unmarshalling Kafka messages into Go types

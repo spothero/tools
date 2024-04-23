@@ -3,7 +3,7 @@ package kafka
 import (
 	"time"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/pflag"
 )

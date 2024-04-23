@@ -8,7 +8,7 @@ exclude github.com/gogo/protobuf v1.1.1
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
-	github.com/Shopify/sarama v1.38.1
+	github.com/IBM/sarama v1.42.0
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/gchaincl/sqlhooks v1.3.0
 	github.com/getsentry/sentry-go v0.26.0
