@@ -62,6 +62,7 @@ func TestConfig_populateSaramaConfig(t *testing.T) {
 				expected.Producer.Return.Errors = true
 				expected.Producer.Return.Successes = true
 				expected.Producer.RequiredAcks = 0
+				expected.Consumer.Group.Rebalance = cfg.Consumer.Group.Rebalance // added default Rebalance Strategy
 
 				assert.Equal(t, expected, cfg)
 			},
