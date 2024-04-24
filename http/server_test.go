@@ -37,7 +37,7 @@ func TestNewDefaultConfig(t *testing.T) {
 		WriteTimeout:    60,
 		HealthHandler:   true,
 		MetricsHandler:  true,
-		PprofHandler:    true,
+		PprofHandler:    false,
 		DynamicLogLevel: true,
 		Middleware:      nil,
 		CancelSignals:   []os.Signal{os.Interrupt},
