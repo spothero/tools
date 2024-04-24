@@ -77,7 +77,7 @@ func NewDefaultConfig(name string) Config {
 		WriteTimeout:    60,
 		HealthHandler:   true,
 		MetricsHandler:  true,
-		PprofHandler:    true,
+		PprofHandler:    false,
 		DynamicLogLevel: true,
 		CancelSignals:   []os.Signal{os.Interrupt},
 	}
