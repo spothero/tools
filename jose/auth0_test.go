@@ -83,13 +83,18 @@ func TestGetClientID(t *testing.T) {
 			expected: "id",
 		},
 		{
-			name:     "user id present",
+			name:     "client id present",
 			input:    Auth0Claim{ID: "id", Email: "email", GrantType: "password", Scope: ""},
 			expected: "",
 		},
 		{
-			name:     "user id present",
+			name:     "client id present with grant type is slice",
 			input:    Auth0Claim{ID: "id", Email: "email", GrantType: []string{"refresh", "password"}, Scope: ""},
+			expected: "",
+		},
+		{
+			name:     "user id presented grant array is unknown element type",
+			input:    Auth0Claim{ID: "user-id", Email: "email", GrantType: []int{1}, Scope: ""},
 			expected: "",
 		},
 		{
@@ -138,6 +143,11 @@ func TestGetUserID(t *testing.T) {
 			name:     "user id presented as ['refresh_token', password]",
 			input:    Auth0Claim{ID: "user-id", Email: "email", GrantType: []string{"refresh", "password"}, Scope: ""},
 			expected: "user-id",
+		},
+		{
+			name:     "user id presented grant array is unknown element type",
+			input:    Auth0Claim{ID: "user-id", Email: "email", GrantType: []int{1}, Scope: ""},
+			expected: "",
 		},
 		{
 			name:     "unknown grant",
