@@ -78,6 +78,11 @@ func TestGetClientID(t *testing.T) {
 			expected: "id",
 		},
 		{
+			name:     "client id present when GrantType is slice",
+			input:    Auth0Claim{ID: "id", Email: "email", GrantType: []string{"client-credentials"}, Scope: ""},
+			expected: "id",
+		},
+		{
 			name:     "user id present",
 			input:    Auth0Claim{ID: "id", Email: "email", GrantType: "password", Scope: ""},
 			expected: "",
@@ -118,6 +123,7 @@ func TestGetUserID(t *testing.T) {
 			input:    Auth0Claim{ID: "client-id", Email: "email", GrantType: "client-credentials", Scope: ""},
 			expected: "",
 		},
+
 		{
 			name:     "user id presented as password",
 			input:    Auth0Claim{ID: "user-id", Email: "email", GrantType: "password", Scope: ""},
