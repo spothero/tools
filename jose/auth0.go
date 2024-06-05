@@ -17,6 +17,7 @@ package jose
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 )
 
@@ -57,6 +58,15 @@ func (cc Auth0Claim) NewContext(ctx context.Context) context.Context {
 // GetClientID returns the ClientID field of the claim if it is present,
 // otherwise the empty string
 func (cc Auth0Claim) GetClientID() string {
+	if reflect.TypeOf(cc.GrantType).Kind() == reflect.Slice {
+		for _, grantType := range cc.GrantType.([]string) {
+			if grantType == "client-credentials" {
+				// because Auth0 adds the undesirable suffix of "@clients"
+				return strings.TrimSuffix(cc.ID, "@clients")
+			}
+		}
+	}
+
 	if cc.GrantType == "client-credentials" {
 		// because Auth0 adds the undesirable suffix of "@clients"
 		return strings.TrimSuffix(cc.ID, "@clients")
@@ -68,6 +78,14 @@ func (cc Auth0Claim) GetClientID() string {
 // GetUserID returns the UserID field of the claim if it is present, otherwise
 // the empty string
 func (cc Auth0Claim) GetUserID() string {
+	if reflect.TypeOf(cc.GrantType).Kind() == reflect.Slice {
+		for _, grantType := range cc.GrantType.([]string) {
+			if grantType == "password" || grantType == "authorization_code" {
+				return cc.ID
+			}
+		}
+	}
+
 	if cc.GrantType == "password" || cc.GrantType == "authorization_code" {
 		return cc.ID
 	}

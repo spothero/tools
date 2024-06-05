@@ -70,7 +70,7 @@ func TestGetClientID(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    Auth0Claim
-		expected string
+		expected interface{}
 	}{
 		{
 			name:     "client id present",
@@ -80,6 +80,11 @@ func TestGetClientID(t *testing.T) {
 		{
 			name:     "user id present",
 			input:    Auth0Claim{ID: "id", Email: "email", GrantType: "password", Scope: ""},
+			expected: "",
+		},
+		{
+			name:     "user id present",
+			input:    Auth0Claim{ID: "id", Email: "email", GrantType: []string{"refresh", "password"}, Scope: ""},
 			expected: "",
 		},
 		{
@@ -106,7 +111,7 @@ func TestGetUserID(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    Auth0Claim
-		expected string
+		expected interface{}
 	}{
 		{
 			name:     "client id present",
@@ -121,6 +126,11 @@ func TestGetUserID(t *testing.T) {
 		{
 			name:     "user id presented as authorization_code",
 			input:    Auth0Claim{ID: "user-id", Email: "email", GrantType: "password", Scope: ""},
+			expected: "user-id",
+		},
+		{
+			name:     "user id presented as ['refresh_token', password]",
+			input:    Auth0Claim{ID: "user-id", Email: "email", GrantType: []string{"refresh", "password"}, Scope: ""},
 			expected: "user-id",
 		},
 		{
