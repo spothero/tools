@@ -36,11 +36,11 @@ type Auth0Generator struct{}
 type Auth0Claim struct {
 	ID string `json:"sub"`
 	// Email claims are namespaced to prevent collisions. Hardcoding for now as this will be constant.
-	Email          string `json:"https://api.spothero.com/claims/email"`
-	ClientName     string `json:"https://api.spothero.com/claims/clientName"`
-	GrantType      string `json:"gty"`
-	Scope          string `json:"scope"`
-	ExternalUserID string `json:"https://api.spothero.com/claims/user_id"`
+	Email          string      `json:"https://api.spothero.com/claims/email"`
+	ClientName     string      `json:"https://api.spothero.com/claims/clientName"`
+	GrantType      interface{} `json:"gty"`
+	Scope          string      `json:"scope"`
+	ExternalUserID string      `json:"https://api.spothero.com/claims/user_id"`
 }
 
 // New satisfies the ClaimGenerator interface, returning an empty claim for use with JOSE parsing
