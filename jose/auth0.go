@@ -17,6 +17,7 @@ package jose
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 )
 
@@ -36,11 +37,11 @@ type Auth0Generator struct{}
 type Auth0Claim struct {
 	ID string `json:"sub"`
 	// Email claims are namespaced to prevent collisions. Hardcoding for now as this will be constant.
-	Email          string `json:"https://api.spothero.com/claims/email"`
-	ClientName     string `json:"https://api.spothero.com/claims/clientName"`
-	GrantType      string `json:"gty"`
-	Scope          string `json:"scope"`
-	ExternalUserID string `json:"https://api.spothero.com/claims/user_id"`
+	Email          string      `json:"https://api.spothero.com/claims/email"`
+	ClientName     string      `json:"https://api.spothero.com/claims/clientName"`
+	GrantType      interface{} `json:"gty"`
+	Scope          string      `json:"scope"`
+	ExternalUserID string      `json:"https://api.spothero.com/claims/user_id"`
 }
 
 // New satisfies the ClaimGenerator interface, returning an empty claim for use with JOSE parsing
@@ -57,6 +58,15 @@ func (cc Auth0Claim) NewContext(ctx context.Context) context.Context {
 // GetClientID returns the ClientID field of the claim if it is present,
 // otherwise the empty string
 func (cc Auth0Claim) GetClientID() string {
+	if reflect.TypeOf(cc.GrantType).Kind() == reflect.Slice && reflect.TypeOf(cc.GrantType).Elem().Kind() == reflect.String {
+		for _, grantType := range cc.GrantType.([]string) {
+			if grantType == "client-credentials" {
+				// because Auth0 adds the undesirable suffix of "@clients"
+				return strings.TrimSuffix(cc.ID, "@clients")
+			}
+		}
+	}
+
 	if cc.GrantType == "client-credentials" {
 		// because Auth0 adds the undesirable suffix of "@clients"
 		return strings.TrimSuffix(cc.ID, "@clients")
@@ -68,6 +78,14 @@ func (cc Auth0Claim) GetClientID() string {
 // GetUserID returns the UserID field of the claim if it is present, otherwise
 // the empty string
 func (cc Auth0Claim) GetUserID() string {
+	if reflect.TypeOf(cc.GrantType).Kind() == reflect.Slice && reflect.TypeOf(cc.GrantType).Elem().Kind() == reflect.String {
+		for _, grantType := range cc.GrantType.([]string) {
+			if grantType == "password" || grantType == "authorization_code" {
+				return cc.ID
+			}
+		}
+	}
+
 	if cc.GrantType == "password" || cc.GrantType == "authorization_code" {
 		return cc.ID
 	}

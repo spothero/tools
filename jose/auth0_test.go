@@ -70,7 +70,7 @@ func TestGetClientID(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    Auth0Claim
-		expected string
+		expected interface{}
 	}{
 		{
 			name:     "client id present",
@@ -78,8 +78,23 @@ func TestGetClientID(t *testing.T) {
 			expected: "id",
 		},
 		{
-			name:     "user id present",
+			name:     "client id present when GrantType is slice",
+			input:    Auth0Claim{ID: "id", Email: "email", GrantType: []string{"client-credentials"}, Scope: ""},
+			expected: "id",
+		},
+		{
+			name:     "client id present",
 			input:    Auth0Claim{ID: "id", Email: "email", GrantType: "password", Scope: ""},
+			expected: "",
+		},
+		{
+			name:     "client id present with grant type is slice",
+			input:    Auth0Claim{ID: "id", Email: "email", GrantType: []string{"refresh", "password"}, Scope: ""},
+			expected: "",
+		},
+		{
+			name:     "user id presented grant array is unknown element type",
+			input:    Auth0Claim{ID: "user-id", Email: "email", GrantType: []int{1}, Scope: ""},
 			expected: "",
 		},
 		{
@@ -106,13 +121,14 @@ func TestGetUserID(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    Auth0Claim
-		expected string
+		expected interface{}
 	}{
 		{
 			name:     "client id present",
 			input:    Auth0Claim{ID: "client-id", Email: "email", GrantType: "client-credentials", Scope: ""},
 			expected: "",
 		},
+
 		{
 			name:     "user id presented as password",
 			input:    Auth0Claim{ID: "user-id", Email: "email", GrantType: "password", Scope: ""},
@@ -122,6 +138,16 @@ func TestGetUserID(t *testing.T) {
 			name:     "user id presented as authorization_code",
 			input:    Auth0Claim{ID: "user-id", Email: "email", GrantType: "password", Scope: ""},
 			expected: "user-id",
+		},
+		{
+			name:     "user id presented as ['refresh_token', password]",
+			input:    Auth0Claim{ID: "user-id", Email: "email", GrantType: []string{"refresh", "password"}, Scope: ""},
+			expected: "user-id",
+		},
+		{
+			name:     "user id presented grant array is unknown element type",
+			input:    Auth0Claim{ID: "user-id", Email: "email", GrantType: []int{1}, Scope: ""},
+			expected: "",
 		},
 		{
 			name:     "unknown grant",
