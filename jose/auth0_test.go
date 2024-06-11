@@ -70,7 +70,7 @@ func TestGetClientID(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    Auth0Claim
-		expected interface{}
+		expected string
 	}{
 		{
 			name:     "client id present",
@@ -107,6 +107,11 @@ func TestGetClientID(t *testing.T) {
 			input:    Auth0Claim{ID: "leeroy-jenkins@clients", Email: "email", GrantType: "client-credentials", Scope: ""},
 			expected: "leeroy-jenkins",
 		},
+		{
+			name:     "empty claim",
+			input:    Auth0Claim{},
+			expected: "",
+		},
 	}
 
 	for _, test := range tests {
@@ -121,7 +126,7 @@ func TestGetUserID(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    Auth0Claim
-		expected interface{}
+		expected string
 	}{
 		{
 			name:     "client id present",
@@ -152,6 +157,11 @@ func TestGetUserID(t *testing.T) {
 		{
 			name:     "unknown grant",
 			input:    Auth0Claim{ID: "id", Email: "email", GrantType: "BoGuS", Scope: ""},
+			expected: "",
+		},
+		{
+			name:     "empty claim",
+			input:    Auth0Claim{},
 			expected: "",
 		},
 	}
