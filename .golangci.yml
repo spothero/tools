@@ -1,5 +1,5 @@
 run:
-  deadline: 5m
+  timeout: 5m
   tests: true
 
 linters:
@@ -7,7 +7,7 @@ linters:
     - revive
     - gofmt
     - staticcheck
-    - vet
+    - govet
     - misspell
     - ineffassign
     - errcheck
@@ -16,5 +16,7 @@ linters:
 
 linters-settings:
   govet:
-    check-shadowing: true
+    settings:
+      shadow:
+        strict: true
     enable-all: true

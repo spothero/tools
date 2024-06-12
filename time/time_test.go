@@ -45,13 +45,13 @@ func TestLoadLocation(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			loc, err := LoadLocation(test.locationName)
+			loc, locErr := LoadLocation(test.locationName)
 			if test.expectedOutcome != nil {
 				assert.Equal(t, test.expectedOutcome, loc)
-				assert.NoError(t, err)
+				assert.NoError(t, locErr)
 				assert.Contains(t, locCache.cache, test.locationName)
 			} else {
-				assert.Error(t, err)
+				assert.Error(t, locErr)
 			}
 		})
 	}

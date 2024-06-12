@@ -25,6 +25,8 @@ import (
 )
 
 func TestParseCoordinates(t *testing.T) {
+	assertTest := assert.New(t)
+
 	tests := []struct {
 		name         string
 		url          string
@@ -156,25 +158,25 @@ func TestParseCoordinates(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			assert := assert.New(t)
-
+		t.Run(test.name, func(_ *testing.T) {
 			r, _ := http.NewRequest(http.MethodGet, test.url, strings.NewReader(""))
 			maybeCoords, err := ParseCoordinates(r, test.latFieldName, test.lonFieldName)
-			assert.True((err == nil && test.errStr == "") || err != nil && err.Error() == test.errStr)
-			assert.Equal(test.coords, maybeCoords)
+			assertTest.True((err == nil && test.errStr == "") || err != nil && err.Error() == test.errStr)
+			assertTest.Equal(test.coords, maybeCoords)
 		})
 	}
 }
 
 func TestParseTime(t *testing.T) {
+	assertTest := assert.New(t)
+
 	buildTime := func(isoStr string) time.Time {
-		time, err := time.Parse(time.RFC3339, isoStr)
+		parsedTime, err := time.Parse(time.RFC3339, isoStr)
 		if err != nil {
 			panic(fmt.Sprintf("Could not parse as RFC3339: %v", isoStr))
 		}
 
-		return time
+		return parsedTime
 	}
 
 	tests := []struct {
@@ -236,13 +238,11 @@ func TestParseTime(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			assert := assert.New(t)
-
+		t.Run(test.name, func(_ *testing.T) {
 			r, _ := http.NewRequest(http.MethodGet, test.url, strings.NewReader(""))
 			maybeTime, err := ParseTime(r, test.fieldName, test.layouts)
-			assert.True((err == nil) != test.err)
-			assert.Equal(test.result, maybeTime)
+			assertTest.True((err == nil) != test.err)
+			assertTest.Equal(test.result, maybeTime)
 		})
 	}
 }

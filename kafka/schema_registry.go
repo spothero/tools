@@ -131,7 +131,7 @@ func (c *SchemaRegistryClient) GetSchema(ctx context.Context, id uint) (string, 
 	switch response.StatusCode {
 	case http.StatusOK:
 		var decodedResponse SchemaResponse
-		if err := json.NewDecoder(response.Body).Decode(&decodedResponse); err != nil {
+		if err = json.NewDecoder(response.Body).Decode(&decodedResponse); err != nil {
 			return "", err
 		}
 		return decodedResponse.Schema, nil
@@ -172,13 +172,13 @@ func (c *SchemaRegistryClient) CheckSchema(ctx context.Context, subject string, 
 	switch resp.StatusCode {
 	case http.StatusOK:
 		var schemaResponse = new(SchemaResponse)
-		if err := json.NewDecoder(resp.Body).Decode(schemaResponse); err != nil {
+		if err = json.NewDecoder(resp.Body).Decode(schemaResponse); err != nil {
 			return nil, err
 		}
 		return schemaResponse, nil
 	case http.StatusNotFound:
 		var decodedResponse errorResponse
-		if err := json.NewDecoder(resp.Body).Decode(&decodedResponse); err != nil {
+		if err = json.NewDecoder(resp.Body).Decode(&decodedResponse); err != nil {
 			return nil, err
 		}
 		return nil, fmt.Errorf("%s, error code %d", decodedResponse.Message, decodedResponse.ErrorCode)
@@ -219,7 +219,7 @@ func (c *SchemaRegistryClient) CreateSchema(ctx context.Context, subject string,
 	switch resp.StatusCode {
 	case http.StatusOK:
 		var schemaResponse = new(SchemaResponse)
-		if err := json.NewDecoder(resp.Body).Decode(schemaResponse); err != nil {
+		if err = json.NewDecoder(resp.Body).Decode(schemaResponse); err != nil {
 			return nil, err
 		}
 		return schemaResponse, nil
@@ -227,7 +227,7 @@ func (c *SchemaRegistryClient) CreateSchema(ctx context.Context, subject string,
 		return nil, fmt.Errorf("incompatible schema")
 	case http.StatusUnprocessableEntity:
 		var decodedResponse errorResponse
-		if err := json.NewDecoder(resp.Body).Decode(&decodedResponse); err != nil {
+		if err = json.NewDecoder(resp.Body).Decode(&decodedResponse); err != nil {
 			return nil, err
 		}
 		return nil, fmt.Errorf("%s, error code %d", decodedResponse.Message, decodedResponse.ErrorCode)

@@ -221,8 +221,8 @@ func TestMetricsRoundTrip(t *testing.T) {
 
 				if test.expectCircuitBreakErr {
 					// Check circuit-breaker counter
-					counter, err := metricsRT.Metrics.circuitBreakerOpen.GetMetricWith(prometheus.Labels{"host": ""})
-					assert.NoError(t, err)
+					counter, counterErr := metricsRT.Metrics.circuitBreakerOpen.GetMetricWith(prometheus.Labels{"host": ""})
+					assert.NoError(t, counterErr)
 					pb := &dto.Metric{}
 					assert.NoError(t, counter.Write(pb))
 					assert.Equal(t, 1, int(pb.Counter.GetValue()))

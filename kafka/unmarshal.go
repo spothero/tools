@@ -85,42 +85,42 @@ func unmarshalConnectMessageMap(messageMap map[string]interface{}, target interf
 			switch fieldKind {
 			case reflect.Bool:
 				// Booleans come through from Kafka Connect as int32, int64, or actual bools
-				if b, ok := kafkaValue.(int32); ok {
+				if b, int32OK := kafkaValue.(int32); int32OK {
 					field.SetBool(b > 0)
-				} else if b, ok := kafkaValue.(int64); ok {
+				} else if b, int64OK := kafkaValue.(int64); int64OK {
 					field.SetBool(b > 0)
-				} else if b, ok := kafkaValue.(float64); ok {
+				} else if b, float64OK := kafkaValue.(float64); float64OK {
 					field.SetBool(b > 0)
-				} else if b, ok := kafkaValue.(bool); ok {
+				} else if b, boolOK := kafkaValue.(bool); boolOK {
 					field.SetBool(b)
 				} else {
 					err = fmt.Errorf("couldn't set bool field with tag %s", tag)
 				}
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 				// Avro only has int32 and int64 values so we just need to check those
-				if i, ok := kafkaValue.(int32); ok {
+				if i, int32OK := kafkaValue.(int32); int32OK {
 					field.SetInt(int64(i))
-				} else if i, ok := kafkaValue.(int64); ok {
+				} else if i, int64OK := kafkaValue.(int64); int64OK {
 					field.SetInt(i)
-				} else if i, ok := kafkaValue.(float64); ok {
+				} else if i, float64OK := kafkaValue.(float64); float64OK {
 					field.SetInt(int64(i))
 				} else {
 					err = fmt.Errorf("couldn't set int field with tag %s", tag)
 				}
 			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-				if i, ok := kafkaValue.(int32); ok {
+				if i, int32OK := kafkaValue.(int32); int32OK {
 					field.SetUint(uint64(i))
-				} else if i, ok := kafkaValue.(int64); ok {
+				} else if i, int64OK := kafkaValue.(int64); int64OK {
 					field.SetUint(uint64(i))
-				} else if i, ok := kafkaValue.(float64); ok {
+				} else if i, float64OK := kafkaValue.(float64); float64OK {
 					field.SetUint(uint64(i))
 				} else {
 					err = fmt.Errorf("couldn't set uint field with tag %s", tag)
 				}
 			case reflect.Float32, reflect.Float64:
-				if i, ok := kafkaValue.(float32); ok {
+				if i, float32OK := kafkaValue.(float32); float32OK {
 					field.SetFloat(float64(i))
-				} else if i, ok := kafkaValue.(float64); ok {
+				} else if i, float64OK := kafkaValue.(float64); float64OK {
 					field.SetFloat(i)
 				} else {
 					err = fmt.Errorf("couldn't set float field with tag %s", tag)
@@ -134,13 +134,13 @@ func unmarshalConnectMessageMap(messageMap map[string]interface{}, target interf
 			case reflect.Struct:
 				if field.Type().String() == "time.Time" {
 					// times are encoded as int64 milliseconds in Avro
-					if t, ok := kafkaValue.(int64); ok {
+					if t, int64OK := kafkaValue.(int64); int64OK {
 						timeVal := time.Unix(0, t*1000000)
 						field.Set(reflect.ValueOf(timeVal))
-					} else if t, ok := kafkaValue.(float64); ok {
+					} else if t, float64OK := kafkaValue.(float64); float64OK {
 						timeVal := time.Unix(0, int64(t)*1000000)
 						field.Set(reflect.ValueOf(timeVal))
-					} else if t, ok := kafkaValue.(string); ok {
+					} else if t, stringOK := kafkaValue.(string); stringOK {
 						// try decoding as RFC3339 time string
 						timeVal, parseErr := time.Parse(time.RFC3339, t)
 						if parseErr == nil {

@@ -74,7 +74,7 @@ func TestConfigureTracer(t *testing.T) {
 				assert.NotNil(t, shutdown)
 				ctx := context.Background()
 				defer func() {
-					if err := shutdown(ctx); err != nil {
+					if err = shutdown(ctx); err != nil {
 						assert.Error(t, err)
 					}
 				}()

@@ -153,6 +153,8 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestEnforceAuthentication(t *testing.T) {
+	assertTest := assert.New(t)
+
 	tests := []struct {
 		name                   string
 		requestIsAuthenticated bool
@@ -177,8 +179,7 @@ func TestEnforceAuthentication(t *testing.T) {
 
 		authenticatedHandler := EnforceAuthentication(handler)
 
-		t.Run(test.name, func(t *testing.T) {
-			assert := assert.New(t)
+		t.Run(test.name, func(_ *testing.T) {
 			reqCtx := context.Background()
 
 			if test.requestIsAuthenticated {
@@ -186,21 +187,23 @@ func TestEnforceAuthentication(t *testing.T) {
 			}
 
 			request, err := http.NewRequestWithContext(reqCtx, "GET", "url", nil)
-			assert.NoError(err)
+			assertTest.NoError(err)
 			responseRecorder := httptest.NewRecorder()
 			authenticatedHandler(responseRecorder, request)
 			actualResponse := responseRecorder.Result()
 
 			if test.expectedAuthSuccess {
-				assert.Equal(http.StatusOK, actualResponse.StatusCode)
+				assertTest.Equal(http.StatusOK, actualResponse.StatusCode)
 			} else {
-				assert.Equal(http.StatusUnauthorized, actualResponse.StatusCode)
+				assertTest.Equal(http.StatusUnauthorized, actualResponse.StatusCode)
 			}
 		})
 	}
 }
 
 func TestEnforceAuthenticationWithAuthorization(t *testing.T) {
+	assertTest := assert.New(t)
+
 	tests := []struct {
 		authClaim              Auth0Claim
 		name                   string
@@ -258,8 +261,7 @@ func TestEnforceAuthenticationWithAuthorization(t *testing.T) {
 
 		authenticatedHandler := EnforceAuthenticationWithAuthorization(handler, test.authParams)
 
-		t.Run(test.name, func(t *testing.T) {
-			assert := assert.New(t)
+		t.Run(test.name, func(_ *testing.T) {
 			reqCtx := context.Background()
 
 			if test.requestIsAuthenticated {
@@ -271,15 +273,15 @@ func TestEnforceAuthenticationWithAuthorization(t *testing.T) {
 			}
 
 			request, err := http.NewRequestWithContext(reqCtx, "GET", "url", nil)
-			assert.NoError(err)
+			assertTest.NoError(err)
 			responseRecorder := httptest.NewRecorder()
 			authenticatedHandler(responseRecorder, request)
 			actualResponse := responseRecorder.Result()
 
 			if test.expectedAuthSuccess {
-				assert.Equal(http.StatusOK, actualResponse.StatusCode)
+				assertTest.Equal(http.StatusOK, actualResponse.StatusCode)
 			} else {
-				assert.Equal(http.StatusForbidden, actualResponse.StatusCode)
+				assertTest.Equal(http.StatusForbidden, actualResponse.StatusCode)
 			}
 		})
 	}
