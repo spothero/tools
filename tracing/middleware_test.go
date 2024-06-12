@@ -184,7 +184,7 @@ func TestGetCorrelationID(t *testing.T) {
 		assert.NotNil(t, correlationID)
 		assert.NotEqual(t, "", correlationID)
 
-		ctx := r.Context()
+		ctx = r.Context()
 		_correlationID := GetCorrelationID(ctx)
 		assert.NotNil(t, _correlationID)
 		assert.NotEqual(t, "", _correlationID)

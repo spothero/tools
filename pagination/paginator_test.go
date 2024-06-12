@@ -15,7 +15,7 @@ func (ts testStruct) ExtractID() string {
 }
 
 func TestMinInt(t *testing.T) {
-	assert := assert.New(t)
+	assertTest := assert.New(t)
 
 	tests := []struct {
 		name     string
@@ -46,13 +46,13 @@ func TestMinInt(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(_ *testing.T) {
 			actual := minInt(test.first, test.second)
-			assert.Equal(actual, test.expected)
+			assertTest.Equal(actual, test.expected)
 		})
 	}
 }
 
 func TestGetPageByID(t *testing.T) {
-	assert := assert.New(t)
+	assertTest := assert.New(t)
 
 	tests := []struct {
 		name        string
@@ -161,11 +161,11 @@ func TestGetPageByID(t *testing.T) {
 
 			var page []Pageable
 			if test.panicString == "" {
-				assert.NotPanics(func() {
+				assertTest.NotPanics(func() {
 					page = GetPageAfterID(elements, test.after, test.pageSize)
 				})
 			} else {
-				assert.PanicsWithValue(test.panicString, func() {
+				assertTest.PanicsWithValue(test.panicString, func() {
 					page = GetPageAfterID(elements, test.after, test.pageSize)
 				})
 			}
@@ -180,7 +180,7 @@ func TestGetPageByID(t *testing.T) {
 				actual[idx] = typed
 			}
 
-			assert.Equal(actual, test.expected)
+			assertTest.Equal(actual, test.expected)
 		})
 	}
 }

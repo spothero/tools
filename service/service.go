@@ -131,7 +131,7 @@ func (c Config) ServerCmd(
 				return err
 			}
 			defer func() {
-				err := shutdown(ctx)
+				err = shutdown(ctx)
 				if err != nil {
 					return
 				}
@@ -191,10 +191,10 @@ func (c Config) ServerCmd(
 			)
 
 			if c.PreStart != nil {
-				var err error
-				ctx, err = c.PreStart(ctx)
-				if err != nil {
-					return err
+				var preStartErr error
+				ctx, preStartErr = c.PreStart(ctx)
+				if preStartErr != nil {
+					return preStartErr
 				}
 			}
 
@@ -207,9 +207,9 @@ func (c Config) ServerCmd(
 				// reference:f9d302c2-df3f-4110-9529-94b0515c4a17
 				// Follow-up: https://spothero.atlassian.net/browse/PMP-402
 				grpcConfig.ServerRegistration = newGRPCService(c).RegisterAPIs
-				grpcDone, err := grpcConfig.NewServer().Run()
-				if err != nil {
-					return err
+				grpcDone, grpcErr := grpcConfig.NewServer().Run()
+				if grpcErr != nil {
+					return grpcErr
 				}
 				wg.Add(1)
 				go func() {
@@ -229,7 +229,7 @@ func (c Config) ServerCmd(
 
 			wg.Wait()
 			if c.PostShutdown != nil {
-				if err := c.PostShutdown(ctx); err != nil {
+				if err = c.PostShutdown(ctx); err != nil {
 					return err
 				}
 			}

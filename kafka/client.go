@@ -69,9 +69,9 @@ func (c *Config) populateSaramaConfig(ctx context.Context) error {
 		}
 		c.Net.TLS.Enable = true
 		if c.TLSCaCrtPath != "" {
-			caCert, err := os.ReadFile(c.TLSCaCrtPath)
-			if err != nil {
-				return fmt.Errorf("failed to load Kafka CA certificate: %w", err)
+			caCert, readErr := os.ReadFile(c.TLSCaCrtPath)
+			if readErr != nil {
+				return fmt.Errorf("failed to load Kafka CA certificate: %w", readErr)
 			}
 			if len(caCert) > 0 {
 				caCertPool := x509.NewCertPool()

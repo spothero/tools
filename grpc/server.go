@@ -127,7 +127,7 @@ func (s Server) Run() (chan bool, error) {
 	}
 	go func() {
 		log.Get(ctx).Info(fmt.Sprintf("grpc server started on %s", s.listenAddress))
-		err := s.server.Serve(listener)
+		err = s.server.Serve(listener)
 		if err != nil {
 			log.Get(ctx).Error("error encountered in grpc server", zap.Error(err))
 		} else {
