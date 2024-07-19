@@ -61,7 +61,7 @@ func HTTPServerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
 		httpLogger := Get(r.Context()).Named("http").With(getFields(r)...)
-		httpLogger.Info("http request received")
+		httpLogger.Debug("http request received")
 		defer func() {
 			var responseCodeField zap.Field
 			if statusRecorder, ok := w.(*writer.StatusRecorder); ok {
@@ -70,7 +70,7 @@ func HTTPServerMiddleware(next http.Handler) http.Handler {
 				responseCodeField = zap.Skip()
 			}
 			httpLogger = httpLogger.With(responseCodeField, zap.Duration("http.duration", time.Since(startTime)))
-			httpLogger.Info("http response returned")
+			httpLogger.Debug("http response returned")
 			r = r.WithContext(NewContext(r.Context(), httpLogger))
 		}()
 		// ensure that a logger is present for downstream handlers in the request context
@@ -110,7 +110,7 @@ func (rt RoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	}
 
 	httpLogger = httpLogger.With(zap.Int("http.status_code", resp.StatusCode), zap.Duration("http.duration", time.Since(startTime)))
-	httpLogger.Info("http request completed")
+	httpLogger.Debug("http request completed")
 	return resp, err
 }
 
